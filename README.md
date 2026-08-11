@@ -38,7 +38,7 @@ Open `index.html` directly, or `python3 -m http.server` and visit it. The contro
 - **export a GIF** — width and frame rate selectable
 
 Both fields warn when the text outruns its room: the query when it reaches the AI Mode button,
-the answer when it passes the legal line.
+the answer when it passes the bottom of its measured column.
 
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
@@ -89,8 +89,8 @@ Two first readings the measurements overturned:
 
 - **There is no white flash layer.** Frame means run `.968 .951 .930 .942 .991 .984`. The dip
   is the swollen near-white chip covering the frame; the spike on 136 is that chip *leaving*
-  before the answer has faded up. On frames 135–136 the only genuinely dark thing on screen is
-  the legal line.
+  before the answer has faded up. On frames 135–136 the only genuinely dark thing in the plate
+  is its legal line, which this recreation no longer draws.
 - **The answer does not stream in word by word.** It looks like it, but measuring each block's
   darkness independently of its position shows every block on one identical ramp. It is a plain
   fade-up with a faint top-down gradient.

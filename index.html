@@ -21,7 +21,7 @@
     /* ---- every value below was measured off the source footage ---- */
     --blue:#3186FF; --red:#FC413D; --yellow:#FEC700; --green:#00AF57;
     --ink:#111; --bar-border:#ebebeb; --chip:#f5f6f8; --chip2:#f1f2f6;
-    --nav-ink:#535353; --rule:#ebebeb; --legal:#5f6368;
+    --nav-ink:#535353; --rule:#ebebeb;
     --side-icon:0.975;        /* sidebar icons, against the plate's size */
     --font: "Google Sans Flex",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   }
@@ -149,8 +149,6 @@
      SemiBold, not Bold. At 700 it came out 8.0px, visibly too thick.     */
   .body h2{font-size:46.22px;font-weight:600;line-height:1;margin:50.7px 0 0}
   .body h2 + p{margin-top:49.3px}
-  .legal{left:0;top:1039px;width:1920px;text-align:center;
-         font-size:16.94px;font-weight:400;color:var(--legal)}
 
   .w{color:#000}                       /* answer word, post-reveal */
 
@@ -220,8 +218,6 @@
       <div class="row qchip" data-rise="44" data-t=".03" data-f0="5.672" data-fd=".29"><span id="qq">what is the most popular sport in the world</span></div>
 
       <div class="row body" data-rise="48" data-t=".07"></div>
-
-      <div class="row legal" data-rise="20" data-t=".07" data-f0="5.51" data-fd=".16">Sequences shortened and results for illustrative purposes throughout. Screen images simulated. Google Account and eligible plan required.</div>
     </div>
 
     <!-- ─────────────────────── ACT 1 ─────────────────────── -->
@@ -642,7 +638,9 @@ function relineAnswer(){
   LINE_GROUPS.forEach(g => { g.op = -1; });       // cache, so we only write on change
 }
 
-/* how far the answer runs past the room above the legal line */
+/* How far the answer runs past its room. The 1010 limit is where the plate's
+   legal line left off; that line is no longer drawn, but the bound it implies
+   is still the measured bottom of the answer's column, so it stands. */
 function answerOverflowPx(){
   return Math.max(0, (460 + bodyEl.offsetHeight) - 1010);
 }
@@ -891,8 +889,9 @@ function render(t){
      Frame means run .968 .951 .930 .942 .991 .984. The dip is the swollen
      chip (#f5f6f8 with its smeared text) covering the frame; the spike on
      136 is that chip leaving before the answer has faded up. On 135 and
-     136 the only genuinely dark thing in frame is the legal line — so
-     there is nothing here for a white layer to do.                     */
+     136 the only genuinely dark thing in the plate is its legal line, and
+     that line is gone from this recreation — so there is even less here
+     for a white layer to do than the measurement already showed.        */
 
   /* ── the answer settling up out of the white ──────────────────────── */
   /* Positions: one shared exponential, τ = 0.253 s (0.835 per frame).
@@ -947,7 +946,7 @@ $a.value = ANSWER_REF;
 function applyAnswer(){
   buildAnswer($a.value);
   const over = answerOverflowPx();
-  $aw.textContent = over > 0 ? `${Math.round(over)}px past the legal line` : "";
+  $aw.textContent = over > 0 ? `${Math.round(over)}px past the column` : "";
   render(hold !== null ? hold : 0);
 }
 $a.addEventListener("input", () => {
