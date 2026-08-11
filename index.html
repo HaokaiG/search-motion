@@ -131,8 +131,11 @@
   /* hugs its text so an edited query still reads as a chat bubble. Measured
      at the reference string: ink 903…1635 inside a pill 857…1679, i.e. 45px
      of padding and a right edge pinned 241px from frame right.           */
+  /* The plate squares off the corner nearest the sender: scanning the fill
+     boundary, the right edge reaches full width within 4px of the top while
+     the left takes ~40px, and both bottom corners take ~40px too.        */
   .qchip{right:241px;top:288px;height:102px;padding:0 45px;
-         background:var(--chip2);border-radius:51px;
+         background:var(--chip2);border-radius:51px 10px 51px 51px;
          display:grid;place-items:center;
          font-size:38.22px;font-weight:400;color:#1f1f1f;white-space:pre}
   /* Flow layout, not absolute: the answer is editable, so the blocks have
