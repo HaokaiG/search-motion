@@ -22,6 +22,7 @@
     --blue:#3186FF; --red:#FC413D; --yellow:#FEC700; --green:#00AF57;
     --ink:#111; --bar-border:#ebebeb; --chip:#f5f6f8; --chip2:#f1f2f6;
     --nav-ink:#535353; --rule:#ebebeb; --legal:#5f6368;
+    --side-icon:0.9;          /* sidebar icons, against the plate's size */
     --font: "Google Sans Flex",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -111,7 +112,18 @@
             border-bottom:0}
   .nav .car.on{color:#1f1f1f}
   .rule{left:240px;top:203px;width:1440px;height:2px;background:var(--rule)}
+  /* The plate has these at 37x33 (menu, centre 101.5/307.5) and 41x41
+     (edit, centre 103.5/421.5). --side-icon trims them about those centres,
+     so they shrink in place rather than drifting.                        */
   .sideicon{position:absolute}
+  .sideicon.menu{width:calc(37px * var(--side-icon));
+                 height:calc(33px * var(--side-icon));
+                 left:calc(101.5px - 18.5px * var(--side-icon));
+                 top:calc(307.5px - 16.5px * var(--side-icon))}
+  .sideicon.edit{width:calc(41px * var(--side-icon));
+                 height:calc(41px * var(--side-icon));
+                 left:calc(103.5px - 20.5px * var(--side-icon));
+                 top:calc(421.5px - 20.5px * var(--side-icon))}
   /* hugs its text so an edited query still reads as a chat bubble. Measured
      at the reference string: ink 903…1635 inside a pill 857…1679, i.e. 45px
      of padding and a right edge pinned 241px from frame right.           */
@@ -189,16 +201,12 @@
       <div class="row rule" data-rise="43" data-t="0" data-f0="5.756" data-fd=".06"></div>
 
       <!-- supplied icon.svg / edit_square.svg, at the measured boxes -->
-      <svg class="row sideicon" data-rise="27" data-t="0"
-           data-f0="5.756" data-fd=".06"
-           style="left:83px;top:291px;width:37px;height:33px"
-           viewBox="0 0 36 32">
+      <svg class="row sideicon menu" data-rise="27" data-t="0"
+           data-f0="5.756" data-fd=".06" viewBox="0 0 36 32">
         <path d="M27.9 32C27.87 32 27.75 31.9111 27.54 31.7333C27.06 29.9259 26.145 28.3704 24.795 27.0667C23.475 25.7333 21.9 24.8296 20.07 24.3556C20.01 24.3259 19.92 24.2074 19.8 24C19.8 23.9407 19.89 23.8222 20.07 23.6444C21.9 23.1704 23.475 22.2815 24.795 20.9778C26.145 19.6444 27.06 18.0741 27.54 16.2667C27.57 16.2074 27.69 16.1185 27.9 16C27.96 16 28.08 16.0889 28.26 16.2667C28.77 18.0741 29.685 19.6444 31.005 20.9778C32.325 22.2815 33.9 23.1704 35.73 23.6444C35.79 23.6444 35.88 23.763 36 24C36 24.0296 35.91 24.1481 35.73 24.3556C33.9 24.8296 32.31 25.7333 30.96 27.0667C29.64 28.3704 28.74 29.9259 28.26 31.7333C28.26 31.7926 28.14 31.8815 27.9 32ZM0 21.3333V17.7778H16.2V21.3333H0ZM0 12.4444V8.88889H32.4V12.4444H0ZM0 3.55555V0H32.4V3.55555H0Z" fill="#3c4043"/>
       </svg>
-      <svg class="row sideicon" data-rise="27" data-t="0"
-           data-f0="5.756" data-fd=".06"
-           style="left:83px;top:401px;width:41px;height:41px"
-           viewBox="0 0 39 39">
+      <svg class="row sideicon edit" data-rise="27" data-t="0"
+           data-f0="5.756" data-fd=".06" viewBox="0 0 39 39">
         <path d="M3.9 39C2.8275 39 1.90938 38.6186 1.14563 37.8558C0.381875 37.093 0 36.176 0 35.1049V7.83895C0 6.76779 0.381875 5.85081 1.14563 5.08802C1.90938 4.32522 2.8275 3.94382 3.9 3.94382H21.3038L17.4038 7.83895H3.9V35.1049H31.2V21.5693L35.1 17.6742V35.1049C35.1 36.176 34.7181 37.093 33.9544 37.8558C33.1906 38.6186 32.2725 39 31.2 39H3.9ZM11.7 27.3146V19.0375L29.5913 1.16854C29.9813 0.779026 30.42 0.486891 30.9075 0.292135C31.395 0.0973783 31.8825 0 32.37 0C32.89 0 33.3856 0.0973783 33.8569 0.292135C34.3281 0.486891 34.7588 0.779026 35.1488 1.16854L37.8788 3.94382C38.2363 4.33333 38.5125 4.76342 38.7075 5.23408C38.9025 5.70474 39 6.18352 39 6.67041C39 7.1573 38.9106 7.63608 38.7319 8.10674C38.5531 8.5774 38.2688 9.00749 37.8788 9.397L19.9875 27.3146H11.7ZM15.6 23.4195H18.33L29.64 12.1236L28.275 10.7603L26.8613 9.397L15.6 20.6442V23.4195Z" fill="#3c4043"/>
       </svg>
 
