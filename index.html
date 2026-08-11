@@ -102,9 +102,14 @@
        font-size:35.34px;font-weight:400;color:var(--nav-ink);white-space:pre}
   .nav .it{position:absolute;top:0}
   .nav .it.on{color:#1f1f1f;font-weight:500}
-  /* plate has the caret at y 99…108, 20px wide; it was sitting 3px high */
+  /* plate has the caret at y 99…108, 20px wide; it was sitting 3px high.
+     Each caret takes its own label's colour — measured on the plate, the
+     AI Mode pair is rgb(0,0,0)/rgb(16,16,16) and the More pair
+     rgb(79,79,79)/rgb(87,87,87), so they match within the JPEG's noise. */
   .nav .car{position:absolute;top:18.5px;width:0;height:0;
-            border:11.5px solid transparent;border-top-color:#5f6368;border-bottom:0}
+            border:11.5px solid transparent;border-top-color:currentColor;
+            border-bottom:0}
+  .nav .car.on{color:#1f1f1f}
   .rule{left:240px;top:203px;width:1440px;height:2px;background:var(--rule)}
   .sideicon{position:absolute}
   /* hugs its text so an edited query still reads as a chat bubble. Measured
@@ -172,7 +177,7 @@
 
       <div class="row nav" data-rise="43" data-t="0" data-f0="5.756" data-fd=".06">
         <span class="it on" style="left:241px">AI Mode</span>
-        <span class="car"   style="left:393px"></span>
+        <span class="car on" style="left:393px"></span>
         <span class="it"    style="left:473px">All</span>
         <span class="it"    style="left:570px">Images</span>
         <span class="it"    style="left:741px">Videos</span>
