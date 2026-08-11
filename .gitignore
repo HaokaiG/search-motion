@@ -1,0 +1,8 @@
+# the source advertisement and any side-by-side built from it are Google's
+# copyright — keep them out of the repo
+videoplayback*.mp4
+comparison.mp4
+frames/
+render/
+
+.DS_Store
