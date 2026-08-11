@@ -144,7 +144,8 @@
        letter-spacing:0;line-height:1.5;font-family:var(--font)}
   #hud #awarn{color:#e0a33a;text-transform:none;letter-spacing:0}
   #hud input:focus,#hud select:focus{outline:none;border-color:#4a4a58}
-  #hud #qwarn{color:#e0a33a;text-transform:none;letter-spacing:0}
+  #hud #qwarn{color:#8a8a92;text-transform:none;letter-spacing:0;
+       font-variant-numeric:tabular-nums}
   #hud #gstat{color:#7ac0a0;text-transform:none;letter-spacing:0;min-width:8ch}
   #hud button{font:inherit;letter-spacing:inherit;text-transform:inherit;
        background:#1b1b20;color:#c9c9d1;border:1px solid #2c2c34;border-radius:999px;
@@ -372,7 +373,13 @@ const PAN = [
   1615,1619,1623,1626,1629,1632,1634,1636,1637,1638,1639,1639,1639,1639,1639,
   1639,1639,1639,1639
 ];
-const PAN_END = PAN[PAN.length - 1];               // 1639 px
+const PAN_REF = PAN[PAN.length - 1];               // 1639 px at the reference
+/* The measured curve is a shape; the distance it covers is whatever it takes
+   to land the bar's right cap on screen x=1236, which is where the plate
+   parks it. A shorter question means a shorter bar and a shorter move — and
+   because the typing always spans frames 26…108 whatever its length, the
+   move stays locked to the progression of the text.                       */
+let   PAN_END = PAN_REF;
 const SHUTTER = 60 / 360;          // measured off the moving edges, see below
 
 /* ── typing ────────────────────────────────────────────────────────────────
@@ -400,8 +407,8 @@ const BLINK_HALF = 8;              // 8 frames on / 8 off  (0.667 s cycle)
    frame by frame from 34 until it is gone on 45. Head ≈800 px/frame, tail
    ≈310 px/frame along a 5349 px perimeter. The colour ramp itself also slides
    right at ≈48 px/frame over a ~1300 px span.                              */
-const BEAM_SEG  = [[0, 2313], [2313, 2674.3], [2674.3, 4987.3]];  // bot,cap,top
-const BEAM_P    = 4987.3;
+let   BEAM_SEG  = [[0, 2313], [2313, 2674.3], [2674.3, 4987.3]];  // bot,cap,top
+let   BEAM_P    = 4987.3;
 const BEAM_HEAD = [16.67, 800];    // [frame at arc 0, arc-px per frame]
 const BEAM_TAIL = [31.09, 310];
 const BEAM_DRIFT= 47;              // the ramp itself slides forward this fast
@@ -485,19 +492,60 @@ function setQuery(str){
   TYPE_FRAMES = scheduleFor(str);
   TYPE_END    = TYPE_FRAMES[TYPE_FRAMES.length - 1] + 1;
   qtext.dataset.n = "";                       // force the typist to redraw
-  const chip = document.getElementById("qq");
-  if (chip) chip.textContent = str;           // act 2 echoes the same query
-  return overflowPx();
+  const chipEcho = document.getElementById("qq");
+  if (chipEcho) chipEcho.textContent = str;   // act 2 echoes the same query
+  qtext.textContent = str;                    // measure at full length
+  const geo = layoutBar();
+  qtext.dataset.n = "";
+  return geo;
 }
-/* how far the finished string runs past the room before the AI Mode chip */
-function overflowPx(){
+/* ── the bar sizes itself to the question ───────────────────────────────
+   Measured on the plate: the query ink ends at 2258, the chip runs
+   2375…2830, and the bar's right cap is at 2875. So the bar's right edge is
+   the text end plus 617 (117 of gap, the 455 chip, 45 to the cap) and the
+   chip hangs 500 in from that edge. Both fall out of the reference numbers
+   exactly. Everything downstream — the pan distance, the beam's perimeter —
+   is then derived rather than baked.                                      */
+const BAR_LEFT = 328, TEXT_LEFT = 516, CAP_R = 115;
+/* 117 in the plate is measured from the query's INK end; textEndPx uses the
+   advance, which runs 6px further on the reference, so the gap is 111.   */
+const CHIP_W = 455, CHIP_GAP = 111, CHIP_TO_CAP = 45;
+const BAR_MIN_RIGHT = 1700;      // keeps a plausible box for a short question
+const PARK_X = 1236;             // where the plate parks the bar's right cap
+
+function textEndPx(){
   const probe = qtext.cloneNode(false);
   probe.textContent = QUERY;
   probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre";
   qtext.parentNode.appendChild(probe);
   const w = probe.offsetWidth;
   probe.remove();
-  return Math.max(0, (516 + w) - 2340);       // chip fill starts at 2375
+  return TEXT_LEFT + w;
+}
+
+function layoutBar(){
+  const barRight = Math.max(BAR_MIN_RIGHT,
+                            textEndPx() + CHIP_GAP + CHIP_W + CHIP_TO_CAP);
+  bar.style.width  = (barRight - BAR_LEFT) + "px";
+  chip.style.left  = (barRight - CHIP_TO_CAP - CHIP_W) + "px";
+  PAN_END = Math.max(0, barRight - PARK_X);
+
+  /* the beam traces the bar's border centre-line, so its path and its arc
+     lengths move with the width                                          */
+  const L = BAR_LEFT + CAP_R + 2, R = barRight - CAP_R - 2;   // cap centres
+  const straight = R - L, cap = Math.PI * CAP_R;
+  BEAM_SEG = [[0, straight], [straight, straight + cap], [straight + cap, 2 * straight + cap]];
+  BEAM_P   = 2 * straight + 2 * cap;
+  beamPaths[0].setAttribute("d", `M${R} 652 L${L} 652`);
+  beamPaths[1].setAttribute("d", `M${L} 652 A${CAP_R} ${CAP_R} 0 0 1 ${L} 422`);
+  beamPaths[2].setAttribute("d", `M${L} 422 L${R} 422`);
+  for (let i = 0; i < 3; i++)
+    beamPaths[i + 3].setAttribute("d", beamPaths[i].getAttribute("d"));
+  gBot.setAttribute("x1", R + BEAM_PAD); gBot.setAttribute("x2", L - BEAM_PAD);
+  gTop.setAttribute("x1", L - BEAM_PAD); gTop.setAttribute("x2", R + BEAM_PAD);
+  beamSvg.setAttribute("viewBox", `300 370 ${barRight - 260} 340`);
+  beamSvg.style.width = (barRight - 260) + "px";
+  return { barRight, pan: PAN_END };
 }
 
 /* ══════════════════════════ build the answer text ═══════════════════════
@@ -588,7 +636,11 @@ const world  = document.getElementById("world");
 const chip   = document.getElementById("aichip");
 const act2   = document.getElementById("act2");
 const blurG  = document.getElementById("mblurG");
+const bar       = document.querySelector(".bar");
 const beam      = document.querySelector(".beam");
+const beamSvg   = beam;
+const gBot      = document.getElementById("gBot");
+const gTop      = document.getElementById("gTop");
 const beamPaths = [...document.querySelectorAll(".beam .bp")];
 /* one <stop> per ramp knot in each of the three sub-path gradients */
 function rampStops(id, reps, ramp){
@@ -640,9 +692,10 @@ function paintRamp(grads, segs, shift, scale, pad, ramp, cycle){
 function panAt(t){
   const f = t * FPS;
   if (f <= 0) return 0;
+  const k = PAN_END / PAN_REF;
   if (f >= PAN.length - 1) return PAN_END;
   const i = Math.floor(f);
-  return lerp(PAN[i], PAN[i + 1], f - i);
+  return lerp(PAN[i], PAN[i + 1], f - i) * k;
 }
 
 let t0 = performance.now();
@@ -788,10 +841,8 @@ function render(t){
 /* ══════════════════════════ editing the query ═══════════════════════════ */
 const $q = document.getElementById("qin"), $qw = document.getElementById("qwarn");
 function applyQuery(){
-  const over = setQuery($q.value);
-  $qw.textContent = over > 0
-    ? `${Math.round(over)}px past the AI Mode button — shorten it`
-    : "";
+  const geo = setQuery($q.value);
+  $qw.textContent = `bar ${Math.round(geo.barRight - 328)}px · pan ${Math.round(geo.pan)}px`;
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
 }
@@ -1019,10 +1070,8 @@ function boot(){
   refit();                                   // text metrics must be final first
   if (Q.has("a")) $a.value = Q.get("a");     // #a=… carries edited answer copy
   buildAnswer($a.value);
-  if (Q.has("q")){                           // #q=… carries an edited query
-    $q.value = Q.get("q");
-    applyQuery();
-  }
+  if (Q.has("q")) $q.value = Q.get("q");     // #q=… carries an edited query
+  applyQuery();                              // always: it sizes the bar
   render(hold !== null ? hold : 0);
 }
 boot();
