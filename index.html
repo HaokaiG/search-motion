@@ -259,10 +259,10 @@
           <linearGradient id="gCap" gradientUnits="userSpaceOnUse" x1="0" y1="692" x2="0"     y2="382"></linearGradient>
           <linearGradient id="gTop" gradientUnits="userSpaceOnUse" x1="405"  y1="0" x2="2798" y2="0"></linearGradient>
           <filter id="bloom" x="-8%" y="-60%" width="116%" height="220%">
-            <feGaussianBlur stdDeviation="11"/>
+            <feGaussianBlur id="beamBlurF" stdDeviation="16"/>
           </filter>
         </defs>
-        <g class="bg" filter="url(#bloom)" opacity=".62" stroke-width="19">
+        <g id="beamBloom" class="bg" filter="url(#bloom)" opacity=".62" stroke-width="28">
           <path class="bp" d="M2758 652 L445 652"                    stroke="url(#gBot)"/>
           <path class="bp" d="M445 652 A115 115 0 0 1 445 422"       stroke="url(#gCap)"/>
           <path class="bp" d="M445 422 L2758 422"                    stroke="url(#gTop)"/>
@@ -289,10 +289,10 @@
             <linearGradient id="cgB" gradientUnits="userSpaceOnUse" x1="390" y1="0" x2="65"  y2="0"></linearGradient>
             <linearGradient id="cgL" gradientUnits="userSpaceOnUse" x1="0" y1="170" x2="0" y2="-12"></linearGradient>
             <filter id="cbloom" x="-20%" y="-70%" width="140%" height="240%">
-              <feGaussianBlur stdDeviation="7"/>
+              <feGaussianBlur id="ringBlurF" stdDeviation="6"/>
             </filter>
           </defs>
-          <g class="cg" filter="url(#cbloom)" opacity=".55" stroke-width="11">
+          <g id="ringBloom" class="cg" filter="url(#cbloom)" opacity=".55" stroke-width="9.5">
             <path class="cp" d="M79 2 L376 2"                stroke="url(#cgT)"/>
             <path class="cp" d="M376 2 A77 77 0 0 1 376 156" stroke="url(#cgR)"/>
             <path class="cp" d="M376 156 L79 156"            stroke="url(#cgB)"/>
@@ -435,6 +435,9 @@ let   BEAM_P    = 4987.3;
 const BEAM_HEAD = [16.67, 800];    // [frame at arc 0, arc-px per frame]
 const BEAM_TAIL = [31.09, 310];
 const BEAM_DRIFT= 47;              // the ramp itself slides forward this fast
+const BEAM_TAILPUSH = 30;          // bloom starts this far behind the tail,
+                                   // capped at a third of the run so a short
+                                   // trace does not lose its glow entirely
 const BEAM_PAD  = 40;              // gradients run PAST each sub-path's ends so
                                    // the clamped stops never land on the seam
 /* colour vs arc length, read straight off frame 30 */
@@ -678,6 +681,10 @@ const beamSvg   = beam;
 const gBot      = document.getElementById("gBot");
 const gTop      = document.getElementById("gTop");
 const logoG     = document.getElementById("logoG");
+const beamBloom = document.getElementById("beamBloom");
+const beamBlurF = document.getElementById("beamBlurF");
+const ringBloom = document.getElementById("ringBloom");
+const ringBlurF = document.getElementById("ringBlurF");
 const beamPaths = [...document.querySelectorAll(".beam .bp")];
 /* one <stop> per ramp knot in each of the three sub-path gradients */
 function rampStops(id, reps, ramp){
@@ -782,6 +789,19 @@ function render(t){
   const bh = clamp((f - BEAM_HEAD[0]) * BEAM_HEAD[1], 0, BEAM_P);
   const bt = clamp((f - BEAM_TAIL[0]) * BEAM_TAIL[1], 0, BEAM_P);
   const beamOn = bh > 0 && bt < BEAM_P;
+  /* Measured perpendicular spread of the glow above the bar's top edge: it
+     runs ~19px just behind the tail and reaches ~36 about 600px back, and
+     once the lit run is short — the last few frames — the whole glow drops
+     to ~19-24. So the bloom scales with the length of the lit run, and its
+     dash starts BEAM_TAILPUSH behind the tail so the trailing end carries
+     little of it.                                                        */
+  const litLen = Math.max(0, bh - bt);
+  /* The shrink is tied to the exit, not to the arc still lit — most of that
+     run is off-screen by then. Measured mid-edge spread over the last frames
+     is 36, 30, 24, 19 on 40-44, which this ramp tracks.                   */
+  const glowK  = clamp(1 - (f - 41) * 0.1375, 0.45, 1);
+  beamBloom.setAttribute("stroke-width", (28 * glowK).toFixed(1));
+  beamBlurF.setAttribute("stdDeviation", (16 * glowK).toFixed(1));
   beam.style.display = beamOn ? "" : "none";
   if (beamOn){
     const shift = BEAM_DRIFT * (f - 30);
@@ -790,12 +810,13 @@ function render(t){
       /* dash + negative dashoffset, never a leading zero-length dash: with
          round caps Chrome paints that as a dot in the gradient's first
          stop colour, which puts a blue pip on the cap junction.          */
-      const da = `${Math.max(0, to - from).toFixed(1)} ${BEAM_P}`;
-      const off = (-(from - a0)).toFixed(1);
-      [beamPaths[i], beamPaths[i + 3]].forEach(p => {
-        p.setAttribute("stroke-dasharray", da);
-        p.setAttribute("stroke-dashoffset", off);
-      });
+      const set = (p, f0) => {
+        p.setAttribute("stroke-dasharray", `${Math.max(0, to - f0).toFixed(1)} ${BEAM_P}`);
+        p.setAttribute("stroke-dashoffset", (-(f0 - a0)).toFixed(1));
+      };
+      const push = Math.min(BEAM_TAILPUSH, litLen / 3);
+      set(beamPaths[i], Math.max(from, Math.min(bt + push, to)));            // bloom
+      set(beamPaths[i + 3], from);                                          // core
     });
     paintRamp(beamGrads, BEAM_SEG, -shift, 1, BEAM_PAD, BEAM_RAMP, 0);
   }
@@ -804,6 +825,10 @@ function render(t){
   const ringOp = sat((f - RING_ON[0]) / (RING_ON[1] - RING_ON[0]))
                * (1 - sat((f - RING_OFF[0]) / (RING_OFF[1] - RING_OFF[0])));
   ring.style.opacity = ringOp.toFixed(3);
+  /* the plate's ring glow spreads ~2-4px as it arrives and leaves against
+     ~12 at its peak, so the radius rides the same envelope as the opacity */
+  ringBloom.setAttribute("stroke-width", (9.5 * ringOp).toFixed(2));
+  ringBlurF.setAttribute("stdDeviation", (6 * ringOp).toFixed(2));
   if (ringOp > 0.002)
     paintRamp(ringGrads, RING_SEG,
               RING_PHASE + RING_DRIFT * (f - 120) + 1250,
