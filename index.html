@@ -22,7 +22,7 @@
     --blue:#3186FF; --red:#FC413D; --yellow:#FEC700; --green:#00AF57;
     --ink:#111; --bar-border:#ebebeb; --chip:#f5f6f8; --chip2:#f1f2f6;
     --nav-ink:#535353; --rule:#ebebeb; --legal:#5f6368;
-    --side-icon:0.925;        /* sidebar icons, against the plate's size */
+    --side-icon:1;            /* sidebar icons, against the plate's size */
     --font: "Google Sans Flex",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -120,10 +120,13 @@
                  height:calc(33px * var(--side-icon));
                  left:calc(101.5px - 18.5px * var(--side-icon));
                  top:calc(307.5px - 16.5px * var(--side-icon))}
+  /* 423.5, not the 421.5 the ink centres on: measured across three
+     thresholds the gap between the two icons is 80-82px in the plate and
+     was coming out 77-79 here, so the edit icon sits 2px lower.         */
   .sideicon.edit{width:calc(41px * var(--side-icon));
                  height:calc(41px * var(--side-icon));
                  left:calc(103.5px - 20.5px * var(--side-icon));
-                 top:calc(421.5px - 20.5px * var(--side-icon))}
+                 top:calc(423.5px - 20.5px * var(--side-icon))}
   /* hugs its text so an edited query still reads as a chat bubble. Measured
      at the reference string: ink 903…1635 inside a pill 857…1679, i.e. 45px
      of padding and a right edge pinned 241px from frame right.           */
