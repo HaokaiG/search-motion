@@ -111,14 +111,17 @@
          background:var(--chip2);border-radius:51px;
          display:grid;place-items:center;
          font-size:38.22px;font-weight:400;color:#1f1f1f;white-space:pre}
-  .body{left:241px;top:460px;width:1400px;font-size:37.97px;
+  /* Flow layout, not absolute: the answer is editable, so the blocks have
+     to push each other down. Column width 1290 reproduces the plate's line
+     breaks for the reference copy (its longest line is 1279).            */
+  .body{left:241px;top:460px;width:1290px;font-size:37.97px;
         font-weight:400;color:#000}
-  .body p{white-space:pre;line-height:53.7px}
+  .body p{line-height:53.7px;margin:0}
+  .body p + p{margin-top:49.3px}
   /* the plate's heading stems measure 7.0px against 4.0px body — that is
      SemiBold, not Bold. At 700 it came out 8.0px, visibly too thick.     */
-  .body h2{white-space:pre;font-size:46.22px;font-weight:600;line-height:1;
-           position:absolute;left:0;top:265.5px}
-  #p2{position:absolute;left:0;top:361px}
+  .body h2{font-size:46.22px;font-weight:600;line-height:1;margin:50.7px 0 0}
+  .body h2 + p{margin-top:49.3px}
   .legal{left:0;top:1039px;width:1920px;text-align:center;
          font-size:16.94px;font-weight:400;color:var(--legal)}
 
@@ -137,6 +140,9 @@
        background:#151519;color:#e8e8ef;border:1px solid #2c2c34;border-radius:7px;
        padding:8px 10px}
   #hud input{width:min(46vw,520px);text-transform:none;letter-spacing:0}
+  #hud textarea{width:min(56vw,660px);resize:vertical;text-transform:none;
+       letter-spacing:0;line-height:1.5;font-family:var(--font)}
+  #hud #awarn{color:#e0a33a;text-transform:none;letter-spacing:0}
   #hud input:focus,#hud select:focus{outline:none;border-color:#4a4a58}
   #hud #qwarn{color:#e0a33a;text-transform:none;letter-spacing:0}
   #hud #gstat{color:#7ac0a0;text-transform:none;letter-spacing:0;min-width:8ch}
@@ -189,11 +195,7 @@
 
       <div class="row qchip" data-rise="44" data-t=".03" data-f0="5.672" data-fd=".29"><span id="qq">what is the most popular sport in the world</span></div>
 
-      <div class="row body" data-rise="48" data-t=".07">
-        <p id="p1"></p>
-        <h2 id="hh" class="ln">Global Rankings by Fan Base</h2>
-        <p id="p2"></p>
-      </div>
+      <div class="row body" data-rise="48" data-t=".07"></div>
 
       <div class="row legal" data-rise="20" data-t=".07" data-f0="5.51" data-fd=".16">Sequences shortened and results for illustrative purposes throughout. Screen images simulated. Google Account and eligible plan required.</div>
     </div>
@@ -308,6 +310,11 @@
     <input id="qin" type="text" spellcheck="false"
            value="what is the most popular sport in the world">
     <span id="qwarn"></span>
+  </div>
+  <div class="hrow">
+    <label for="ain">Answer</label>
+    <textarea id="ain" rows="3" spellcheck="false"></textarea>
+    <span id="awarn"></span>
   </div>
   <div class="hrow">
     <button id="replay">Replay</button>
@@ -446,18 +453,18 @@ const F_BODY_D= 0.40;              // … and its length, fitted to that ramp
 
 /* ── the answer ───────────────────────────────────────────────────────────
    Line breaks and per-line ink widths taken from the final frame.          */
-const P1 = [
-  ["Soccer (Football) is the most popular sport in the world, with an estimated", 1256],
-  ["3.5 billion to 4 billion fans globally. It is considered the “undisputed king of", 1258],
-  ["sports” due to its massive viewership and high participation rates across", 1222],
-  ["every continent.", 272]
-];
-const P2 = [
-  ["While soccer holds the top spot, other sports command significant regional", 1279],
-  ["and global followings.", 365]
-];
-/* the highlighted runs in the answer — Medium, not Bold */
-const BOLD = ["Soccer", "3.5 billion to 4 billion fans"];
+/* The answer copy, as an editable source. Blank line starts a paragraph,
+   "## " makes a heading, **…** marks a highlighted run (Medium, per the
+   stem measurement). The reference copy reproduces the plate's own line
+   breaks when it reflows in the measured 1290px column.                   */
+const ANSWER_REF =
+  "**Soccer** (Football) is the most popular sport in the world, with an " +
+  "estimated **3.5 billion to 4 billion fans** globally. It is considered " +
+  "the \u201Cundisputed king of sports\u201D due to its massive viewership " +
+  "and high participation rates across every continent.\n\n" +
+  "## Global Rankings by Fan Base\n\n" +
+  "While soccer holds the top spot, other sports command significant " +
+  "regional and global followings.";
 
 /* ══════════════════════ editable query + retiming ═══════════════════════
    The beats around the typing are fixed points in the edit: the caret starts
@@ -493,39 +500,57 @@ function overflowPx(){
   return Math.max(0, (516 + w) - 2340);       // chip fill starts at 2375
 }
 
-/* ══════════════════════════ build the answer text ═══════════════════════ */
-function buildPara(el, lines){
-  el.innerHTML = "";
-  lines.forEach(([text, w], i) => {
-    const line = document.createElement("span");
-    line.className = "ln";
-    text.split(/(\s+)/).forEach(tok => {
-      if (!tok.trim()){ line.appendChild(document.createTextNode(tok)); return; }
-      const s = document.createElement("span");
-      s.className = "w";
-      s.textContent = tok;
-      line.appendChild(s);
-    });
-    el.appendChild(line);
-    if (i < lines.length - 1) el.appendChild(document.createElement("br"));
-  });
-}
-buildPara(document.getElementById("p1"), P1);
-buildPara(document.getElementById("p2"), P2);
+/* ══════════════════════════ build the answer text ═══════════════════════
+   Words are individual spans so the reveal can still run line by line: the
+   plate shows a faint top-down gradient over the answer, and after layout a
+   word's offsetTop tells us which line it landed on, which survives reflow
+   in a way hard-coded line spans would not.                              */
+const bodyEl = document.querySelector(".body");
+let WORDS = [], LINE_GROUPS = [];
 
-/* bold runs inside paragraph 1 */
-(function bolden(){
-  const words = [...document.querySelectorAll("#p1 .w")];
-  BOLD.forEach(phrase => {
-    const n = phrase.split(" ").length;
-    for (let i = 0; i <= words.length - n; i++){
-      if (words.slice(i, i + n).map(w => w.textContent).join(" ").startsWith(phrase)){
-        for (let k = i; k < i + n; k++) words[k].style.fontWeight = "500";
-        break;
-      }
-    }
-  });
-})();
+function buildAnswer(src){
+  bodyEl.innerHTML = "";
+  for (const block of src.split(/\n\s*\n/)){
+    const text = block.trim();
+    if (!text) continue;
+    const heading = text.startsWith("## ");
+    const el = document.createElement(heading ? "h2" : "p");
+    (heading ? text.slice(3) : text).split(/(\s+)/).forEach(tok => {
+      if (!tok) return;
+      if (!tok.trim()){ el.appendChild(document.createTextNode(" ")); return; }
+      const hot = /^\*\*|\*\*$/.test(tok);
+      const w = document.createElement("span");
+      w.className = "w";
+      w.textContent = tok.replace(/\*\*/g, "");
+      if (hot || INBOLD) w.style.fontWeight = "500";
+      if (/^\*\*/.test(tok)) INBOLD = true;
+      if (/\*\*$/.test(tok)) INBOLD = false;
+      el.appendChild(w);
+    });
+    bodyEl.appendChild(el);
+  }
+  INBOLD = false;
+  WORDS = [...bodyEl.querySelectorAll(".w")];
+  relineAnswer();
+}
+let INBOLD = false;
+
+/* group the words into lines by where layout actually put them */
+function relineAnswer(){
+  const rows = new Map();
+  for (const w of WORDS){
+    const key = Math.round(w.offsetTop / 4);      // tolerate sub-pixel drift
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push(w);
+  }
+  LINE_GROUPS = [...rows.entries()].sort((a, b) => a[0] - b[0]).map(e => e[1]);
+  LINE_GROUPS.forEach(g => { g.op = -1; });       // cache, so we only write on change
+}
+
+/* how far the answer runs past the room above the legal line */
+function answerOverflowPx(){
+  return Math.max(0, (460 + bodyEl.offsetHeight) - 1010);
+}
 
 /* ══════════════════════════════ layout fit ══════════════════════════════ */
 const fit = document.getElementById("fit");
@@ -535,7 +560,7 @@ function resize(){
   SCALE = Math.min(innerWidth / 1920, (innerHeight - (BARE ? 0 : 46)) / 1080);
   fit.style.transform = `scale(${SCALE})`;
 }
-addEventListener("resize", () => { resize(); refit(); });
+addEventListener("resize", () => { resize(); refit(); relineAnswer(); });
 resize();
 
 /* measure-and-fit everything that has a measured target width */
@@ -594,7 +619,6 @@ const lerp  = (a, b, u) => a + (b - a) * u;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const sat   = (v) => clamp(v, 0, 1);
 const fadeIn = (T, t0, d) => isNaN(t0) ? 1 : sat((T - t0) / (d || 0.001));
-const LINES = [...document.querySelectorAll("#act2 .ln")];
 
 /* paint a colour ramp along a set of stroked sub-paths, by arc length.
    Shared by the bar's beam and the button's outline.                      */
@@ -739,8 +763,9 @@ function render(t){
       r.style.opacity   = fadeIn(T, +r.dataset.f0, +r.dataset.fd).toFixed(3);
     });
     /* a faint top-down gradient survives in the answer — 14 ms per line */
-    LINES.forEach((l, i) => {
-      l.style.opacity = fadeIn(T, F_BODY + 0.014 * i, F_BODY_D).toFixed(3);
+    LINE_GROUPS.forEach((g, i) => {
+      const o = +fadeIn(T, F_BODY + 0.014 * i, F_BODY_D).toFixed(3);
+      if (o !== g.op){ g.op = o; for (const w of g) w.style.opacity = o; }
     });
   } else {
     act2.style.visibility = "hidden";
@@ -770,6 +795,23 @@ function applyQuery(){
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
 }
+/* ── editing the answer ─────────────────────────────────────────────────
+   The blocks reflow, so the reveal re-derives its lines after every edit. */
+const $a = document.getElementById("ain"), $aw = document.getElementById("awarn");
+$a.value = ANSWER_REF;
+function applyAnswer(){
+  buildAnswer($a.value);
+  const over = answerOverflowPx();
+  $aw.textContent = over > 0 ? `${Math.round(over)}px past the legal line` : "";
+  render(hold !== null ? hold : 0);
+}
+$a.addEventListener("input", () => {
+  applyAnswer();
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  h.set("a", $a.value);
+  history.replaceState(null, "", "#" + h.toString());
+});
+
 $q.addEventListener("input", () => {
   applyQuery();
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
@@ -975,6 +1017,8 @@ document.getElementById("replay").onclick = window.play;
 
 function boot(){
   refit();                                   // text metrics must be final first
+  if (Q.has("a")) $a.value = Q.get("a");     // #a=… carries edited answer copy
+  buildAnswer($a.value);
   if (Q.has("q")){                           // #q=… carries an edited query
     $q.value = Q.get("q");
     applyQuery();

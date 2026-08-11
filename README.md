@@ -21,11 +21,22 @@ NOTICE.md           third-party assets and trademarks — read this before repub
 
 ## Running it
 
-Open `index.html` directly, or `python3 -m http.server` and visit it. The control bar lets you
-edit the query text (the animation re-times around it) and export the result as a GIF.
+Open `index.html` directly, or `python3 -m http.server` and visit it. The control bar lets you:
+
+- **edit the query** — the typing re-times around fixed beats, so the caret still starts on
+  frame 26, the last character still lands on 108, and the button still lights and is clicked on
+  schedule whatever length you type
+- **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
+  highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
+  lines from where layout actually put the words, so the top-down gradient survives the edit
+- **export a GIF** — width and frame rate selectable
+
+Both fields warn when the text outruns its room: the query when it reaches the AI Mode button,
+the answer when it passes the legal line.
 
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
-stills for the frame-by-frame diff were rendered. `#q=<text>` carries an edited query.
+stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
+answer, so an edit survives a reload and works in headless renders.
 
 ---
 
