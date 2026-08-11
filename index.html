@@ -69,7 +69,10 @@
   #caret{display:inline-block;width:6px;height:80px;background:#111;
          vertical-align:baseline;transform:translateY(9px);margin-left:11px}
   #caret.off{opacity:0}
-  #caret.gone{display:none}
+  /* visibility, not display: the caret's 80px box is taller than the font's
+     strut ascent, so removing it from the line box shortens the ascent and
+     lifts the whole line 4px the moment typing ends.                    */
+  #caret.gone{visibility:hidden}
 
   .aichip{position:absolute;left:2375px;top:459px;width:455px;height:158px;
           background:var(--chip);border-radius:79px;
