@@ -346,6 +346,7 @@
     <span>pan <b id="px">0</b>px</span>
     <span>shutter σ <b id="sg">0.0</b></span>
     <button id="mb">Motion blur: on</button>
+    <button id="lg">Logo: on</button>
     <span class="sep"></span>
     <label for="gw">GIF</label>
     <select id="gw">
@@ -717,6 +718,30 @@ document.getElementById("mb").onclick = e => {
   useBlur = !useBlur;
   e.target.textContent = "Motion blur: " + (useBlur ? "on" : "off");
 };
+
+/* ── the wordmark, on or off ───────────────────────────────────────────────
+   Act 1's Google wordmark can be dropped without touching anything else: it
+   is centred over the bar but nothing measures back off it, so the pan, the
+   typing and the beam are all unaffected. Hiding it leaves the bar alone in
+   the white, which is what the close-up looks like without the logo.
+   Carried in the hash as #logo=0 so it survives a reload and rides along
+   into the headless stills and the GIF export, same as #q= and #a=.       */
+const logoEl = document.querySelector(".logo");
+const $lg    = document.getElementById("lg");
+let showLogo = Q.get("logo") !== "0";
+function applyLogo(){
+  logoEl.style.display = showLogo ? "" : "none";
+  $lg.textContent = "Logo: " + (showLogo ? "on" : "off");
+}
+$lg.onclick = () => {
+  showLogo = !showLogo;
+  applyLogo();
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  showLogo ? h.delete("logo") : h.set("logo", "0");
+  const s = h.toString();                    // no bare "#" when nothing is left
+  history.replaceState(null, "", s ? "#" + s : location.pathname);
+};
+applyLogo();
 
 const lerp  = (a, b, u) => a + (b - a) * u;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;

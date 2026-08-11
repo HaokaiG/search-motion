@@ -32,6 +32,9 @@ Open `index.html` directly, or `python3 -m http.server` and visit it. The contro
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
+- **turn the wordmark off** — Act 1's Google logo drops out and the bar sits alone in the white.
+  Nothing measures back off the logo, so the bar width, the pan and the beam are untouched; the
+  small G in the Act 2 header is a separate mark and stays
 - **export a GIF** — width and frame rate selectable
 
 Both fields warn when the text outruns its room: the query when it reaches the AI Mode button,
@@ -39,7 +42,8 @@ the answer when it passes the legal line.
 
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
-answer, so an edit survives a reload and works in headless renders.
+answer, and `#logo=0` drops the wordmark, so an edit survives a reload and works in headless
+renders.
 
 ---
 
