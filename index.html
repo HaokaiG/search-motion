@@ -44,6 +44,28 @@
          /* the source is a 1920x1080 h.264 master */
          contain:strict}
 
+  /* ── uploaded footage behind act 1 ───────────────────────────────────────
+     The plate's own act 1 is a white studio card; the reference clip runs the
+     same furniture over live footage instead. Everything below is measured
+     off that clip: the bar's fill goes away entirely — the footage reads
+     straight through it and only the gradient outline and its glow carry the
+     shape — and the query ink turns pure white (sampled 251.8/251.7/251.3
+     against the plate's #111). The AI Mode chip stays the light pill it
+     already is, which is what the reference shows too.
+     Act 2 is untouched: its own white background covers the video as it
+     rises, so the footage washes out exactly as it does in the reference. */
+  #bgvid{position:absolute;inset:0;width:100%;height:100%;
+         object-fit:cover;display:none}
+  /* transparent, not black: the export composites the footage UNDER the
+     serialised stage, so anything painted here would hide it */
+  #stage.has-bg{background:transparent}
+  #stage.has-bg #bgvid{display:block}
+  #stage.has-bg .bar{background:transparent;border-color:transparent;
+                     box-shadow:none}
+  #stage.has-bg .query{color:#fff}
+  #stage.has-bg #caret{background:#fff}
+  #stage.has-bg .plus i{background:#fff}
+
   /* ============ ACT 1 — the homepage, held on one flat plane ============ */
   /* Children are positioned in "content space": the same pixel grid the
      camera pans across. Camera x is applied to #world only.              */
@@ -200,6 +222,11 @@
        background:#151519;color:#e8e8ef;border:1px solid #2c2c34;border-radius:7px;
        padding:8px 10px}
   #hud input{width:min(46vw,520px);text-transform:none;letter-spacing:0}
+  #hud input[type=file]{width:auto;padding:6px 8px;cursor:pointer;max-width:34vw}
+  #hud input[type=file]::file-selector-button{font:inherit;letter-spacing:inherit;
+       text-transform:inherit;background:#1b1b20;color:#c9c9d1;
+       border:1px solid #2c2c34;border-radius:999px;padding:5px 12px;
+       margin-right:10px;cursor:pointer}
   #hud textarea{width:min(56vw,660px);resize:vertical;text-transform:none;
        letter-spacing:0;line-height:1.5;font-family:var(--font)}
   #hud #awarn{color:#e0a33a;text-transform:none;letter-spacing:0}
@@ -218,6 +245,13 @@
 
 <div id="fit">
   <div id="stage">
+
+    <!-- Uploaded footage, sitting under everything. It only shows once a file
+         is picked (#stage.has-bg), and act 2's own white background covers it
+         as the answer page fades up — which is what the reference does: the
+         footage stays live through the chip's blow-up, then washes out. -->
+    <video id="bgvid" muted playsinline preload="auto"></video>
+
 
     <!-- ─────────────────────── ACT 2 ───────────────────────
          Sits UNDER act 1 so the swelling chip passes over the answer,
@@ -409,6 +443,10 @@
     <button id="mb">Motion blur: on</button>
     <button id="lg">Logo: on</button>
     <button id="pg">Bar icon: +</button>
+    <span class="sep"></span>
+    <label for="bgin">Footage</label>
+    <input id="bgin" type="file" accept="video/*">
+    <button id="bgclr" hidden>Clear</button>
     <span class="sep"></span>
     <label for="gw">GIF</label>
     <select id="gw">
@@ -809,6 +847,7 @@ function refit(){
 }
 
 /* ═════════════════════════════ animation ════════════════════════════════ */
+const stage  = document.getElementById("stage");
 const world  = document.getElementById("world");
 const chip   = document.getElementById("aichip");
 const act2   = document.getElementById("act2");
@@ -876,6 +915,110 @@ $lg.onclick = () => {
   history.replaceState(null, "", s ? "#" + s : location.pathname);
 };
 applyLogo();
+
+/* ── uploaded footage behind act 1 ─────────────────────────────────────────
+   The video sits under everything in #stage, so act 1's furniture composites
+   straight over it and act 2's white background covers it as the answer page
+   rises. Nothing about the timing changes — the piece still runs on its own
+   162 frames and the footage is just what act 1 is standing on.
+   Sync has two modes on purpose. Free-running, the video plays and is only
+   nudged when it drifts more than a shutter's worth, which keeps playback
+   smooth. Frozen or exporting, it is seeked exactly and waited for, so a
+   frame is reproducible — an export must not depend on how far a video
+   happened to have played.                                                */
+const bgvid = document.getElementById("bgvid");
+const $bgin = document.getElementById("bgin");
+const $bgclr = document.getElementById("bgclr");
+let bgOn = false, bgURL = null;
+
+function bgWrap(t){
+  const d = bgvid.duration;
+  return (!d || !isFinite(d) || d <= 0) ? 0 : t % d;
+}
+let bgSeeking = false;
+function bgSync(t){
+  if (!bgOn || !bgvid.duration) return;
+  /* Never touch currentTime while a seek is in flight. render() runs off the
+     rAF loop, so a frozen frame calls this ~60x a second; re-issuing the seek
+     each time restarted it before it could ever land, and the video sat at
+     readyState 1 forever with nothing to draw.                            */
+  if (bgSeeking || bgvid.seeking) return;
+  const want = bgWrap(t);
+  if (hold !== null){
+    if (Math.abs(bgvid.currentTime - want) > 0.02) bgvid.currentTime = want;
+  } else {
+    if (bgvid.paused) bgvid.play().catch(() => {});
+    if (Math.abs(bgvid.currentTime - want) > 0.15) bgvid.currentTime = want;
+  }
+}
+/* Exact and awaited, for the export loops. It waits for DECODED DATA, not
+   just the seeked event: a cold first seek fires seeked while readyState is
+   still 1, and drawing then silently paints nothing — which is how the first
+   export came out with the footage missing.                               */
+function bgSeek(t){
+  if (!bgOn || !bgvid.duration) return Promise.resolve();
+  const want = bgWrap(t);
+  if (Math.abs(bgvid.currentTime - want) < 0.002 && bgvid.readyState >= 2)
+    return Promise.resolve();
+  bgSeeking = true;
+  return new Promise(res => {
+    let done = false;
+    const deadline = performance.now() + 2000;
+    const fin = () => {
+      if (done) return;
+      done = true;
+      bgSeeking = false;
+      bgvid.removeEventListener("seeked", check);
+      res();
+    };
+    const check = () => {
+      if (done) return;
+      if (bgvid.readyState >= 2 && Math.abs(bgvid.currentTime - want) < 0.05)
+        return fin();
+      if (performance.now() > deadline) return fin();   // never hang an export
+      requestAnimationFrame(check);
+    };
+    bgvid.addEventListener("seeked", check);
+    if (Math.abs(bgvid.currentTime - want) >= 0.002) bgvid.currentTime = want;
+    check();
+  });
+}
+/* cover-fit the footage into a W x H frame, matching object-fit:cover */
+function bgDrawInto(ctx, W, H){
+  if (!bgOn || bgvid.readyState < 2 || !bgvid.videoWidth) return false;
+  const vr = bgvid.videoWidth / bgvid.videoHeight, sr = W / H;
+  let dw = W, dh = H, dx = 0, dy = 0;
+  if (vr > sr){ dw = H * vr; dx = (W - dw) / 2; }
+  else        { dh = W / vr; dy = (H - dh) / 2; }
+  ctx.drawImage(bgvid, dx, dy, dw, dh);
+  return true;
+}
+$bgin.addEventListener("change", () => {
+  const f = $bgin.files && $bgin.files[0];
+  if (!f) return;
+  if (bgURL) URL.revokeObjectURL(bgURL);
+  bgURL = URL.createObjectURL(f);
+  bgvid.src = bgURL;
+  bgvid.addEventListener("loadedmetadata", async () => {
+    bgOn = true;
+    stage.classList.add("has-bg");
+    $bgclr.hidden = false;
+    /* warm it through one decode so the first exported frame is not cold */
+    await bgSeek(hold !== null ? hold : 0);
+    render(hold !== null ? hold : 0);
+  }, { once: true });
+});
+$bgclr.onclick = () => {
+  bgOn = false;
+  stage.classList.remove("has-bg");
+  bgvid.pause();
+  bgvid.removeAttribute("src");
+  bgvid.load();
+  if (bgURL){ URL.revokeObjectURL(bgURL); bgURL = null; }
+  $bgin.value = "";
+  $bgclr.hidden = true;
+  render(hold !== null ? hold : 0);
+};
 
 /* ── the bar's icon: the plus, or the G mark ───────────────────────────────
    A straight swap inside the plus's own 58px box, so the query, the caret
@@ -966,6 +1109,8 @@ function render(t){
   /* epsilon: t*FPS lands a hair under the integer at exact frame times, which
      would drop a character on every even frame of the typing schedule.     */
   const f = T * FPS + 1e-6;
+
+  bgSync(T);                       // footage follows the timeline, if loaded
 
   /* ── camera ───────────────────────────────────────────────────────── */
   const x = panAt(T);
@@ -1276,7 +1421,16 @@ const styleTag = document.querySelector("style");
    the whole foreignObject fail to parse.                                  */
 const XS = new XMLSerializer();
 function stageSVG(){
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">' +
+  /* The <video> must not go into the foreignObject. Its frame cannot cross
+     the serialisation — an <img>-loaded SVG will not decode media — and the
+     element still lays out, painting an opaque placeholder that covers the
+     footage drawn underneath it (measured: a flat #333 over the whole frame).
+     Hiding it for the length of the serialise leaves a transparent hole for
+     the composite in drawStage to show through.                           */
+  const prev = bgvid.style.display;
+  bgvid.style.display = "none";
+  const svg =
+         '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">' +
          '<foreignObject width="1920" height="1080">' +
          '<div xmlns="http://www.w3.org/1999/xhtml" ' +
               'style="position:relative;width:1920px;height:1080px">' +
@@ -1284,13 +1438,20 @@ function stageSVG(){
          XS.serializeToString(document.getElementById("mblurdefs")) +
          XS.serializeToString(document.getElementById("stage")) +
          '</div></foreignObject></svg>';
+  bgvid.style.display = prev;
+  return svg;
 }
 function drawStage(ctx, W, H){
   return new Promise((res, rej) => {
     const img = new Image();
     const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(stageSVG());
     img.onload = () => {
+      /* white base, then the footage if there is any, then the stage over the
+         top — with #stage.has-bg transparent, act 1 composites onto the video
+         and act 2's own white covers it as it rises. The <video> itself never
+         survives serialisation, so this is where the two layers meet.     */
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      bgDrawInto(ctx, W, H);
       ctx.drawImage(img, 0, 0, W, H); res();
     };
     img.onerror = () => rej(new Error("frame render failed"));
@@ -1396,6 +1557,7 @@ document.getElementById("gexport").onclick = async () => {
     for (let k = 0; k * step < NF; k++){
       hold = (k * step) / FPS;
       render(hold);
+      await bgSeek(hold);          // exact frame, not wherever it had played to
       await drawStage(ctx, W, H);
       frames.push(ctx.getImageData(0, 0, W, H).data);
       $gs.textContent = `frame ${k + 1}…`;
@@ -1461,6 +1623,7 @@ document.getElementById("mexport").onclick = async () => {
       if (failed) throw failed;
       hold = (k * step) / FPS;
       render(hold);
+      await bgSeek(hold);          // exact frame, not wherever it had played to
       await drawStage(ctx, W, H);
       const frame = new VideoFrame(cvs, {
         timestamp: Math.round(k * 1e6 / fps),

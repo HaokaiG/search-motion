@@ -39,6 +39,15 @@ Nothing here is judged by eye. Every change goes through the same loop:
 - **A metric that does not move is not proof.** The 4px text jump when typing
   ended never showed up in the score — one frame cannot shift a 132-frame mean.
   It took someone watching it.
+- **A `<video>` cannot cross the export, and it does not fail quietly.** An `<img>`-loaded SVG
+  will not decode media, but the element still *lays out* inside the foreignObject and paints an
+  opaque placeholder — a flat `#333` over the whole frame, hiding the footage composited
+  underneath. It has to be hidden for the length of the serialise.
+- **Wait for decoded data, not the `seeked` event.** A cold first seek fires `seeked` while
+  `readyState` is still 1, and drawing then paints nothing at all. Poll for `readyState >= 2`.
+- **`render()` runs off rAF, so anything it touches is touched ~60x a second.** Syncing the
+  video's `currentTime` from inside it re-issued the seek before it could ever land, and the
+  element sat at `readyState` 1 forever. A frozen frame is not a still world.
 - **The GIF export is a different document.** It serialises `#stage` into a
   foreignObject inside a plain `<div>`, so any rule hung on `body` — or on
   anything outside `#stage` — silently does not apply. `font-family` lived on
