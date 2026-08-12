@@ -39,6 +39,11 @@ Nothing here is judged by eye. Every change goes through the same loop:
 - **A metric that does not move is not proof.** The 4px text jump when typing
   ended never showed up in the score — one frame cannot shift a 132-frame mean.
   It took someone watching it.
+- **Only `#stage` and the `<style>` tag are serialised, so a runtime override on `<html>` never
+  reaches the export.** Setting `--bar-scrim` on the root changed the preview and left exported
+  frames on the stylesheet's value — an A/B that read a ratio of exactly 1.000 and looked, for a
+  moment, like the effect was missing entirely. Dial these constants in the stylesheet, or set
+  them on an element inside `#stage`. Same family as the `body` font-family trap below.
 - **A `<video>` cannot cross the export, and it does not fail quietly.** An `<img>`-loaded SVG
   will not decode media, but the element still *lays out* inside the foreignObject and paints an
   opaque placeholder — a flat `#333` over the whole frame, hiding the footage composited

@@ -45,9 +45,9 @@ Open `index.html` directly, or `python3 -m http.server` and visit it. The contro
 - **drop footage behind act 1** — pick a video and it plays under the search bar instead of the
   white card, with the bar, the beam and the AI Mode button compositing over it. Act 2 is
   untouched: its own white background covers the footage as the answer page rises, which is how
-  the reference cuts out of the live shot. Over footage the bar loses its fill entirely — the
-  outline and its glow carry the shape — and the query ink goes white, both measured off that
-  clip. The video follows the piece's clock and wraps if it is shorter than 6.757s
+  the reference cuts out of the live shot. Over footage the bar carries a black scrim at
+  `--bar-scrim` (0.22, measured) instead of its white fill, and the query ink goes white — both
+  read off that clip. The video follows the piece's clock and wraps if it is shorter than 6.757s
 - **export a GIF or an MP4** — width and frame rate selectable, shared by both. The MP4 is
   H.264 via WebCodecs, with the container written by hand alongside the GIF encoder, so there
   is still nothing to install. Both walk the same deterministic render path rather than
