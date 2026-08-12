@@ -84,6 +84,9 @@
      over dark footage, which back-solves to roughly 0.78, so 75% sits right
      next to what that clip does.                                         */
   #stage.has-bg .aichip{background:rgba(245,246,248,.75)}
+  /* and its label steps up with the query's — 400 was set for a solid pill on
+     a white card, and the pill is only 75% here */
+  #stage.has-bg .aichip b{font-weight:500}
   /* Medium over footage, against 356 on the white card. Measured, not
      assumed: the reference's white query ink runs a mean stem of 7.74 at its
      own scale, and its bar is 165 tall against our 234, so at our 90.95px
@@ -616,6 +619,21 @@ const RING_SCALE = 4.65;
 const RING_DRIFT = 771;
 const RING_PHASE = -1800;
 const RING_CYCLE = RING_P * RING_SCALE;        // closes on itself in one lap
+/* The spin eases instead of running flat: it enters fast and leaves
+   RING_EASE slower. Rate is linear in the frame, v(d) = V0(1 - EASE*d/SPAN),
+   so it ends at 0.70 of where it started. V0 is solved so the MEAN rate over
+   the outline's life is still the measured 771 — the ramp therefore travels
+   the same total distance as before, it just front-loads it. The phase is
+   the integral of that, and it is anchored to frame 120 exactly as the flat
+   version was, so the hues solved from that frame are untouched.         */
+const RING_EASE   = 0.30;
+const RING_SPIN_F0 = 114, RING_SPIN_F1 = 128;     // the outline's own span
+const RING_SPIN_SPAN = RING_SPIN_F1 - RING_SPIN_F0;
+const RING_V0 = RING_DRIFT / (1 - RING_EASE / 2);
+function ringSpin(f){
+  const d = clamp(f - RING_SPIN_F0, 0, RING_SPIN_SPAN);
+  return RING_V0 * (d - RING_EASE * d * d / (2 * RING_SPIN_SPAN));
+}
 /* the bar's ramp re-expressed as a cycle: same colours, blue joining back to
    blue, so it can be tiled around a closed outline                        */
 const RING_RAMP = BEAM_RAMP.slice(1, -1).map(([r, c]) => [r - 1250, c])
@@ -640,6 +658,10 @@ const RING_FADE = [[114, 0], [115, 0.077], [116, 0.352], [117, 0.502],
 /* measured press, frame → scale */
 const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
                [131, 0.94], [132, 1.00]];
+/* the outline is taken out by the press: it starts going the moment the
+   button does, and is gone by the frame the button bottoms out on 129 */
+const PRESS_F0 = PRESS[0][0];
+const RING_PRESS_FADE = 2;
 
 /* ── act break ─────────────────────────────────────────────────────────── */
 const T_PUSH  = 131 / FPS;         // 5.464  chip starts blowing up
@@ -1208,7 +1230,14 @@ function render(t){
   }
 
   /* ── the button's outline ─────────────────────────────────────────── */
-  const ringOp = envAt(RING_FADE, f);
+  /* Two things close it out. Its own measured envelope, and a fade tied to
+     the press: the moment the button starts going down the outline is on its
+     way out, gone by the time the button bottoms. Anchored to PRESS's own
+     first frame so the two cannot drift apart if that timing is re-cut. The
+     envelope already has it down to 0.20 by then, so this mostly sharpens
+     the last frame rather than removing anything that was still bright.  */
+  const ringOp = envAt(RING_FADE, f)
+               * (1 - sat((f - PRESS_F0) / RING_PRESS_FADE));
   ring.style.opacity = ringOp.toFixed(3);
   /* the plate's ring glow spreads ~2-4px as it arrives and leaves against
      ~12 at its peak, so the radius rides the same envelope as the opacity */
@@ -1216,7 +1245,7 @@ function render(t){
   ringBlurF.setAttribute("stdDeviation", (6 * ringOp).toFixed(2));
   if (ringOp > 0.002)
     paintRamp(ringGrads, RING_SEG,
-              RING_PHASE + RING_DRIFT * (f - 120) + 1250,
+              RING_PHASE + 1250 + ringSpin(f) - ringSpin(120),
               RING_SCALE, 10, RING_RAMP, RING_CYCLE);
 
   /* ── the push-through on the AI Mode chip ─────────────────────────── */
