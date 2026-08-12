@@ -87,8 +87,17 @@
 
   /* ink runs 502…584 with the baseline at 566 → 86px type. `top` is set
      from JS so the BASELINE lands on 566 whatever face actually loads.   */
+  /* 356, not 400. The subset keeps the wght axis live, and the plate's query
+     is measurably lighter than a plain regular. Comparing the same word in
+     both panels of the side-by-side — "what", 96x33 on the plate against
+     99x34 here, so the same type size — the plate carries 6.6% less ink per
+     unit area. Sweeping the axis, that density lands between 350 (0.9234 of
+     regular) and 360 (0.9411); 356 interpolates it.
+     Held loosely: the comparison is half-res through H.264, and the stem
+     metric argues lower still (~334), so the honest range is ~335-356 and
+     this takes the blur-robust end. 400 is one edit away.                */
   .query{position:absolute;left:516px;top:494px;white-space:pre;
-         font-size:90.95px;font-weight:400;line-height:1;color:var(--ink)}
+         font-size:90.95px;font-weight:356;line-height:1;color:var(--ink)}
   .query span{vertical-align:baseline}
   #caret{display:inline-block;width:6px;height:80px;background:#111;
          vertical-align:baseline;transform:translateY(9px);margin-left:11px}
