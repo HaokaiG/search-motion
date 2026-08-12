@@ -423,6 +423,7 @@
       <option value="24">24 fps</option>
     </select>
     <button id="gexport">Export GIF</button>
+    <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
   </div>
 </div>
@@ -1297,6 +1298,86 @@ function drawStage(ctx, W, H){
   });
 }
 
+/* ══════════════════════════════ MP4 export ══════════════════════════════
+   Same deal as the GIF: no libraries, so the container is written here. The
+   H.264 itself comes from WebCodecs — `avc: {format:"avc"}` asks for length-
+   prefixed AVCC samples plus an avcC description, which is exactly what an
+   MP4 sample entry wants, so nothing has to be re-packed.
+   Frames are pushed through the encoder one at a time off the same
+   deterministic render/drawStage path the GIF uses, NOT captured off the
+   screen in real time — the piece renders far slower than 24fps here, and a
+   MediaRecorder capture would drop and duplicate frames.
+   Layout is ftyp + mdat + moov, progressive, one track, one chunk. Writing
+   mdat before moov means the chunk offset is known before moov is built. */
+function bx(type, ...parts){
+  let n = 8;
+  const ps = parts.map(p => p instanceof Uint8Array ? p : new Uint8Array(p));
+  for (const p of ps) n += p.length;
+  const out = new Uint8Array(n);
+  new DataView(out.buffer).setUint32(0, n);
+  for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+  let o = 8;
+  for (const p of ps){ out.set(p, o); o += p.length; }
+  return out;
+}
+const b32 = v => { const a = new Uint8Array(4); new DataView(a.buffer).setUint32(0, v >>> 0); return a; };
+const b16 = v => { const a = new Uint8Array(2); new DataView(a.buffer).setUint16(0, v); return a; };
+const str4 = s => new Uint8Array([...s].map(c => c.charCodeAt(0)));
+const zeros = n => new Uint8Array(n);
+/* the identity display matrix, 3x3 in 16.16 fixed point */
+const MATRIX = new Uint8Array([0,1,0,0, 0,0,0,0, 0,0,0,0,
+                               0,0,0,0, 0,1,0,0, 0,0,0,0,
+                               0,0,0,0, 0,0,0,0, 0x40,0,0,0]);
+
+function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
+  const n = samples.length, dur = n * delta;
+  const ftyp = bx("ftyp", str4("isom"), b32(0x200),
+                  str4("isom"), str4("iso2"), str4("avc1"), str4("mp41"));
+  let mdatLen = 8; for (const s of samples) mdatLen += s.length;
+  const mdatHdr = new Uint8Array(8);
+  new DataView(mdatHdr.buffer).setUint32(0, mdatLen);
+  mdatHdr.set(str4("mdat"), 4);
+  const chunkOffset = ftyp.length + 8;          // first sample's byte offset
+
+  const mvhd = bx("mvhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
+                  b32(0x00010000), b16(0x0100), zeros(10), MATRIX, zeros(24), b32(2));
+  const tkhd = bx("tkhd", new Uint8Array([0,0,0,3]), b32(0), b32(0), b32(1),
+                  zeros(4), b32(dur), zeros(8), b16(0), b16(0), b16(0), b16(0),
+                  MATRIX, b32(W << 16), b32(H << 16));
+  const mdhd = bx("mdhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
+                  b16(0x55c4), b16(0));
+  const hdlr = bx("hdlr", zeros(4), zeros(4), str4("vide"), zeros(12),
+                  new Uint8Array([...str4("VideoHandler"), 0]));
+  const vmhd = bx("vmhd", new Uint8Array([0,0,0,1]), zeros(8));
+  const dinf = bx("dinf", bx("dref", zeros(4), b32(1),
+                             bx("url ", new Uint8Array([0,0,0,1]))));
+  const avc1 = bx("avc1", zeros(6), b16(1), zeros(16), b16(W), b16(H),
+                  b32(0x00480000), b32(0x00480000), zeros(4), b16(1),
+                  zeros(32), b16(0x0018), new Uint8Array([0xFF, 0xFF]),
+                  bx("avcC", avcC));
+  const stsd = bx("stsd", zeros(4), b32(1), avc1);
+  const stts = bx("stts", zeros(4), b32(1), b32(n), b32(delta));
+  const stss = bx("stss", zeros(4), b32(syncList.length),
+                  ...syncList.map(i => b32(i)));
+  const stsc = bx("stsc", zeros(4), b32(1), b32(1), b32(n), b32(1));
+  const stsz = bx("stsz", zeros(4), b32(0), b32(n),
+                  ...samples.map(s => b32(s.length)));
+  const stco = bx("stco", zeros(4), b32(1), b32(chunkOffset));
+  const moov = bx("moov", mvhd,
+                  bx("trak", tkhd,
+                     bx("mdia", mdhd, hdlr,
+                        bx("minf", vmhd, dinf,
+                           bx("stbl", stsd, stts, stss, stsc, stsz, stco)))));
+
+  const out = new Uint8Array(ftyp.length + mdatLen + moov.length);
+  let o = 0;
+  out.set(ftyp, o); o += ftyp.length;
+  out.set(mdatHdr, o); o += 8;
+  for (const s of samples){ out.set(s, o); o += s.length; }
+  out.set(moov, o);
+  return out;
+}
+
 const $gs = document.getElementById("gstat");
 let busy = false;
 document.getElementById("gexport").onclick = async () => {
@@ -1332,6 +1413,79 @@ document.getElementById("gexport").onclick = async () => {
     $gs.textContent = `${frames.length} frames · ${(gif.length/1048576).toFixed(1)} MB`;
   } catch (e){
     $gs.textContent = "failed: " + e.message;
+  } finally {
+    hold = wasHold; busy = false;
+    if (hold === null) window.play();
+  }
+};
+
+document.getElementById("mexport").onclick = async () => {
+  if (busy) return;
+  if (typeof VideoEncoder === "undefined"){
+    $gs.textContent = "no WebCodecs in this browser";
+    return;
+  }
+  busy = true;
+  const W = +document.getElementById("gw").value;
+  const H = Math.round(W * 1080 / 1920);      // even at every offered width
+  const fps = +document.getElementById("gfps").value;
+  const step = FPS / fps;
+  const wasHold = hold;
+  const cvs = document.createElement("canvas");
+  cvs.width = W; cvs.height = H;
+  const ctx = cvs.getContext("2d", { willReadFrequently: false });
+  const samples = [], sync = [];
+  let avcC = null, failed = null;
+  try {
+    /* 90000 is the usual video timescale and divides all three offered rates
+       exactly — 3750, 7500, 11250 ticks per frame                          */
+    const timescale = 90000, delta = Math.round(timescale / fps);
+    const enc = new VideoEncoder({
+      output: (chunk, meta) => {
+        if (!avcC && meta && meta.decoderConfig && meta.decoderConfig.description)
+          avcC = new Uint8Array(meta.decoderConfig.description);
+        const b = new Uint8Array(chunk.byteLength);
+        chunk.copyTo(b);
+        samples.push(b);
+        if (chunk.type === "key") sync.push(samples.length);   // stss is 1-based
+      },
+      error: e => { failed = e; }
+    });
+    enc.configure({
+      codec: "avc1.42E01E",                    // Baseline 3.0 — plays anywhere
+      width: W, height: H, framerate: fps,
+      bitrate: Math.min(16e6, Math.max(1.5e6, Math.round(W * H * fps * 0.9))),
+      avc: { format: "avc" }                   // AVCC + avcC, not Annex-B
+    });
+    for (let k = 0; k * step < NF; k++){
+      if (failed) throw failed;
+      hold = (k * step) / FPS;
+      render(hold);
+      await drawStage(ctx, W, H);
+      const frame = new VideoFrame(cvs, {
+        timestamp: Math.round(k * 1e6 / fps),
+        duration:  Math.round(1e6 / fps)
+      });
+      enc.encode(frame, { keyFrame: k % fps === 0 });   // ~1s GOP, and k=0
+      frame.close();
+      $gs.textContent = `frame ${k + 1}…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    $gs.textContent = "encoding…";
+    await enc.flush();
+    enc.close();
+    if (failed) throw failed;
+    if (!avcC) throw new Error("no avcC from the encoder");
+    const mp4 = muxMP4(samples, sync, W, H, timescale, delta, avcC);
+    const blob = new Blob([mp4], { type: "video/mp4" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "search-motion.mp4";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    $gs.textContent = `${samples.length} frames · ${(mp4.length/1048576).toFixed(1)} MB`;
+  } catch (e){
+    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
   } finally {
     hold = wasHold; busy = false;
     if (hold === null) window.play();

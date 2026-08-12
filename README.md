@@ -42,7 +42,10 @@ Open `index.html` directly, or `python3 -m http.server` and visit it. The contro
   575.3, and since the bar's right edge derives from where the text ends, the bar grows 59px and
   the pan with it — the cap still parks on x=1236, it just travels further. The plate's plus is
   the default
-- **export a GIF** — width and frame rate selectable
+- **export a GIF or an MP4** — width and frame rate selectable, shared by both. The MP4 is
+  H.264 via WebCodecs, with the container written by hand alongside the GIF encoder, so there
+  is still nothing to install. Both walk the same deterministic render path rather than
+  capturing the screen, so a frame is a frame whatever the machine is doing
 
 Both fields warn when the text outruns its room: the query when it reaches the AI Mode button,
 the answer when it passes the bottom of its measured column.
