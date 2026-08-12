@@ -64,16 +64,18 @@
   .plus i{position:absolute;background:#3c4043;border-radius:3px}
   .plus i:nth-child(1){left:0;top:26px;width:58px;height:6px}
   .plus i:nth-child(2){left:26px;top:0;width:6px;height:58px}
-  /* The same slot carrying the G mark instead, at the AI Mode button's own
-     size: the chip measures 158 tall (y 459…617), so the G is 158 and 154.3
-     wide on the artwork's own 250x256. The bar is 234 tall (y 420…654), so
-     centring gives 38 above and below, and the left inset matches at 38 —
-     x=366. That is as far as the symmetry goes: the run from the bar's left
-     edge (328) to the query text (516) is 188, and a 38 margin on BOTH sides
-     of a 154.3 mark would need 230.3. The mark ends at 520.3, so its box
-     crosses the text's by 4.3 — the query's own left side bearing is what
-     keeps the ink apart. Moving the text would change measured geometry. */
-  .plus.as-g{left:366px;top:458px;width:154.3px;height:158px;
+  /* The same slot carrying the G mark instead, measured off the ad's own wide
+     shot — the one where the bar sits over the football footage and already
+     carries a G. There the bar's outline strokes centre on y 459.5 and 624.5
+     (165 tall) with the left cap on x 158.5, and the mark runs x 200…287,
+     y 498…585 — 88 square. Its margins in that frame are 38.5 vertical and
+     41 left, and 38.5 + 88 + 38.5 makes 165 exactly, which is the check that
+     the mark is centred and the reads are sound.
+     Our bar is 234, so it all scales by 234/165 = 1.4182: 124.8 tall, 121.9
+     wide on the artwork's own 250x256, inset 54.6 top and bottom and 58.1
+     left. The plate does NOT use an even margin — the left runs ~6% wider
+     than the vertical. Its G is also 0.86 of the AI Mode pill, not equal. */
+  .plus.as-g{left:386.1px;top:474.6px;width:121.9px;height:124.8px;
      background:var(--gmark) center/contain no-repeat}
   .plus.as-g i{display:none}
 
@@ -554,13 +556,14 @@ function setQuery(str){
    is then derived rather than baked.                                      */
 const BAR_LEFT = 328, CAP_R = 115;
 /* The query's left edge. 516 is the measured value and holds while the bar
-   carries the plate's plus. With the G showing it moves out to clear the
-   larger mark by the same 38 the mark keeps on its other three sides — the
-   G ends at 520.3, so 558.3. That is a real change of geometry, not just a
-   nudge: the bar's right edge is derived from where the text ENDS, so the
-   bar grows by the same 42.3 and the pan grows with it. It is the price of
-   an even margin around a mark this size, and it is confined to G mode. */
-const TEXT_LEFT_REF = 516, TEXT_LEFT_G = 558.3;
+   carries the plate's plus. With the G showing it moves out to keep the gap
+   the wide shot puts between mark and text: there the first glyph's ink
+   starts 51.5 past the mark, which is 73.0 at our scale. The mark ends at
+   508.0, and the 'h' that frame types carries a 5.73 left side bearing at
+   our 90.95px, so the advance origin lands on 508.0 + 73.0 - 5.73 = 575.3.
+   That is a real change of geometry, not a nudge: the bar's right edge is
+   derived from where the text ENDS, so the bar and the pan grow with it. */
+const TEXT_LEFT_REF = 516, TEXT_LEFT_G = 575.3;
 let   TEXT_LEFT     = TEXT_LEFT_REF;
 /* 117 in the plate is measured from the query's INK end; textEndPx uses the
    advance, which runs 6px further on the reference, so the gap is 111.   */
