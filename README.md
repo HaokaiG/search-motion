@@ -46,8 +46,9 @@ Open `index.html` directly, or `python3 -m http.server` and visit it. The contro
   white card, with the bar, the beam and the AI Mode button compositing over it. Act 2 is
   untouched: its own white background covers the footage as the answer page rises, which is how
   the reference cuts out of the live shot. Over footage the furniture changes with it: the bar
-  swaps its white fill for a black scrim at `--bar-scrim` (0.30), the AI Mode chip drops to 70%
-  so the plate reads through it, and the query goes white and steps up to Medium — the plate's
+  swaps its white fill for a black scrim at `--bar-scrim` (0.30), the AI Mode chip's fill drops
+  to 75% so the plate reads through it while its label and gradient outline stay fully opaque,
+  and the query goes white and steps up to Medium — the plate's
   356 is too light to hold against a moving background. The video follows the piece's clock and
   wraps if it is shorter than 6.757s
 - **export a GIF or an MP4** — width and frame rate selectable, shared by both. The MP4 is

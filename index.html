@@ -75,11 +75,15 @@
      subject clear of the bar's span. --bar-scrim is the dial.            */
   #stage.has-bg .bar{background:rgba(0,0,0,var(--bar-scrim));
                      border-color:transparent;box-shadow:none}
-  /* The chip is a solid pill on the plate's white card; over footage it lets
-     the plate through. Sampling the reference's fill gives ~202/207/212
-     against the chip's own #f5f6f8 over dark footage, which back-solves to
-     roughly 0.78 — 0.70 by request, and close to that read.              */
-  #stage.has-bg .aichip{opacity:.70}
+  /* The chip is a solid pill on the plate's white card; over footage the
+     plate reads through it. The alpha goes on the FILL, not on the element:
+     element opacity would take the label, the spark and the gradient ring
+     down with it, and those stay fully opaque — the label is already #1f1f1f
+     and the ring runs on its own measured envelope. rgba here is --chip
+     (#f5f6f8) at 75%. Sampling the reference's own pill gives ~202/207/212
+     over dark footage, which back-solves to roughly 0.78, so 75% sits right
+     next to what that clip does.                                         */
+  #stage.has-bg .aichip{background:rgba(245,246,248,.75)}
   /* Medium over footage, against 356 on the white card. Measured, not
      assumed: the reference's white query ink runs a mean stem of 7.74 at its
      own scale, and its bar is 165 tall against our 234, so at our 90.95px
