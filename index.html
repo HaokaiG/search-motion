@@ -96,8 +96,11 @@
      Held loosely: the comparison is half-res through H.264, and the stem
      metric argues lower still (~334), so the honest range is ~335-356 and
      this takes the blur-robust end. 400 is one edit away.                */
+  /* 86.40 is the plate's solved 90.95 taken down 5%, by request. The baseline
+     still lands on the measured 566 — alignBaseline sets `top` from whatever
+     the face actually does, so it follows the size on its own.            */
   .query{position:absolute;left:516px;top:494px;white-space:pre;
-         font-size:90.95px;font-weight:356;line-height:1;color:var(--ink)}
+         font-size:86.40px;font-weight:356;line-height:1;color:var(--ink)}
   .query span{vertical-align:baseline}
   #caret{display:inline-block;width:6px;height:80px;background:#111;
          vertical-align:baseline;transform:translateY(9px);margin-left:11px}
@@ -504,6 +507,19 @@ const BEAM_TAILPUSH = 30;          // bloom starts this far behind the tail,
                                    // trace does not lose its glow entirely
 const BEAM_PAD  = 40;              // gradients run PAST each sub-path's ends so
                                    // the clamped stops never land on the seam
+/* The beam's own opacity, on TOP of the head/tail sweep. The sweep already
+   grows and shrinks the lit arc, so the plate's raw ink curve is NOT the
+   opacity: this is the residual left after dividing the plate's normalised
+   curve by our own sweep with the envelope stripped out — what the sweep
+   does not account for. It comes out as a fade in from nothing on 18 to full
+   by 26. Without it the beam simply switches on at the head.
+   It stops there deliberately. Through the decay the residual runs the wrong
+   side of 1 — 1.09 on 36, 1.19 on 40, 2.23 on 43 — which says our tail CLEARS
+   TOO FAST, not that the plate is brighter. Opacity cannot express that, so
+   the exit stays with the sweep, which reaches 0 on its own by 45. Fixing it
+   properly means BEAM_TAIL, not this table.                               */
+const BEAM_FADE = [[18, 0], [19, 0.087], [20, 0.405], [21, 0.638],
+                   [22, 0.734], [23, 0.953], [24, 0.984], [26, 1.00]];
 /* colour vs arc length, read straight off frame 30 */
 const BEAM_RAMP = [
   [-9000,"#3C84FD"], [1250,"#3C84FD"], [1400,"#2FAFC9"], [1620,"#1ED466"],
@@ -537,8 +553,23 @@ const RING_CYCLE = RING_P * RING_SCALE;        // closes on itself in one lap
    blue, so it can be tiled around a closed outline                        */
 const RING_RAMP = BEAM_RAMP.slice(1, -1).map(([r, c]) => [r - 1250, c])
                            .concat([[RING_CYCLE, "#3C84FD"]]);
-const RING_ON    = [113, 118];     // fade up
-const RING_OFF   = [123, 128];     // fade down
+/* The outline's opacity, read straight off the plate: summing saturated ink
+   over the chip every frame in the side-by-side's source panel, normalised to
+   its own peak. It is NOT the trapezoid this used to be — the plate never
+   holds. It climbs from nothing on 115 to a peak on 122 and falls away again,
+   so the shape is a triangle and the ring is at full strength for exactly one
+   frame. 113/118/123/128 were a fair reading of when it arrives and goes, but
+   they flattened everything in between.
+   One correction on top of that read: the glow's radius rides this same
+   envelope (the plate spreads 2-4px arriving and leaving against ~12 at its
+   peak), so rendered ink goes roughly as the SQUARE of it. Feeding the plate's
+   ink curve straight in therefore came out 26-44% dim off-peak. These are the
+   values after dividing that back out, so the rendered result — not the
+   input — is what matches the plate.                                      */
+const RING_FADE = [[114, 0], [115, 0.077], [116, 0.352], [117, 0.502],
+                   [118, 0.661], [119, 0.926], [120, 0.942], [121, 0.971],
+                   [122, 1.000], [123, 0.962], [124, 0.920], [125, 0.679],
+                   [126, 0.365], [127, 0.204], [128, 0]];
 /* measured press, frame → scale */
 const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
                [131, 0.94], [132, 1.00]];
@@ -611,11 +642,14 @@ const BAR_LEFT = 328, CAP_R = 115;
    deliberate departure, by request, and it widens the DEFAULT bar and pan
    away from the measured 2547 / 1639. Turn it back by setting the gap to
    33.7 for the plus.
-   Each origin backs off its frame's own first glyph: 'w' bears 0.68 at
-   90.95px and 'h' bears 5.73, so 483 + 73.0 - 0.68 and 508.0 + 73.0 - 5.73. */
+   Each origin backs off its frame's own first glyph: at the query's 86.40px
+   'w' bears 0.853 and 'h' bears 5.596, so 483 + 73.0 - 0.853 and
+   508.0 + 73.0 - 5.596. Re-measure these if the size moves — they do NOT
+   scale with it cleanly. Taking the size down 5% from 90.95 moved 'w' from
+   0.68 UP to 0.853, where naive scaling predicted 0.646.                 */
 const ICON_TEXT_INK_GAP = 73.0;
 const PLUS_RIGHT = 483, GMARK_RIGHT = 508.0;   // 425+58, 386.1+121.9
-const LSB_W = 0.68, LSB_H = 5.73;              // at the query's 90.95px
+const LSB_W = 0.853, LSB_H = 5.596;            // measured at the query's 86.40px
 const TEXT_LEFT_REF = PLUS_RIGHT   + ICON_TEXT_INK_GAP - LSB_W;   // 555.3
 const TEXT_LEFT_G   = GMARK_RIGHT  + ICON_TEXT_INK_GAP - LSB_H;   // 575.3
 let   TEXT_LEFT     = TEXT_LEFT_REF;
@@ -875,6 +909,20 @@ const lerp  = (a, b, u) => a + (b - a) * u;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const sat   = (v) => clamp(v, 0, 1);
 const fadeIn = (T, t0, d) => isNaN(t0) ? 1 : sat((T - t0) / (d || 0.001));
+/* piecewise-linear lookup through a measured frame → value table, clamped at
+   both ends. Used for the beam's and the outline's opacity envelopes.     */
+function envAt(table, f){
+  if (f <= table[0][0])                 return table[0][1];
+  if (f >= table[table.length - 1][0])  return table[table.length - 1][1];
+  for (let i = 1; i < table.length; i++){
+    const [f1, v1] = table[i];
+    if (f <= f1){
+      const [f0, v0] = table[i - 1];
+      return lerp(v0, v1, (f - f0) / (f1 - f0));
+    }
+  }
+  return 0;
+}
 
 /* paint a colour ramp along a set of stroked sub-paths, by arc length.
    Shared by the bar's beam and the button's outline.                      */
@@ -962,7 +1010,11 @@ function render(t){
   const glowK  = clamp(1 - (f - 41) * 0.1375, 0.45, 1);
   beamBloom.setAttribute("stroke-width", (28 * glowK).toFixed(1));
   beamBlurF.setAttribute("stdDeviation", (16 * glowK).toFixed(1));
-  beam.style.display = beamOn ? "" : "none";
+  /* the measured envelope, over the sweep — it carries both the core outline
+     and its glow, since it rides the whole <svg> */
+  const beamOp = envAt(BEAM_FADE, f);
+  beam.style.display = beamOn && beamOp > 0.001 ? "" : "none";
+  beam.style.opacity = beamOp.toFixed(3);
   if (beamOn){
     const shift = BEAM_DRIFT * (f - 30);
     BEAM_SEG.forEach(([a0, a1], i) => {
@@ -982,8 +1034,7 @@ function render(t){
   }
 
   /* ── the button's outline ─────────────────────────────────────────── */
-  const ringOp = sat((f - RING_ON[0]) / (RING_ON[1] - RING_ON[0]))
-               * (1 - sat((f - RING_OFF[0]) / (RING_OFF[1] - RING_OFF[0])));
+  const ringOp = envAt(RING_FADE, f);
   ring.style.opacity = ringOp.toFixed(3);
   /* the plate's ring glow spreads ~2-4px as it arrives and leaves against
      ~12 at its peak, so the radius rides the same envelope as the opacity */
