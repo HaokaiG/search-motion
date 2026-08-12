@@ -41,7 +41,7 @@ Open `index.html` directly, or `python3 -m http.server` and visit it. The contro
   Keeping the gap that frame puts between mark and text moves the query's start from 516 to
   575.3, and since the bar's right edge derives from where the text ends, the bar grows 59px and
   the pan with it — the cap still parks on x=1236, it just travels further. The plate's plus is
-  the default, and it keeps the measured 516 / 2547 / 1639
+  the default
 - **export a GIF** — width and frame rate selectable
 
 Both fields warn when the text outruns its room: the query when it reaches the AI Mode button,
@@ -89,7 +89,7 @@ fades up out of the white.
 | The click | Label ink width and icon width through the press | The button is pressed before the cut: scales to **0.897** on frames 129-130, springs back on 131, and the push through it starts from there |
 | Gradient beam | Saturated-pixel search on the bar's top edge, bottom edge and left cap | Enters bottom-right on frame 18, sweeps left, turns the cap on frame 20, crosses the top by 22; tail clears from 34 and it is gone by 45. Head ≈**800** arc-px/frame, tail ≈**310**, over a 4987 px outline. The colour ramp itself slides forward at ≈**47** px/frame |
 | Geometry | Edge/run detection on single frames | Bar `x 328…2875, y 420…654, r 117`; chip `x 2375…2830, y 459…617`; wordmark letter bounds and stroke weights; every act-2 line box and ink width |
-| Bar sizing | The three gaps implied by those numbers | The query ink ends at 2258, the chip runs 2375…2830, the cap is at 2875 — so the bar's right edge is the text end + 617 and the chip hangs 500 in from it. Feeding the reference question back through those rules reproduces the measured bar (2547px) and pan (1639px) exactly, so the adaptive layout is the measurement, not an approximation of it |
+| Bar sizing | The three gaps implied by those numbers | The query ink ends at 2258, the chip runs 2375…2830, the cap is at 2875 — so the bar's right edge is the text end + 617 and the chip hangs 500 in from it. Feeding the reference question back through those rules reproduced the measured bar (2547px) and pan (1639px) exactly, so the adaptive layout is the measurement, not an approximation of it. The icon-to-text gap has since been widened by request, which moves the default to 2586 / 1678 — set `ICON_TEXT_INK_GAP` to 33.7 to get the measured pair back |
 | Colours | Direct pixel sampling | chip `#f5f6f8`, act-2 chip `#f1f2f6`, rules `#ebebeb`, nav `#535353`, caret black. Wordmark palette is set to brand values (`#3186FF` `#FC413D` `#FEC700` `#00AF57`), which happen to sit closer to the plate than the older ones — mean per-channel error per letter drops from 8/10/15/24 to 6/11/7/16 |
 
 Two first readings the measurements overturned:

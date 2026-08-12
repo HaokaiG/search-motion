@@ -555,15 +555,24 @@ function setQuery(str){
    exactly. Everything downstream — the pan distance, the beam's perimeter —
    is then derived rather than baked.                                      */
 const BAR_LEFT = 328, CAP_R = 115;
-/* The query's left edge. 516 is the measured value and holds while the bar
-   carries the plate's plus. With the G showing it moves out to keep the gap
-   the wide shot puts between mark and text: there the first glyph's ink
-   starts 51.5 past the mark, which is 73.0 at our scale. The mark ends at
-   508.0, and the 'h' that frame types carries a 5.73 left side bearing at
-   our 90.95px, so the advance origin lands on 508.0 + 73.0 - 5.73 = 575.3.
-   That is a real change of geometry, not a nudge: the bar's right edge is
-   derived from where the text ENDS, so the bar and the pan grow with it. */
-const TEXT_LEFT_REF = 516, TEXT_LEFT_G = 575.3;
+/* The query's left edge, set from a single rule: whatever icon the bar
+   carries, the query's first glyph starts ICON_TEXT_INK_GAP past it.
+   73.0 is the ad's own icon-to-text spacing — the wide shot's first glyph
+   starts 51.5 past its mark on a 165 bar, which is 73.0 at our 234.
+   Note what this is NOT: the plate's own close-up puts the plus's text on
+   516, an ink gap of 33.7, and that is not arbitrary either — the wide shot
+   runs 0.585 of its mark's width, and 0.585 x the plus's 58 is 33.9. The
+   plate scales the gap to the icon. Holding 73.0 for both instead is a
+   deliberate departure, by request, and it widens the DEFAULT bar and pan
+   away from the measured 2547 / 1639. Turn it back by setting the gap to
+   33.7 for the plus.
+   Each origin backs off its frame's own first glyph: 'w' bears 0.68 at
+   90.95px and 'h' bears 5.73, so 483 + 73.0 - 0.68 and 508.0 + 73.0 - 5.73. */
+const ICON_TEXT_INK_GAP = 73.0;
+const PLUS_RIGHT = 483, GMARK_RIGHT = 508.0;   // 425+58, 386.1+121.9
+const LSB_W = 0.68, LSB_H = 5.73;              // at the query's 90.95px
+const TEXT_LEFT_REF = PLUS_RIGHT   + ICON_TEXT_INK_GAP - LSB_W;   // 555.3
+const TEXT_LEFT_G   = GMARK_RIGHT  + ICON_TEXT_INK_GAP - LSB_H;   // 575.3
 let   TEXT_LEFT     = TEXT_LEFT_REF;
 /* 117 in the plate is measured from the query's INK end; textEndPx uses the
    advance, which runs 6px further on the reference, so the gap is 111.   */
