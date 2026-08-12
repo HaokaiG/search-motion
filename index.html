@@ -87,6 +87,9 @@
   /* and its label steps up with the query's — 400 was set for a solid pill on
      a white card, and the pill is only 75% here */
   #stage.has-bg .aichip b{font-weight:500}
+  /* the bloom's own opacity, up from the measured .55 — a CSS rule beats the
+     presentation attribute on the element, so this is all it takes */
+  #stage.has-bg #ringBloom{opacity:.85}
   /* Medium over footage, against 356 on the white card. Measured, not
      assumed: the reference's white query ink runs a mean stem of 7.74 at its
      own scale, and its bar is 165 tall against our 234, so at our 90.95px
@@ -674,6 +677,10 @@ const RING_PRESS_FADE = FPS;              // one second
    keeps its shape instead of just getting a fatter core. */
 const RING_GLOW_GROW = 2;
 const RING_GLOW_K = (12 + RING_GLOW_GROW) / 12;
+/* Over footage the glow has to carry against a moving plate rather than a
+   flat white card, so it gets more spread AND more of its own opacity — the
+   opacity half is the CSS rule on #ringBloom, this is the spread half. */
+const RING_GLOW_BG = 1.35;
 
 /* ── act break ─────────────────────────────────────────────────────────── */
 const T_PUSH  = 131 / FPS;         // 5.464  chip starts blowing up
@@ -763,7 +770,7 @@ let   TEXT_LEFT     = TEXT_LEFT_REF;
    chip right, so the bar and the pan grow with it, the same as the icon gap
    does.                                                                  */
 const CHIP_W = 455, CHIP_TO_CAP = 45;
-const CHIP_GAP_REF = 111, CHIP_GAP_BG = 200;
+const CHIP_GAP_REF = 111, CHIP_GAP_BG = 140;   // 200 was too wide, 30% closer
 let   CHIP_GAP = CHIP_GAP_REF;
 const BAR_MIN_RIGHT = 1700;      // keeps a plausible box for a short question
 const PARK_X = 1236;             // where the plate parks the bar's right cap
@@ -1265,8 +1272,9 @@ function render(t){
   ring.style.opacity = ringOp.toFixed(3);
   /* the plate's ring glow spreads ~2-4px as it arrives and leaves against
      ~12 at its peak, so the radius rides the same envelope as the opacity */
-  ringBloom.setAttribute("stroke-width", (9.5 * RING_GLOW_K * ringOp).toFixed(2));
-  ringBlurF.setAttribute("stdDeviation", (6 * RING_GLOW_K * ringOp).toFixed(2));
+  const ringGlowK = RING_GLOW_K * (bgOn ? RING_GLOW_BG : 1);
+  ringBloom.setAttribute("stroke-width", (9.5 * ringGlowK * ringOp).toFixed(2));
+  ringBlurF.setAttribute("stdDeviation", (6 * ringGlowK * ringOp).toFixed(2));
   if (ringOp > 0.002)
     paintRamp(ringGrads, RING_SEG,
               RING_PHASE + 1250 + ringSpin(f) - ringSpin(120),
