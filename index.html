@@ -274,8 +274,24 @@
           <filter id="bloom" x="-8%" y="-60%" width="116%" height="220%">
             <feGaussianBlur id="beamBlurF" stdDeviation="16"/>
           </filter>
+          <!-- The bloom is a fat stroke on the bar's border CENTRE-line, so a
+               symmetric blur throws half of it inside the bar. The plate has
+               clean white in there — the measured spread is all outward. So
+               the bloom is masked to everything outside the bar's own rounded
+               rect; the crisp core stroke is left unmasked and still straddles
+               the line. Both rects follow the bar's width in layoutBar.    -->
+          <!-- the region must be given explicitly: a userSpaceOnUse mask
+               defaults to -10%..120% resolved as ABSOLUTE user units, and this
+               viewBox starts at 300,370, so the default lands off the content
+               and masks everything away.                                   -->
+          <mask id="beamOuter" maskUnits="userSpaceOnUse"
+                x="300" y="370" width="2620" height="340">
+            <rect id="beamMaskAll"  x="300" y="370" width="2620" height="340" fill="#fff"/>
+            <rect id="beamMaskHole" x="328" y="420" width="2547" height="234" rx="117" fill="#000"/>
+          </mask>
         </defs>
-        <g id="beamBloom" class="bg" filter="url(#bloom)" opacity=".62" stroke-width="28">
+        <g id="beamBloom" class="bg" filter="url(#bloom)" mask="url(#beamOuter)"
+           opacity=".62" stroke-width="28">
           <path class="bp" d="M2758 652 L445 652"                    stroke="url(#gBot)"/>
           <path class="bp" d="M445 652 A115 115 0 0 1 445 422"       stroke="url(#gCap)"/>
           <path class="bp" d="M445 422 L2758 422"                    stroke="url(#gTop)"/>
@@ -304,8 +320,16 @@
             <filter id="cbloom" x="-20%" y="-70%" width="140%" height="240%">
               <feGaussianBlur id="ringBlurF" stdDeviation="6"/>
             </filter>
+            <!-- same outer-only mask as the bar's beam: the chip is 455x158
+                 with a 79 radius in this space, and its face stays clean -->
+            <mask id="ringOuter" maskUnits="userSpaceOnUse"
+                  x="-14" y="-14" width="483" height="186">
+              <rect x="-14" y="-14" width="483" height="186" fill="#fff"/>
+              <rect x="0" y="0" width="455" height="158" rx="79" fill="#000"/>
+            </mask>
           </defs>
-          <g id="ringBloom" class="cg" filter="url(#cbloom)" opacity=".55" stroke-width="9.5">
+          <g id="ringBloom" class="cg" filter="url(#cbloom)" mask="url(#ringOuter)"
+             opacity=".55" stroke-width="9.5">
             <path class="cp" d="M79 2 L376 2"                stroke="url(#cgT)"/>
             <path class="cp" d="M376 2 A77 77 0 0 1 376 156" stroke="url(#cgR)"/>
             <path class="cp" d="M376 156 L79 156"            stroke="url(#cgB)"/>
@@ -620,6 +644,10 @@ function layoutBar(){
   gTop.setAttribute("x1", L - BEAM_PAD); gTop.setAttribute("x2", R + BEAM_PAD);
   beamSvg.setAttribute("viewBox", `300 370 ${barRight - 260} 340`);
   beamSvg.style.width = (barRight - 260) + "px";
+  /* the outer-only mask, its region and its two rects, all track the width */
+  beamMask.setAttribute("width",     barRight - 260);
+  beamMaskAll.setAttribute("width",  barRight - 260);
+  beamMaskHole.setAttribute("width", barRight - BAR_LEFT);
 
   /* wordmark centred over the bar, so it tracks the width */
   const mid = (BAR_LEFT + barRight) / 2;
@@ -721,6 +749,9 @@ const blurG  = document.getElementById("mblurG");
 const bar       = document.querySelector(".bar");
 const beam      = document.querySelector(".beam");
 const beamSvg   = beam;
+const beamMask     = document.getElementById("beamOuter");
+const beamMaskAll  = document.getElementById("beamMaskAll");
+const beamMaskHole = document.getElementById("beamMaskHole");
 const gBot      = document.getElementById("gBot");
 const gTop      = document.getElementById("gTop");
 const logoG     = document.getElementById("logoG");
