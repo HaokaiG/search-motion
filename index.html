@@ -113,7 +113,7 @@
        /* source shows no halo above y=418 and ~17px of falloff below y=654 */
        box-shadow:0 10px 15px -7px rgba(32,33,36,.16)}
 
-  /* the beam sits on the bar's border centre-line, so it needs no box */
+  /* the beam rings the bar from outside, so it needs no box of its own */
   .beam{position:absolute;left:280px;top:370px;width:2660px;height:340px;
         overflow:visible;pointer-events:none}
   .beam .bg{fill:none;stroke-linecap:round}
@@ -422,16 +422,16 @@
           </defs>
           <g id="ringBloom" class="cg" filter="url(#cbloom)" mask="url(#ringOuter)"
              opacity=".55" stroke-width="9.5">
-            <path class="cp" d="M79 2 L376 2"                stroke="url(#cgT)"/>
-            <path class="cp" d="M376 2 A77 77 0 0 1 376 156" stroke="url(#cgR)"/>
-            <path class="cp" d="M376 156 L79 156"            stroke="url(#cgB)"/>
-            <path class="cp" d="M79 156 A77 77 0 0 1 79 2"   stroke="url(#cgL)"/>
+            <path class="cp" d="M79 -2 L376 -2"                stroke="url(#cgT)"/>
+            <path class="cp" d="M376 -2 A81 81 0 0 1 376 160" stroke="url(#cgR)"/>
+            <path class="cp" d="M376 160 L79 160"              stroke="url(#cgB)"/>
+            <path class="cp" d="M79 160 A81 81 0 0 1 79 -2"    stroke="url(#cgL)"/>
           </g>
           <g class="cg" stroke-width="4">
-            <path class="cp" d="M79 2 L376 2"                stroke="url(#cgT)"/>
-            <path class="cp" d="M376 2 A77 77 0 0 1 376 156" stroke="url(#cgR)"/>
-            <path class="cp" d="M376 156 L79 156"            stroke="url(#cgB)"/>
-            <path class="cp" d="M79 156 A77 77 0 0 1 79 2"   stroke="url(#cgL)"/>
+            <path class="cp" d="M79 -2 L376 -2"                stroke="url(#cgT)"/>
+            <path class="cp" d="M376 -2 A81 81 0 0 1 376 160" stroke="url(#cgR)"/>
+            <path class="cp" d="M376 160 L79 160"              stroke="url(#cgB)"/>
+            <path class="cp" d="M79 160 A81 81 0 0 1 79 -2"    stroke="url(#cgL)"/>
           </g>
         </svg>
         <!-- supplied artwork (search_spark.svg). Its ink is exactly 20x20
@@ -580,6 +580,8 @@ const BEAM_TAILPUSH = 30;          // bloom starts this far behind the tail,
                                    // trace does not lose its glow entirely
 const BEAM_PAD  = 40;              // gradients run PAST each sub-path's ends so
                                    // the clamped stops never land on the seam
+const BEAM_CORE = 5;               // the crisp stroke's width …
+const BEAM_OFF  = BEAM_CORE / 2;   // … half of it, to sit the outline outside
 /* The beam's own opacity, on TOP of the head/tail sweep. The sweep already
    grows and shrinks the lit arc, so the plate's raw ink curve is NOT the
    opacity: this is the residual left after dividing the plate's normalised
@@ -610,8 +612,21 @@ const BEAM_RAMP = [
    Then the button is *pressed*: tracking the label ink and the icon width,
    it scales to ~0.91 on 129-130 and springs back on 131 — and the push
    through it starts from there.                                          */
-const RING_SEG   = [[0, 297], [297, 545], [545, 842], [842, 1090]]; // top,R,bot,L
-const RING_P     = 1090;           // perimeter
+/* The outline runs on the OUTSIDE of the chip, not on its border centre-line:
+   the paths are pushed out by half the core stroke so the stroke's inner edge
+   lands on the chip's own edge. The chip is 455x158 on a 79 radius, the core
+   is 4 wide, so the caps run on 81 and the straights on y -2 and 160. The
+   perimeter follows from that rather than being written down.            */
+const CHIP_R_OUT = 79, RING_CORE = 4;
+const RING_OFF   = RING_CORE / 2;
+const RING_RAD   = CHIP_R_OUT + RING_OFF;              // 81
+const RING_STRAIGHT = 455 - 2 * CHIP_R_OUT;            // 297
+const RING_CAP   = Math.PI * RING_RAD;                 // 254.47
+const RING_SEG   = [[0, RING_STRAIGHT],                                     // top
+                    [RING_STRAIGHT, RING_STRAIGHT + RING_CAP],              // right
+                    [RING_STRAIGHT + RING_CAP, 2 * RING_STRAIGHT + RING_CAP],
+                    [2 * RING_STRAIGHT + RING_CAP, 2 * (RING_STRAIGHT + RING_CAP)]];
+const RING_P     = 2 * (RING_STRAIGHT + RING_CAP);     // 1102.9, was 1090
 /* Solved from the hues around the outline on 116 and 120: the ramp advances
    4.65 units per arc px and its phase moves 771 units per frame, and it
    closes on itself once per lap — one full colour cycle around the button. */
@@ -800,10 +815,18 @@ function layoutBar(){
   chip.style.left  = (barRight - CHIP_TO_CAP - CHIP_W) + "px";
   PAN_END = Math.max(0, barRight - PARK_X);
 
-  /* the beam traces the bar's border centre-line, so its path and its arc
+  /* the beam traces the bar just outside its edge, so its path and its arc
      lengths move with the width                                          */
   const L = BAR_LEFT + CAP_R + 2, R = barRight - CAP_R - 2;   // cap centres
-  const straight = R - L, cap = Math.PI * CAP_R;
+  /* The outline runs on the OUTSIDE of the bar rather than on its border
+     centre-line: everything is pushed out by half the core stroke, so the
+     stroke's inner edge lands on the bar's own edge. The bar is y 420…654 on
+     a 117 radius (CAP_R + 2, and the cap CENTRES above are already right),
+     the core is 5 wide, so the runs sit on 417.5 and 656.5 and the caps on
+     119.5. Arc lengths follow from the radius, so the perimeter moves with
+     it.                                                                  */
+  const yTop = 420 - BEAM_OFF, yBot = 654 + BEAM_OFF, rad = CAP_R + 2 + BEAM_OFF;
+  const straight = R - L, cap = Math.PI * rad;
   /* Four sub-paths, one full clockwise lap of the pill, starting where the
      bottom run meets the right cap. BEAM_P always counted both caps, but only
      the left one used to be drawn — so the last `cap` of the lap was a hole,
@@ -815,15 +838,18 @@ function layoutBar(){
               [straight + cap, 2 * straight + cap],             // top, L->R
               [2 * straight + cap, 2 * straight + 2 * cap]];    // right cap, dn
   BEAM_P   = 2 * straight + 2 * cap;
-  beamPaths[0].setAttribute("d", `M${R} 652 L${L} 652`);
-  beamPaths[1].setAttribute("d", `M${L} 652 A${CAP_R} ${CAP_R} 0 0 1 ${L} 422`);
-  beamPaths[2].setAttribute("d", `M${L} 422 L${R} 422`);
-  beamPaths[3].setAttribute("d", `M${R} 422 A${CAP_R} ${CAP_R} 0 0 1 ${R} 652`);
+  beamPaths[0].setAttribute("d", `M${R} ${yBot} L${L} ${yBot}`);
+  beamPaths[1].setAttribute("d", `M${L} ${yBot} A${rad} ${rad} 0 0 1 ${L} ${yTop}`);
+  beamPaths[2].setAttribute("d", `M${L} ${yTop} L${R} ${yTop}`);
+  beamPaths[3].setAttribute("d", `M${R} ${yTop} A${rad} ${rad} 0 0 1 ${R} ${yBot}`);
   const NSEG = BEAM_SEG.length;
   for (let i = 0; i < NSEG; i++)
     beamPaths[i + NSEG].setAttribute("d", beamPaths[i].getAttribute("d"));
   gBot.setAttribute("x1", R + BEAM_PAD); gBot.setAttribute("x2", L - BEAM_PAD);
   gTop.setAttribute("x1", L - BEAM_PAD); gTop.setAttribute("x2", R + BEAM_PAD);
+  /* the cap ramps run along y, so they move out with the runs */
+  gCap.setAttribute("y1", yBot + BEAM_PAD);  gCap.setAttribute("y2", yTop - BEAM_PAD);
+  gRCap.setAttribute("y1", yTop - BEAM_PAD); gRCap.setAttribute("y2", yBot + BEAM_PAD);
   beamSvg.setAttribute("viewBox", `280 370 ${barRight - 220} 340`);
   beamSvg.style.width = (barRight - 220) + "px";
   /* the outer-only mask, its region and its two rects, all track the width */
@@ -937,6 +963,8 @@ const beamMaskAll  = document.getElementById("beamMaskAll");
 const beamMaskHole = document.getElementById("beamMaskHole");
 const gBot      = document.getElementById("gBot");
 const gTop      = document.getElementById("gTop");
+const gCap      = document.getElementById("gCap");
+const gRCap     = document.getElementById("gRCap");
 const logoG     = document.getElementById("logoG");
 const beamBloom = document.getElementById("beamBloom");
 const beamBlurF = document.getElementById("beamBlurF");
