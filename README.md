@@ -35,9 +35,12 @@ Open `index.html` directly, or `python3 -m http.server` and visit it. The contro
 - **turn the wordmark off** — Act 1's Google logo drops out and the bar sits alone in the white.
   Nothing measures back off the logo, so the bar width, the pan and the beam are untouched; the
   small G in the Act 2 header is a separate mark and stays
-- **switch the bar's icon** — the plus at the left of the search bar becomes the G mark, sized
-  off the AI Mode button at the ratio the ad's own wide shot shows (117px against the chip's
-  measured 158). The plate's plus is the default
+- **switch the bar's icon** — the plus at the left of the search bar becomes the G mark at the
+  AI Mode button's own size (158px), inset an even 38px from the bar's top, bottom and left.
+  Clearing the mark by that same 38 pushes the query's start from 516 to 558.3, and since the
+  bar's right edge derives from where the text ends, the bar grows 42px and the pan grows with
+  it — the cap still parks on x=1236, it just travels further. The plate's plus is the default,
+  and it keeps the measured 516 / 2547 / 1639
 - **export a GIF** — width and frame rate selectable
 
 Both fields warn when the text outruns its room: the query when it reaches the AI Mode button,

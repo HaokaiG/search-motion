@@ -64,14 +64,16 @@
   .plus i{position:absolute;background:#3c4043;border-radius:3px}
   .plus i:nth-child(1){left:0;top:26px;width:58px;height:6px}
   .plus i:nth-child(2){left:26px;top:0;width:6px;height:58px}
-  /* The same slot carrying the G mark instead, sized off the AI Mode chip:
-     the reference frame puts the G at ~0.74 of the button's height, and the
-     chip measures 158 (y 459…617), so the G is 117 tall and 114.3 wide on the
-     artwork's own 250x256. That no longer fits the plus's 58px box, so the
-     slot grows and re-centres in the run between the bar's left edge (328)
-     and the query text (516) — 36.9px clear on each side. Vertically it
-     stays on the plus's own centre, y=540.                                */
-  .plus.as-g{left:364.9px;top:481.5px;width:114.3px;height:117px;
+  /* The same slot carrying the G mark instead, at the AI Mode button's own
+     size: the chip measures 158 tall (y 459…617), so the G is 158 and 154.3
+     wide on the artwork's own 250x256. The bar is 234 tall (y 420…654), so
+     centring gives 38 above and below, and the left inset matches at 38 —
+     x=366. That is as far as the symmetry goes: the run from the bar's left
+     edge (328) to the query text (516) is 188, and a 38 margin on BOTH sides
+     of a 154.3 mark would need 230.3. The mark ends at 520.3, so its box
+     crosses the text's by 4.3 — the query's own left side bearing is what
+     keeps the ink apart. Moving the text would change measured geometry. */
+  .plus.as-g{left:366px;top:458px;width:154.3px;height:158px;
      background:var(--gmark) center/contain no-repeat}
   .plus.as-g i{display:none}
 
@@ -550,7 +552,16 @@ function setQuery(str){
    chip hangs 500 in from that edge. Both fall out of the reference numbers
    exactly. Everything downstream — the pan distance, the beam's perimeter —
    is then derived rather than baked.                                      */
-const BAR_LEFT = 328, TEXT_LEFT = 516, CAP_R = 115;
+const BAR_LEFT = 328, CAP_R = 115;
+/* The query's left edge. 516 is the measured value and holds while the bar
+   carries the plate's plus. With the G showing it moves out to clear the
+   larger mark by the same 38 the mark keeps on its other three sides — the
+   G ends at 520.3, so 558.3. That is a real change of geometry, not just a
+   nudge: the bar's right edge is derived from where the text ENDS, so the
+   bar grows by the same 42.3 and the pan grows with it. It is the price of
+   an even margin around a mark this size, and it is confined to G mode. */
+const TEXT_LEFT_REF = 516, TEXT_LEFT_G = 558.3;
+let   TEXT_LEFT     = TEXT_LEFT_REF;
 /* 117 in the plate is measured from the query's INK end; textEndPx uses the
    advance, which runs 6px further on the reference, so the gap is 111.   */
 const CHIP_W = 455, CHIP_GAP = 111, CHIP_TO_CAP = 45;
@@ -760,16 +771,23 @@ applyLogo();
    and the bar's geometry are all untouched — nothing measures off it, and
    it rides the pan and the motion blur with everything else in #plane.
    Carried as #icon=g, same as #logo=0.                                    */
-const plusEl = document.querySelector(".plus");
-const $pg    = document.getElementById("pg");
-let plusAsG  = Q.get("icon") === "g";
+const plusEl  = document.querySelector(".plus");
+const queryEl = document.querySelector(".query");
+const $pg     = document.getElementById("pg");
+let plusAsG   = Q.get("icon") === "g";
+/* Sets the icon and, with it, where the query starts. It does NOT re-lay-out
+   the bar: at boot it runs before applyQuery exists, and boot calls that
+   anyway. The click handler below does the re-layout itself.             */
 function applyPlus(){
   plusEl.classList.toggle("as-g", plusAsG);
   $pg.textContent = "Bar icon: " + (plusAsG ? "G" : "+");
+  TEXT_LEFT = plusAsG ? TEXT_LEFT_G : TEXT_LEFT_REF;
+  queryEl.style.left = TEXT_LEFT + "px";
 }
 $pg.onclick = () => {
   plusAsG = !plusAsG;
   applyPlus();
+  applyQuery();                      // the bar re-derives from the text's end
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
   plusAsG ? h.set("icon", "g") : h.delete("icon");
   const s = h.toString();
