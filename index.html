@@ -31,6 +31,12 @@
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{height:100%;background:#0d0d0f;overflow:hidden}
   body{display:grid;place-items:center;font-family:var(--font)}
+  /* The stage carries the face itself rather than inheriting it from <body>.
+     The GIF export serialises #stage into a foreignObject inside a plain div,
+     where there is no <body> for that rule to match — so the whole piece fell
+     through the stack to sans-serif, which sets the query ~5% wide and closed
+     up the gap to the AI Mode chip in the GIF but not in the preview.     */
+  #stage{font-family:var(--font)}
 
   #fit{position:fixed;left:50%;top:50%;width:1920px;height:1080px;
        transform-origin:50% 50%;margin:-540px 0 0 -960px}

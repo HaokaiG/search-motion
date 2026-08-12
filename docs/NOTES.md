@@ -39,6 +39,13 @@ Nothing here is judged by eye. Every change goes through the same loop:
 - **A metric that does not move is not proof.** The 4px text jump when typing
   ended never showed up in the score — one frame cannot shift a 132-frame mean.
   It took someone watching it.
+- **The GIF export is a different document.** It serialises `#stage` into a
+  foreignObject inside a plain `<div>`, so any rule hung on `body` — or on
+  anything outside `#stage` — silently does not apply. `font-family` lived on
+  `body`, so every exported frame fell through the stack to `sans-serif` and
+  set the query ~5% wide while the preview was perfect. Keep what the stage
+  needs on `#stage` or below. Worth checking against the live DOM rather than
+  by eye: rasterise a frame and compare an ink extent.
 
 ## Open decisions
 
