@@ -629,7 +629,9 @@ const RING_CYCLE = RING_P * RING_SCALE;        // closes on itself in one lap
 const RING_EASE   = 0.30;
 const RING_SPIN_F0 = 114, RING_SPIN_F1 = 128;     // the outline's own span
 const RING_SPIN_SPAN = RING_SPIN_F1 - RING_SPIN_F0;
-const RING_V0 = RING_DRIFT / (1 - RING_EASE / 2);
+/* and the whole spin runs RING_SLOW slower than the measured rate */
+const RING_SLOW = 0.15;
+const RING_V0 = RING_DRIFT * (1 - RING_SLOW) / (1 - RING_EASE / 2);
 function ringSpin(f){
   const d = clamp(f - RING_SPIN_F0, 0, RING_SPIN_SPAN);
   return RING_V0 * (d - RING_EASE * d * d / (2 * RING_SPIN_SPAN));
@@ -658,10 +660,20 @@ const RING_FADE = [[114, 0], [115, 0.077], [116, 0.352], [117, 0.502],
 /* measured press, frame → scale */
 const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
                [131, 0.94], [132, 1.00]];
-/* the outline is taken out by the press: it starts going the moment the
-   button does, and is gone by the frame the button bottoms out on 129 */
+/* The outline is taken out by the press: it starts going the moment the
+   button does, and takes a full second over it. The measured envelope is
+   left in charge up TO the press and then held, so the fade runs from the
+   0.204 it had reached rather than snapping back up.
+   Worth knowing it cannot finish: act 1 is gone by frame 136, about 9 frames
+   in, so roughly a third of the second actually plays and the rest is
+   carried off by the cut. Shortening it is a matter of RING_PRESS_FADE.  */
 const PRESS_F0 = PRESS[0][0];
-const RING_PRESS_FADE = 2;
+const RING_PRESS_FADE = FPS;              // one second
+/* The glow reads ~12px across at its peak on the plate; RING_GLOW_GROW adds
+   to that, scaling the bloom's width and its blur together so the falloff
+   keeps its shape instead of just getting a fatter core. */
+const RING_GLOW_GROW = 2;
+const RING_GLOW_K = (12 + RING_GLOW_GROW) / 12;
 
 /* ── act break ─────────────────────────────────────────────────────────── */
 const T_PUSH  = 131 / FPS;         // 5.464  chip starts blowing up
@@ -743,8 +755,16 @@ const TEXT_LEFT_REF = PLUS_RIGHT   + ICON_TEXT_INK_GAP - LSB_W;   // 555.3
 const TEXT_LEFT_G   = GMARK_RIGHT  + ICON_TEXT_INK_GAP - LSB_H;   // 575.3
 let   TEXT_LEFT     = TEXT_LEFT_REF;
 /* 117 in the plate is measured from the query's INK end; textEndPx uses the
-   advance, which runs 6px further on the reference, so the gap is 111.   */
-const CHIP_W = 455, CHIP_GAP = 111, CHIP_TO_CAP = 45;
+   advance, which runs 6px further on the reference, so the gap is 111.
+   Over footage it opens out: the bar is a scrim there rather than a solid
+   card, the chip is only 75% opaque, and the plate showing through both
+   needs the two to stop crowding each other. 200 by eye — this one has no
+   measurement behind it, and CHIP_GAP_BG is the dial. Widening it pushes the
+   chip right, so the bar and the pan grow with it, the same as the icon gap
+   does.                                                                  */
+const CHIP_W = 455, CHIP_TO_CAP = 45;
+const CHIP_GAP_REF = 111, CHIP_GAP_BG = 200;
+let   CHIP_GAP = CHIP_GAP_REF;
 const BAR_MIN_RIGHT = 1700;      // keeps a plausible box for a short question
 const PARK_X = 1236;             // where the plate parks the bar's right cap
 
@@ -1053,6 +1073,8 @@ $bgin.addEventListener("change", () => {
     bgOn = true;
     stage.classList.add("has-bg");
     $bgclr.hidden = false;
+    CHIP_GAP = CHIP_GAP_BG;
+    applyQuery();                  // the bar re-derives from the wider gap
     /* warm it through one decode so the first exported frame is not cold */
     await bgSeek(hold !== null ? hold : 0);
     render(hold !== null ? hold : 0);
@@ -1061,6 +1083,8 @@ $bgin.addEventListener("change", () => {
 $bgclr.onclick = () => {
   bgOn = false;
   stage.classList.remove("has-bg");
+  CHIP_GAP = CHIP_GAP_REF;
+  applyQuery();
   bgvid.pause();
   bgvid.removeAttribute("src");
   bgvid.load();
@@ -1236,13 +1260,13 @@ function render(t){
      first frame so the two cannot drift apart if that timing is re-cut. The
      envelope already has it down to 0.20 by then, so this mostly sharpens
      the last frame rather than removing anything that was still bright.  */
-  const ringOp = envAt(RING_FADE, f)
+  const ringOp = envAt(RING_FADE, Math.min(f, PRESS_F0))
                * (1 - sat((f - PRESS_F0) / RING_PRESS_FADE));
   ring.style.opacity = ringOp.toFixed(3);
   /* the plate's ring glow spreads ~2-4px as it arrives and leaves against
      ~12 at its peak, so the radius rides the same envelope as the opacity */
-  ringBloom.setAttribute("stroke-width", (9.5 * ringOp).toFixed(2));
-  ringBlurF.setAttribute("stdDeviation", (6 * ringOp).toFixed(2));
+  ringBloom.setAttribute("stroke-width", (9.5 * RING_GLOW_K * ringOp).toFixed(2));
+  ringBlurF.setAttribute("stdDeviation", (6 * RING_GLOW_K * ringOp).toFixed(2));
   if (ringOp > 0.002)
     paintRamp(ringGrads, RING_SEG,
               RING_PHASE + 1250 + ringSpin(f) - ringSpin(120),
