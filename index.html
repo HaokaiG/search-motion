@@ -52,7 +52,7 @@
        box-shadow:0 10px 15px -7px rgba(32,33,36,.16)}
 
   /* the beam sits on the bar's border centre-line, so it needs no box */
-  .beam{position:absolute;left:300px;top:370px;width:2620px;height:340px;
+  .beam{position:absolute;left:280px;top:370px;width:2660px;height:340px;
         overflow:visible;pointer-events:none}
   .beam .bg{fill:none;stroke-linecap:round}
   /* must out-specify `.aichip svg` below, which sizes the lens icon */
@@ -263,14 +263,18 @@
       <!-- The AI gradient that runs around the box on frames 17-45. The
            ramp is a function of ARC LENGTH along the outline, not of x: at
            any given x the top edge and the bottom edge are different
-           colours. Path starts bottom-right, runs right→left along the
-           bottom, up the left cap, then left→right along the top — the
-           order the colour actually lights up in.                        -->
-      <svg class="beam" viewBox="300 370 2620 340">
+           colours. Path starts where the bottom run meets the right cap and
+           makes one full clockwise lap: right→left along the bottom, up the
+           left cap, left→right along the top, then down the right cap to
+           close — the order the colour actually lights up in.            -->
+      <svg class="beam" viewBox="280 370 2660 340">
         <defs>
           <linearGradient id="gBot" gradientUnits="userSpaceOnUse" x1="2798" y1="0" x2="405"  y2="0"></linearGradient>
           <linearGradient id="gCap" gradientUnits="userSpaceOnUse" x1="0" y1="692" x2="0"     y2="382"></linearGradient>
           <linearGradient id="gTop" gradientUnits="userSpaceOnUse" x1="405"  y1="0" x2="2798" y2="0"></linearGradient>
+          <!-- the right cap closes the loop; it travels top->bottom, so its
+               ramp runs the other way from the left cap's -->
+          <linearGradient id="gRCap" gradientUnits="userSpaceOnUse" x1="0" y1="382" x2="0"     y2="692"></linearGradient>
           <filter id="bloom" x="-8%" y="-60%" width="116%" height="220%">
             <feGaussianBlur id="beamBlurF" stdDeviation="16"/>
           </filter>
@@ -285,8 +289,8 @@
                viewBox starts at 300,370, so the default lands off the content
                and masks everything away.                                   -->
           <mask id="beamOuter" maskUnits="userSpaceOnUse"
-                x="300" y="370" width="2620" height="340">
-            <rect id="beamMaskAll"  x="300" y="370" width="2620" height="340" fill="#fff"/>
+                x="280" y="370" width="2660" height="340">
+            <rect id="beamMaskAll"  x="280" y="370" width="2660" height="340" fill="#fff"/>
             <rect id="beamMaskHole" x="328" y="420" width="2547" height="234" rx="117" fill="#000"/>
           </mask>
         </defs>
@@ -295,11 +299,13 @@
           <path class="bp" d="M2758 652 L445 652"                    stroke="url(#gBot)"/>
           <path class="bp" d="M445 652 A115 115 0 0 1 445 422"       stroke="url(#gCap)"/>
           <path class="bp" d="M445 422 L2758 422"                    stroke="url(#gTop)"/>
+          <path class="bp" d="M2758 422 A115 115 0 0 1 2758 652"     stroke="url(#gRCap)"/>
         </g>
         <g class="bg" stroke-width="5">
           <path class="bp" d="M2758 652 L445 652"                    stroke="url(#gBot)"/>
           <path class="bp" d="M445 652 A115 115 0 0 1 445 422"       stroke="url(#gCap)"/>
           <path class="bp" d="M445 422 L2758 422"                    stroke="url(#gTop)"/>
+          <path class="bp" d="M2758 422 A115 115 0 0 1 2758 652"     stroke="url(#gRCap)"/>
         </g>
       </svg>
       <div class="plus"><i></i><i></i></div>
@@ -633,20 +639,31 @@ function layoutBar(){
      lengths move with the width                                          */
   const L = BAR_LEFT + CAP_R + 2, R = barRight - CAP_R - 2;   // cap centres
   const straight = R - L, cap = Math.PI * CAP_R;
-  BEAM_SEG = [[0, straight], [straight, straight + cap], [straight + cap, 2 * straight + cap]];
+  /* Four sub-paths, one full clockwise lap of the pill, starting where the
+     bottom run meets the right cap. BEAM_P always counted both caps, but only
+     the left one used to be drawn — so the last `cap` of the lap was a hole,
+     and on a short query, where the right cap is on screen, the outline
+     visibly stopped dead at it. The right cap now closes the loop, and being
+     last it lights only once the head has come all the way round to it.   */
+  BEAM_SEG = [[0, straight],                                    // bottom, R->L
+              [straight, straight + cap],                       // left cap, up
+              [straight + cap, 2 * straight + cap],             // top, L->R
+              [2 * straight + cap, 2 * straight + 2 * cap]];    // right cap, dn
   BEAM_P   = 2 * straight + 2 * cap;
   beamPaths[0].setAttribute("d", `M${R} 652 L${L} 652`);
   beamPaths[1].setAttribute("d", `M${L} 652 A${CAP_R} ${CAP_R} 0 0 1 ${L} 422`);
   beamPaths[2].setAttribute("d", `M${L} 422 L${R} 422`);
-  for (let i = 0; i < 3; i++)
-    beamPaths[i + 3].setAttribute("d", beamPaths[i].getAttribute("d"));
+  beamPaths[3].setAttribute("d", `M${R} 422 A${CAP_R} ${CAP_R} 0 0 1 ${R} 652`);
+  const NSEG = BEAM_SEG.length;
+  for (let i = 0; i < NSEG; i++)
+    beamPaths[i + NSEG].setAttribute("d", beamPaths[i].getAttribute("d"));
   gBot.setAttribute("x1", R + BEAM_PAD); gBot.setAttribute("x2", L - BEAM_PAD);
   gTop.setAttribute("x1", L - BEAM_PAD); gTop.setAttribute("x2", R + BEAM_PAD);
-  beamSvg.setAttribute("viewBox", `300 370 ${barRight - 260} 340`);
-  beamSvg.style.width = (barRight - 260) + "px";
+  beamSvg.setAttribute("viewBox", `280 370 ${barRight - 220} 340`);
+  beamSvg.style.width = (barRight - 220) + "px";
   /* the outer-only mask, its region and its two rects, all track the width */
-  beamMask.setAttribute("width",     barRight - 260);
-  beamMaskAll.setAttribute("width",  barRight - 260);
+  beamMask.setAttribute("width",     barRight - 220);
+  beamMaskAll.setAttribute("width",  barRight - 220);
   beamMaskHole.setAttribute("width", barRight - BAR_LEFT);
 
   /* wordmark centred over the bar, so it tracks the width */
@@ -771,7 +788,8 @@ function rampStops(id, reps, ramp){
     });
   return [...g.children];
 }
-const beamGrads = ["gBot", "gCap", "gTop"].map(id => rampStops(id, 1, BEAM_RAMP));
+/* one per sub-path, in lap order: bottom, left cap, top, right cap */
+const beamGrads = ["gBot", "gCap", "gTop", "gRCap"].map(id => rampStops(id, 1, BEAM_RAMP));
 const ring      = document.getElementById("chipring");
 const ringGrads = ["cgT", "cgR", "cgB", "cgL"].map(id => rampStops(id, 3, RING_RAMP));
 const rows   = [...document.querySelectorAll("#act2 .row, #act2 [data-rise]")];
@@ -943,7 +961,7 @@ function render(t){
       };
       const push = Math.min(BEAM_TAILPUSH, litLen / 3);
       set(beamPaths[i], Math.max(from, Math.min(bt + push, to)));            // bloom
-      set(beamPaths[i + 3], from);                                          // core
+      set(beamPaths[i + BEAM_SEG.length], from);                            // core
     });
     paintRamp(beamGrads, BEAM_SEG, shift, 1, BEAM_PAD, BEAM_RAMP, 0);
   }
