@@ -64,10 +64,15 @@
   .plus i{position:absolute;background:#3c4043;border-radius:3px}
   .plus i:nth-child(1){left:0;top:26px;width:58px;height:6px}
   .plus i:nth-child(2){left:26px;top:0;width:6px;height:58px}
-  /* the same slot carrying the G mark instead. `contain` keeps the artwork's
-     250x256 inside the plus's measured 58px box — it draws 56.6x58, centred
-     on the same point the two bars crossed — so nothing new is guessed at. */
-  .plus.as-g{background:var(--gmark) center/contain no-repeat}
+  /* The same slot carrying the G mark instead, sized off the AI Mode chip:
+     the reference frame puts the G at ~0.74 of the button's height, and the
+     chip measures 158 (y 459…617), so the G is 117 tall and 114.3 wide on the
+     artwork's own 250x256. That no longer fits the plus's 58px box, so the
+     slot grows and re-centres in the run between the bar's left edge (328)
+     and the query text (516) — 36.9px clear on each side. Vertically it
+     stays on the plus's own centre, y=540.                                */
+  .plus.as-g{left:364.9px;top:481.5px;width:114.3px;height:117px;
+     background:var(--gmark) center/contain no-repeat}
   .plus.as-g i{display:none}
 
   /* ink runs 502…584 with the baseline at 566 → 86px type. `top` is set
