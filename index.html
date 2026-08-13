@@ -172,9 +172,12 @@
           box-shadow:0 2px 10px rgba(32,33,36,.10);
           display:flex;align-items:center;gap:32px;padding-left:59px;
           transform-origin:50% 50%;will-change:transform,filter}
-  /* box tightened to the artwork bounds so the ink is the measured
-     67x67 px (content x 2433…2500, y 504…571)                        */
-  .aichip svg.spark{width:67px;height:67px;flex:none}
+  /* Box tightened to the artwork bounds, so the plate's ink is the measured
+     67x67 px (content x 2433…2500, y 504…571). Run 15% over that by request —
+     77.05. The chip is a fixed 455 and everything in it is flex:none, so the
+     extra width has to come out of the slack: 59 padding + 77.05 + 32 gap +
+     ~243 of label leaves ~44 spare, against ~54 before.                */
+  .aichip svg.spark{width:77.05px;height:77.05px;flex:none}
   /* flex:none + pre, or the letter-spacing correction lets flex shrink and
      wrap the label once the chip scales up through the cut               */
   .aichip b{flex:none;white-space:pre;font-size:63.53px;font-weight:400;
@@ -1357,10 +1360,20 @@ const PAN_SHAPE = (() => {
   const last = seq[seq.length - 1] || 1;
   return seq.map(v => v / last);                  // 0 → 1, the plate's easing
 })();
+/* The plate's curve is a 1-frame-resolution sample read back with a straight
+   lerp, so it carries small kinks, and trimming its tail left the last frames
+   dropping off rather than settling. CAM_EASE blends it toward smootherstep,
+   which is C2 and has zero velocity at BOTH ends — so the move keeps the
+   plate's character while easing in and out of it properly. 0 is the plate
+   alone, 1 is smootherstep alone.                                         */
+const CAM_EASE = 0.45;
+const smoother = u => u * u * u * (u * (u * 6 - 15) + 10);
 function panShape(u){
-  const x = sat(u) * (PAN_SHAPE.length - 1), i = Math.floor(x);
-  return i >= PAN_SHAPE.length - 1 ? 1
-       : lerp(PAN_SHAPE[i], PAN_SHAPE[i + 1], x - i);
+  const t = sat(u);
+  const x = t * (PAN_SHAPE.length - 1), i = Math.floor(x);
+  const p = i >= PAN_SHAPE.length - 1 ? 1
+          : lerp(PAN_SHAPE[i], PAN_SHAPE[i + 1], x - i);
+  return lerp(p, smoother(t), CAM_EASE);
 }
 /* The window: it opens CAM_START_FRAC of the way through the typing, and
    closes on the frame the AI Mode outline is about to light. Both ends move
