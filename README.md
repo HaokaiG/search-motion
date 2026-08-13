@@ -37,12 +37,13 @@ lets you:
   then and goes solid as the first character lands. 1x still lands the last character on 108 as
   the plate does; slower runs past it, and past 113 it is still typing when the button lights,
   which the panel says outright rather than preventing
-- **watch the camera follow the text** — the pan is triggered by the typing but shaped by the
-  plate. It opens 1.92s in at normal speed — stored as a fraction of the typing rather than a
-  time, so it re-times with the rate and always starts at the same point in the sentence —
-  closes on the frame the AI Mode outline appears, and in between runs the measured curve's own
-  easing, landing on the same parked position. Everything after the typing — the outline, the
-  click, the cut, act 2 — rides on the text too, so the piece runs 162 frames at 1x and 117 at 2x
+- **set the camera speed** — the pan follows the newest character rather than running a baked
+  curve: it chases a target derived from the caret by a fixed fraction of the remaining distance
+  each frame, which makes it smooth by construction and lets it settle rather than stop. The
+  slider scales that fraction. At 1x it is measured against the source clip's own camera — peak
+  53 px/frame against the plate's 54 — and parks the bar's cap on x=1236 as the outline lights.
+  Everything after the typing — the outline, the click, the cut, act 2 — rides on the text too,
+  so the piece runs 162 frames at 1x and 117 at 2x
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
@@ -75,8 +76,8 @@ the answer when it passes the bottom of its measured column.
 
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
-answer, `#logo=0` drops the wordmark, `#icon=g` puts the G in the search bar and `#speed=` sets
-the typing rate, so an edit survives a reload and works in headless renders.
+answer, `#logo=0` drops the wordmark, `#icon=g` puts the G in the search bar, `#speed=` sets
+the typing rate and `#cam=` the camera's, so an edit survives a reload and works in headless renders.
 
 ---
 
