@@ -31,8 +31,9 @@ lets you:
   camera move follows from that: the pan covers whatever distance parks the bar's right cap on
   screen x=1236, which is where the plate parks it
 - **set the typing speed** — a slider from 0.2x to 8x, or type the number in; the two drive each
-  other. Typing always begins on frame 18 — the same frame the bar's gradient does, and two full
-  caret blinks after the caret appears — whatever the rate, so the speed moves the *end*. 1x
+  other. Typing always begins on frame 18 — the same frame the bar's gradient does — whatever the
+  rate, so the speed moves the *end*. The caret blinks at the measured 8 on / 8 off until then
+  and goes solid as the first character lands. 1x
   still lands the last character on 108 as the plate does; slower runs past it, and past 113 it
   is still typing when the button lights, which the panel says outright rather than preventing
 - **watch the camera follow the text** — the pan is triggered by the typing but shaped by the
@@ -103,7 +104,7 @@ fades up out of the white.
 | Typing | Track the caret's right edge across frames 20-110 | **Not** a clean 2-frame cadence. 43 change-frames, first on 26, last on 108, with two 1-frame steps (26→27, 69→70) — a ~12.3 char/s rate quantised onto the 23.976 fps grid. Baked frame by frame, not modelled |
 | Type sizes | Solve each run's size from its measured ink width using the real font's metrics | Query **90.95px**; body **37.97px**; heading 46.22px; nav 35.34px; chip label 63.53px; legal 16.94px — all at the font's default optical size and default tracking |
 | Type weights | Stem widths on the x-height, against the body as reference | Body stems 4.0px. The answer's highlights measure 5.0px (**Medium**) and the heading 7.0px — a 1.75 ratio, which is **SemiBold**, not Bold. At `wght 700` the heading came out 8.0px, visibly too thick |
-| Caret | Same signal, before typing starts | Appears frame 6, **8 frames on / 8 off** (0.667 s cycle); solid while typing; gone once the string completes. *The recreation runs 3 on / 3 off — the rate is solved so two blinks land on the beam's first frame, where the typing now starts; see `docs/NOTES.md`* |
+| Caret | Same signal, before typing starts | Appears frame 6, **8 frames on / 8 off** (0.667 s cycle); solid while typing; gone once the string completes |
 | Shutter | 10–90 % edge width of the green `l` stem vs. pan speed | **3.5 px at rest → 8.0 px at 56 px/frame**, i.e. a ~9 px smear — a short **≈60° shutter**, not the 180° a live-action plate would give |
 | Chip push | Chip width across frames 131–134 | 1.00 → 1.58 → 4.45×, fitted as `1 + 0.575·u^2.58` |
 | Act-2 settle | Topmost dark row per block, frames 137→161 | One shared exponential, ratio **0.835/frame → τ = 0.253 s**; travel 27–48 px depending on block |
