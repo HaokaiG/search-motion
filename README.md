@@ -31,16 +31,17 @@ lets you:
   camera move follows from that: the pan covers whatever distance parks the bar's right cap on
   screen x=1236, which is where the plate parks it
 - **set the typing speed** — a slider from 0.2x to 8x, or type the number in; the two drive each
-  other. Typing always begins on frame 18 — the same frame the bar's gradient does — whatever the
-  rate, so the speed moves the *end*. The caret blinks at the measured 8 on / 8 off until then
-  and goes solid as the first character lands. 1x
-  still lands the last character on 108 as the plate does; slower runs past it, and past 113 it
-  is still typing when the button lights, which the panel says outright rather than preventing
+  other. Typing always begins on frame 18 — the same frame the bar's gradient does — whatever
+  the rate, so the speed moves the *end*. The caret blinks at the measured 8 on / 8 off until
+  then and goes solid as the first character lands. 1x still lands the last character on 108 as
+  the plate does; slower runs past it, and past 113 it is still typing when the button lights,
+  which the panel says outright rather than preventing
 - **watch the camera follow the text** — the pan is triggered by the typing but shaped by the
-  plate. It opens as the 4th character lands, closes as the AI Mode outline is about to light,
-  and in between runs the measured curve's own easing, landing on the same parked position.
-  Everything after the typing — the outline, the click, the cut, act 2 — rides on the text too,
-  so the piece runs 162 frames at 1x and 117 at 2x
+  plate. It opens 2.3s in at normal speed — stored as a fraction of the typing rather than a
+  time, so it re-times with the rate and always starts at the same point in the sentence —
+  closes as the AI Mode outline is about to light, and in between runs the measured curve's own
+  easing, landing on the same parked position. Everything after the typing — the outline, the
+  click, the cut, act 2 — rides on the text too, so the piece runs 162 frames at 1x and 117 at 2x
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
@@ -99,7 +100,7 @@ fades up out of the white.
 
 | Quantity | Method | Result |
 |---|---|---|
-| Camera path *(measured; the camera now tracks the caret instead — see `docs/NOTES.md`)* | Phase-correlate the static logo band, frame to frame | Pure horizontal pan. **0 px** vertical, bar height held at 234 px throughout → **no tilt, no zoom** |
+| Camera path *(measured; the move is now triggered by the typing and only shaped by this — see `docs/NOTES.md`)* | Phase-correlate the static logo band, frame to frame | Pure horizontal pan. **0 px** vertical, bar height held at 234 px throughout → **no tilt, no zoom** |
 | Pan curve | Cumulative sum of the above | Holds 51 frames, ramps to a **56 px/frame** peak, then decays exponentially (**≈0.95 per frame**) into a **1639 px** landing. Baked into the `PAN` array verbatim |
 | Typing | Track the caret's right edge across frames 20-110 | **Not** a clean 2-frame cadence. 43 change-frames, first on 26, last on 108, with two 1-frame steps (26→27, 69→70) — a ~12.3 char/s rate quantised onto the 23.976 fps grid. Baked frame by frame, not modelled |
 | Type sizes | Solve each run's size from its measured ink width using the real font's metrics | Query **90.95px**; body **37.97px**; heading 46.22px; nav 35.34px; chip label 63.53px; legal 16.94px — all at the font's default optical size and default tracking |

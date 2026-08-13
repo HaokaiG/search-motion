@@ -1324,7 +1324,14 @@ function paintRamp(grads, segs, shift, scale, pad, ramp, cycle){
    moves at a constant rate and stops dead.
    PAN holds at 0 for its first 51 frames; that hold is stripped here, because
    the hold is now expressed by WHEN the window opens.                     */
-const CAM_CHAR  = 4;               // opens as this character is typed
+/* The move opens 2.3s in at normal speed. That is stored as a FRACTION of the
+   typing span rather than as a time, so it re-times with the rate on its own:
+   at 1x the span is 18…108 and 2.3s is frame 55.1, which is 0.413 of the way
+   through it. Faster typing therefore opens the camera earlier in absolute
+   time and slower opens it later, while the move always begins at the same
+   point in the sentence.                                                  */
+const CAM_START_S    = 2.3;        // at 1x
+const CAM_START_FRAC = (CAM_START_S * FPS - TYPE_F0) / (TYPE_F1 - TYPE_F0);
 const PAN_SHAPE = (() => {
   let i0 = 0;
   while (i0 < PAN.length - 1 && PAN[i0] <= 0) i0++;
@@ -1337,19 +1344,19 @@ function panShape(u){
   return i >= PAN_SHAPE.length - 1 ? 1
        : lerp(PAN_SHAPE[i], PAN_SHAPE[i + 1], x - i);
 }
-/* The window: it opens on the frame the CAM_CHAR'th character lands, and
+/* The window: it opens CAM_START_FRAC of the way through the typing, and
    closes on the frame the AI Mode outline is about to light. Both ends move
-   with the typing on their own — the first because it is a character in the
-   schedule, the second because RING_F0 is quoted on the plate's clock and
-   TAIL puts it back on the real one — so the move re-times with the speed
-   without either end being computed from it.
+   with the typing on their own — the first because it is a fraction of the
+   span, the second because RING_F0 is quoted on the plate's clock and TAIL
+   puts it back on the real one — so the move re-times with the speed without
+   either end being written down in seconds.
    Note this runs the camera PAST the end of the typing: at 1x the text lands
    on 108 and the outline is due on 114, so the last six frames of the move
    happen against a finished query. That is the tail of the plate's own
    easing, which is nearly stopped by then.                                */
 let CAM_A = 0, CAM_B = 1;
 function camWindow(){
-  const a = TYPE_FRAMES[Math.min(CAM_CHAR - 1, TYPE_FRAMES.length - 1)];
+  const a = TYPE_F0 + CAM_START_FRAC * (typeEnd() - TYPE_F0);
   const b = RING_F0 + TAIL;
   CAM_A = a; CAM_B = Math.max(a + 1, b);
 }
