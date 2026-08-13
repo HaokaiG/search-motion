@@ -563,7 +563,18 @@ const BARE = Q.has("bare");
 const FPS   = 23.976;
 const FRAME = 1 / FPS;
 const NF    = 162;
-const DUR   = NF * FRAME;          // 6.757 s
+/* Everything after the typing rides on it, so a slower query makes a longer
+   piece and a faster one a shorter piece. TAIL is how far the text's landing
+   has moved off the plate's frame 108; NF_EFF and DUR carry that so the loop,
+   the clamp and both exporters all agree on where the end is.            */
+let   TAIL   = 0;                  // frames, + = later than the plate
+let   NF_EFF = NF;
+let   DUR    = NF * FRAME;         // 6.757 s at 1x
+function setTail(){
+  TAIL   = typeEnd() - TYPE_F1;
+  NF_EFF = NF + TAIL;
+  DUR    = NF_EFF * FRAME;
+}
 
 /* ── camera ────────────────────────────────────────────────────────────────
    Solved by phase-correlating the (static) logo band frame to frame.
@@ -814,12 +825,14 @@ function setQuery(str){
   QUERY       = str;
   TYPE_FRAMES = scheduleFor(str);
   TYPE_END    = TYPE_FRAMES[TYPE_FRAMES.length - 1] + 1;
+  setTail();                                  // the tail rides on the typing
   qtext.dataset.n = "";                       // force the typist to redraw
   const chipEcho = document.getElementById("qq");
   if (chipEcho) chipEcho.textContent = str;   // act 2 echoes the same query
   qtext.textContent = str;                    // measure at full length
   const geo = layoutBar();
   buildPrefixes(str, geo.textEnd - TEXT_LEFT);
+  camWindow();                      // needs the prefixes and the schedule
   qtext.dataset.n = "";
   return geo;
 }
@@ -1325,16 +1338,47 @@ function paintRamp(grads, segs, shift, scale, pad, ramp, cycle){
    and the parking.
    The measured PAN curve above is kept as the record and the way back — it
    no longer drives anything.                                             */
-const PAN_SETTLE = 0.90;           // per frame, for whatever is left to close
+/* The move is triggered by the text but shaped by the plate. It starts the
+   frame the caret first reaches the middle of the frame, ends a little before
+   the typing does, and in between it runs the measured PAN curve's own
+   profile — accelerate to a peak, then decay exponentially into the landing —
+   remapped onto that window. So the timing follows the typing at any speed
+   while the easing is still the reference's, rather than a linear follow that
+   moves at a constant rate and stops dead.
+   PAN holds at 0 for its first 51 frames; that hold is stripped here, because
+   the hold is now expressed by WHEN the window opens.                     */
+const CAM_MID   = 960;             // half of 1920 — the caret's trigger
+const CAM_LEAD  = 0.08;            // of the typing span, finished this early
+const PAN_SHAPE = (() => {
+  let i0 = 0;
+  while (i0 < PAN.length - 1 && PAN[i0] <= 0) i0++;
+  const tail = PAN.slice(Math.max(0, i0 - 1));
+  const last = tail[tail.length - 1] || 1;
+  return tail.map(v => v / last);                 // 0 → 1, the plate's easing
+})();
+function panShape(u){
+  const x = sat(u) * (PAN_SHAPE.length - 1), i = Math.floor(x);
+  return i >= PAN_SHAPE.length - 1 ? 1
+       : lerp(PAN_SHAPE[i], PAN_SHAPE[i + 1], x - i);
+}
+/* the window: [caret hits the middle, a little before the text lands] */
+let CAM_A = 0, CAM_B = 1;
+function camWindow(){
+  const f1 = typeEnd(), span = f1 - TYPE_F0;
+  const b  = f1 - span * CAM_LEAD;
+  let a = null;
+  for (let f = TYPE_F0; f <= f1; f += 0.5)
+    if (caretPlaneX(f) >= CAM_MID){ a = f; break; }
+  /* a short query may never push the caret that far; start it partway in so
+     the bar still reaches its parked position */
+  if (a === null) a = TYPE_F0 + span * 0.35;
+  CAM_A = a; CAM_B = Math.max(a + 1, b);
+}
 function panAt(t){
   const f = t * FPS;
-  const TRACK_X = PARK_X - (CHIP_GAP + CHIP_W + CHIP_TO_CAP);
-  const track = clamp(caretPlaneX(f) - TRACK_X, 0, PAN_END);
-  const last  = TYPE_FRAMES[TYPE_FRAMES.length - 1];
-  if (f <= last) return track;
-  /* a short query does not need the whole move, so anything still owed once
-     the text has landed is eased out rather than left short of the park */
-  return PAN_END - (PAN_END - track) * Math.pow(PAN_SETTLE, f - last);
+  if (f <= CAM_A) return 0;
+  if (f >= CAM_B) return PAN_END;
+  return PAN_END * panShape((f - CAM_A) / (CAM_B - CAM_A));
 }
 
 let t0 = performance.now();
@@ -1352,6 +1396,10 @@ function render(t){
   /* epsilon: t*FPS lands a hair under the integer at exact frame times, which
      would drop a character on every even frame of the typing schedule.     */
   const f = T * FPS + 1e-6;
+  /* Everything after the text lands is quoted against the plate's own frames,
+     so it reads a clock shifted by TAIL rather than the raw one. At 1x the
+     shift is 0 and these are the same number.                             */
+  const fp = f - TAIL, Tp = T - TAIL * FRAME;
 
   bgSync(T);                       // footage follows the timeline, if loaded
 
@@ -1429,8 +1477,8 @@ function render(t){
      first frame so the two cannot drift apart if that timing is re-cut. The
      envelope already has it down to 0.20 by then, so this mostly sharpens
      the last frame rather than removing anything that was still bright.  */
-  const ringOp = envAt(RING_FADE, Math.min(f, PRESS_F0))
-               * (1 - sat((f - PRESS_F0) / RING_PRESS_FADE));
+  const ringOp = envAt(RING_FADE, Math.min(fp, PRESS_F0))
+               * (1 - sat((fp - PRESS_F0) / RING_PRESS_FADE));
   ring.style.opacity = ringOp.toFixed(3);
   /* the plate's ring glow spreads ~2-4px as it arrives and leaves against
      ~12 at its peak, so the radius rides the same envelope as the opacity */
@@ -1439,7 +1487,7 @@ function render(t){
   ringBlurF.setAttribute("stdDeviation", (6 * ringGlowK * ringOp).toFixed(2));
   if (ringOp > 0.002)
     paintRamp(ringGrads, RING_SEG,
-              RING_PHASE + 1250 + ringSpin(f) - ringSpin(120),
+              RING_PHASE + 1250 + ringSpin(fp) - ringSpin(120),
               RING_SCALE, 10, RING_RAMP, RING_CYCLE);
 
   /* ── the push-through on the AI Mode chip ─────────────────────────── */
@@ -1451,10 +1499,10 @@ function render(t){
   /* the click: a measured dip, multiplied under whatever the push is doing */
   for (let i = 0; i < PRESS.length - 1; i++){
     const [f0, s0] = PRESS[i], [f1, s1] = PRESS[i + 1];
-    if (f >= f0 && f < f1){ chipScale = lerp(s0, s1, (f - f0) / (f1 - f0)); break; }
+    if (fp >= f0 && fp < f1){ chipScale = lerp(s0, s1, (fp - f0) / (f1 - f0)); break; }
   }
-  if (T > T_PUSH){
-    const u = (T - T_PUSH) / FRAME;
+  if (Tp > T_PUSH){
+    const u = (Tp - T_PUSH) / FRAME;
     chipScale *= 1 + 0.575 * Math.pow(u, 2.58);
     chipBlur   = 1.3 * u;
     act1Op     = 1 - Math.pow(sat((u - 2.2) / 2.6), 1.6);  // gone by 136
@@ -1476,19 +1524,19 @@ function render(t){
      Opacity: the body blocks all ride the SAME ramp — 0.16 → 1.00 across
      5.672 → 6.048 s — so this is a plain fade-up, not a streaming wipe.
      Chrome and the query chip come in on their own, faster ramps.        */
-  if (T >= T_A2){
+  if (Tp >= T_A2){
     act2.style.visibility = "visible";
     act2.style.opacity = 1;
     rows.forEach(r => {
       const rise = +r.dataset.rise;
-      const e    = T - T_RISE - (+r.dataset.t);
+      const e    = Tp - T_RISE - (+r.dataset.t);
       const dy   = e <= 0 ? rise : rise * Math.exp(-e / TAU);
       r.style.transform = `translate3d(0,${dy.toFixed(2)}px,0)`;
-      r.style.opacity   = fadeIn(T, +r.dataset.f0, +r.dataset.fd).toFixed(3);
+      r.style.opacity   = fadeIn(Tp, +r.dataset.f0, +r.dataset.fd).toFixed(3);
     });
     /* a faint top-down gradient survives in the answer — 14 ms per line */
     LINE_GROUPS.forEach((g, i) => {
-      const o = +fadeIn(T, F_BODY + 0.014 * i, F_BODY_D).toFixed(3);
+      const o = +fadeIn(Tp, F_BODY + 0.014 * i, F_BODY_D).toFixed(3);
       if (o !== g.op){ g.op = o; for (const w of g) w.style.opacity = o; }
     });
   } else {
@@ -1825,7 +1873,7 @@ document.getElementById("gexport").onclick = async () => {
   const ctx = cvs.getContext("2d", { willReadFrequently: true });
   const frames = [];
   try {
-    for (let k = 0; k * step < NF; k++){
+    for (let k = 0; k * step < NF_EFF; k++){
       hold = (k * step) / FPS;
       render(hold);
       await bgSeek(hold);          // exact frame, not wherever it had played to
@@ -1890,7 +1938,7 @@ document.getElementById("mexport").onclick = async () => {
       bitrate: Math.min(16e6, Math.max(1.5e6, Math.round(W * H * fps * 0.9))),
       avc: { format: "avc" }                   // AVCC + avcC, not Annex-B
     });
-    for (let k = 0; k * step < NF; k++){
+    for (let k = 0; k * step < NF_EFF; k++){
       if (failed) throw failed;
       hold = (k * step) / FPS;
       render(hold);

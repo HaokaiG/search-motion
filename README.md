@@ -35,9 +35,11 @@ lets you:
   rate — so the speed moves the *end*. 1x still lands the last character on 108 as the plate
   does; slower runs past it, and past 113 it is still typing when the button lights, which the
   panel says outright rather than preventing
-- **watch the camera follow the text** — the pan is no longer the plate's baked curve. It holds
-  until the query outgrows the frame, then tracks the newest character, and lands on the same
-  parked position the measurement gives. The motion blur follows it for free
+- **watch the camera follow the text** — the pan is triggered by the typing but shaped by the
+  plate. It opens the frame the caret first reaches the middle of the frame, closes a little
+  before the text lands, and in between runs the measured curve's own easing, landing on the
+  same parked position. Everything after the typing — the outline, the click, the cut, act 2 —
+  rides on the text too, so the piece runs 162 frames at 1x, 127 at 2x and 209 at 0.6x
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
