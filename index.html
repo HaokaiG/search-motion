@@ -732,7 +732,8 @@ const RING_RAMP = BEAM_RAMP.slice(1, -1).map(([r, c]) => [r - 1250, c])
    ink curve straight in therefore came out 26-44% dim off-peak. These are the
    values after dividing that back out, so the rendered result — not the
    input — is what matches the plate.                                      */
-const RING_FADE = [[114, 0], [115, 0.077], [116, 0.352], [117, 0.502],
+const RING_F0   = 114;             // the outline's first frame
+const RING_FADE = [[RING_F0, 0], [115, 0.077], [116, 0.352], [117, 0.502],
                    [118, 0.661], [119, 0.926], [120, 0.942], [121, 0.971],
                    [122, 1.000], [123, 0.962], [124, 0.920], [125, 0.679],
                    [126, 0.365], [127, 0.204], [128, 0]];
@@ -837,39 +838,9 @@ function setQuery(str){
   if (chipEcho) chipEcho.textContent = str;   // act 2 echoes the same query
   qtext.textContent = str;                    // measure at full length
   const geo = layoutBar();
-  buildPrefixes(str, geo.textEnd - TEXT_LEFT);
-  camWindow();                      // needs the prefixes and the schedule
+  camWindow();                      // both ends come out of the schedule
   qtext.dataset.n = "";
   return geo;
-}
-/* ── where the caret is, at any instant ─────────────────────────────────
-   The camera follows the caret, so it needs the caret's position BETWEEN
-   characters, not just on the frames one lands. These are the ink widths of
-   every prefix: canvas gives the shape cheaply, and the whole set is then
-   scaled so the last one equals the width layout actually used — that way
-   the camera's landing agrees with the bar's own geometry exactly rather
-   than to within a rounding error.                                       */
-let PREFIX_W = [0];
-function buildPrefixes(str, domWidth){
-  const cv = buildPrefixes.cv ||
-            (buildPrefixes.cv = document.createElement("canvas").getContext("2d"));
-  cv.font = getComputedStyle(qtext).font;
-  const w = [0];
-  for (let i = 1; i <= str.length; i++) w.push(cv.measureText(str.slice(0, i)).width);
-  const raw = w[w.length - 1];
-  const k = raw > 0 ? domWidth / raw : 1;
-  PREFIX_W = w.map(v => v * k);
-}
-function caretPlaneX(f){
-  const T = TYPE_FRAMES, last = PREFIX_W[PREFIX_W.length - 1];
-  if (!T.length) return TEXT_LEFT;
-  if (f <= T[0])              return TEXT_LEFT;             // nothing typed yet
-  if (f >= T[T.length - 1])   return TEXT_LEFT + last;      // all of it
-  let k = 0;
-  while (k < T.length - 2 && T[k + 1] <= f) k++;
-  const a = PREFIX_W[k + 1] ?? last, b = PREFIX_W[k + 2] ?? a;
-  const f0 = T[k], f1 = T[k + 1];
-  return TEXT_LEFT + lerp(a, b, f1 > f0 ? sat((f - f0) / (f1 - f0)) : 0);
 }
 /* ── the bar sizes itself to the question ───────────────────────────────
    Measured on the plate: the query ink ends at 2258, the chip runs
@@ -1353,8 +1324,7 @@ function paintRamp(grads, segs, shift, scale, pad, ramp, cycle){
    moves at a constant rate and stops dead.
    PAN holds at 0 for its first 51 frames; that hold is stripped here, because
    the hold is now expressed by WHEN the window opens.                     */
-const CAM_MID   = 960;             // half of 1920 — the caret's trigger
-const CAM_LEAD  = 0.08;            // of the typing span, finished this early
+const CAM_CHAR  = 4;               // opens as this character is typed
 const PAN_SHAPE = (() => {
   let i0 = 0;
   while (i0 < PAN.length - 1 && PAN[i0] <= 0) i0++;
@@ -1367,17 +1337,20 @@ function panShape(u){
   return i >= PAN_SHAPE.length - 1 ? 1
        : lerp(PAN_SHAPE[i], PAN_SHAPE[i + 1], x - i);
 }
-/* the window: [caret hits the middle, a little before the text lands] */
+/* The window: it opens on the frame the CAM_CHAR'th character lands, and
+   closes on the frame the AI Mode outline is about to light. Both ends move
+   with the typing on their own — the first because it is a character in the
+   schedule, the second because RING_F0 is quoted on the plate's clock and
+   TAIL puts it back on the real one — so the move re-times with the speed
+   without either end being computed from it.
+   Note this runs the camera PAST the end of the typing: at 1x the text lands
+   on 108 and the outline is due on 114, so the last six frames of the move
+   happen against a finished query. That is the tail of the plate's own
+   easing, which is nearly stopped by then.                                */
 let CAM_A = 0, CAM_B = 1;
 function camWindow(){
-  const f1 = typeEnd(), span = f1 - TYPE_F0;
-  const b  = f1 - span * CAM_LEAD;
-  let a = null;
-  for (let f = TYPE_F0; f <= f1; f += 0.5)
-    if (caretPlaneX(f) >= CAM_MID){ a = f; break; }
-  /* a short query may never push the caret that far; start it partway in so
-     the bar still reaches its parked position */
-  if (a === null) a = TYPE_F0 + span * 0.35;
+  const a = TYPE_FRAMES[Math.min(CAM_CHAR - 1, TYPE_FRAMES.length - 1)];
+  const b = RING_F0 + TAIL;
   CAM_A = a; CAM_B = Math.max(a + 1, b);
 }
 function panAt(t){
