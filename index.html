@@ -364,23 +364,24 @@
           <filter id="bloom" x="-8%" y="-60%" width="116%" height="220%">
             <feGaussianBlur id="beamBlurF" stdDeviation="16"/>
           </filter>
-          <!-- The bloom is a fat stroke on the bar's border CENTRE-line, so a
-               symmetric blur throws half of it inside the bar. The plate has
-               clean white in there — the measured spread is all outward. So
-               the bloom is masked to everything outside the bar's own rounded
-               rect; the crisp core stroke is left unmasked and still straddles
-               the line. Both rects follow the bar's width in layoutBar.    -->
-          <!-- the region must be given explicitly: a userSpaceOnUse mask
+          <!-- The bar's outline lives ON the bubble, so its bloom is confined
+               TO the bubble: the mask is black everywhere and white over the
+               bar's own rounded rect, which is the inverse of what it was
+               when the outline ringed the bar from outside. Without it the
+               fat blurred stroke spills past the pill's edge and the glow
+               reads as a halo again. Both rects follow the width in
+               layoutBar. The chip's ring keeps the outward mask.
+               The region must be given explicitly: a userSpaceOnUse mask
                defaults to -10%..120% resolved as ABSOLUTE user units, and this
-               viewBox starts at 300,370, so the default lands off the content
+               viewBox starts at 280,370, so the default lands off the content
                and masks everything away.                                   -->
-          <mask id="beamOuter" maskUnits="userSpaceOnUse"
+          <mask id="beamOnBar" maskUnits="userSpaceOnUse"
                 x="280" y="370" width="2660" height="340">
-            <rect id="beamMaskAll"  x="280" y="370" width="2660" height="340" fill="#fff"/>
-            <rect id="beamMaskHole" x="328" y="420" width="2547" height="234" rx="117" fill="#000"/>
+            <rect id="beamMaskAll"  x="280" y="370" width="2660" height="340" fill="#000"/>
+            <rect id="beamMaskHole" x="328" y="420" width="2547" height="234" rx="117" fill="#fff"/>
           </mask>
         </defs>
-        <g id="beamBloom" class="bg" filter="url(#bloom)" mask="url(#beamOuter)"
+        <g id="beamBloom" class="bg" filter="url(#bloom)" mask="url(#beamOnBar)"
            opacity=".62" stroke-width="28">
           <path class="bp" d="M2758 652 L445 652"                    stroke="url(#gBot)"/>
           <path class="bp" d="M445 652 A115 115 0 0 1 445 422"       stroke="url(#gCap)"/>
@@ -818,14 +819,16 @@ function layoutBar(){
   /* the beam traces the bar just outside its edge, so its path and its arc
      lengths move with the width                                          */
   const L = BAR_LEFT + CAP_R + 2, R = barRight - CAP_R - 2;   // cap centres
-  /* The outline runs on the OUTSIDE of the bar rather than on its border
-     centre-line: everything is pushed out by half the core stroke, so the
-     stroke's inner edge lands on the bar's own edge. The bar is y 420…654 on
-     a 117 radius (CAP_R + 2, and the cap CENTRES above are already right),
-     the core is 5 wide, so the runs sit on 417.5 and 656.5 and the caps on
-     119.5. Arc lengths follow from the radius, so the perimeter moves with
-     it.                                                                  */
-  const yTop = 420 - BEAM_OFF, yBot = 654 + BEAM_OFF, rad = CAP_R + 2 + BEAM_OFF;
+  /* The bar's outline sits ON the bubble — pulled IN by half the core stroke,
+     so the stroke's outer edge lands on the bar's own edge and the whole
+     thing reads as drawn on the pill rather than ringing it. The bar is
+     y 420…654 on a 117 radius (CAP_R + 2, and the cap CENTRES above are
+     already right), the core is 5 wide, so the runs sit on 422.5 and 651.5
+     and the caps on 114.5. Arc lengths follow from the radius, so the
+     perimeter moves with it.
+     The chip's outline is the other way round — it rings the button from
+     outside. They are deliberately not symmetric.                        */
+  const yTop = 420 + BEAM_OFF, yBot = 654 - BEAM_OFF, rad = CAP_R + 2 - BEAM_OFF;
   const straight = R - L, cap = Math.PI * rad;
   /* Four sub-paths, one full clockwise lap of the pill, starting where the
      bottom run meets the right cap. BEAM_P always counted both caps, but only
@@ -958,7 +961,7 @@ const blurG  = document.getElementById("mblurG");
 const bar       = document.querySelector(".bar");
 const beam      = document.querySelector(".beam");
 const beamSvg   = beam;
-const beamMask     = document.getElementById("beamOuter");
+const beamMask     = document.getElementById("beamOnBar");
 const beamMaskAll  = document.getElementById("beamMaskAll");
 const beamMaskHole = document.getElementById("beamMaskHole");
 const gBot      = document.getElementById("gBot");
