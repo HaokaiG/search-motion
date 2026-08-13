@@ -616,7 +616,16 @@ const TYPE_REF = [
 let   TYPE_FRAMES = TYPE_REF;
 let   TYPE_END    = 109;           // caret is gone from here
 const BLINK_ON   = 6;              // caret first appears here
-const BLINK_HALF = 8;              // 8 frames on / 8 off  (0.667 s cycle)
+/* The text now starts the frame the bar's gradient does, and it still starts
+   after two full blinks — so the blink rate is not chosen, it is solved. The
+   caret arrives on 6 and the beam on BEAM_F0, and two blinks have to fit in
+   between: (18 - 6) / 4 = 3. That is a good deal quicker than the plate's
+   8 on / 8 off, which is what fitting two of them into twelve frames costs.
+   BLINK_CYCLES is the lever if it reads as too fast — one cycle would put it
+   back to 6 on / 6 off.                                                   */
+const BEAM_F0      = 18;           // the beam's own first frame, see BEAM_FADE
+const BLINK_CYCLES = 2;
+const BLINK_HALF   = (BEAM_F0 - BLINK_ON) / (2 * BLINK_CYCLES);   // 3
 
 /* ── the AI gradient beam ──────────────────────────────────────────────────
    Tracked by looking for saturated pixels on the bar's top edge, bottom edge
@@ -652,7 +661,7 @@ const BEAM_OFF  = BEAM_CORE / 2;   // … half of it, to sit the outline outside
    TOO FAST, not that the plate is brighter. Opacity cannot express that, so
    the exit stays with the sweep, which reaches 0 on its own by 45. Fixing it
    properly means BEAM_TAIL, not this table.                               */
-const BEAM_FADE = [[18, 0], [19, 0.087], [20, 0.405], [21, 0.638],
+const BEAM_FADE = [[BEAM_F0, 0], [19, 0.087], [20, 0.405], [21, 0.638],
                    [22, 0.734], [23, 0.953], [24, 0.984], [26, 1.00]];
 /* colour vs arc length, read straight off frame 30 */
 const BEAM_RAMP = [
@@ -785,12 +794,14 @@ const ANSWER_REF =
    clicked on 129. So a different string keeps those, and the cadence
    stretches or compresses to fit — 2 frames per character is only the right
    answer for a 43-character string.                                        */
-/* Typing starts after the caret has blinked twice, whatever the rate — the
-   caret arrives on BLINK_ON and a blink is BLINK_HALF on plus BLINK_HALF off,
-   so two of them put the first character on 6 + 32 = 38. The plate starts on
-   26, mid-blink; this is a departure, and it is what makes the start hold
-   still while the speed slider moves the END instead.                     */
-const TYPE_F0 = BLINK_ON + 2 * (2 * BLINK_HALF);       // 38
+/* Typing starts the frame the bar's gradient does, which is also where the
+   caret's blinks land — BLINK_HALF is solved from exactly that. Written as
+   the blink sum rather than as BEAM_F0 so that changing BLINK_CYCLES moves
+   the text with the caret instead of silently parting the two.
+   The plate types from 26, with the beam already running; this is a
+   departure, and it is what makes the start hold still while the speed
+   slider moves the END instead.                                           */
+const TYPE_F0 = BLINK_ON + BLINK_CYCLES * (2 * BLINK_HALF);       // 18
 const TYPE_F1 = 108;                                   // the measured landing
 /* TYPE_SPEED scales the typing and is anchored on the START, which is fixed at
    two caret blinks. So the rate moves the END: 1x lands the last character on
