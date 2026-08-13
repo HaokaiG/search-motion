@@ -37,7 +37,7 @@ lets you:
   the plate does; slower runs past it, and past 113 it is still typing when the button lights,
   which the panel says outright rather than preventing
 - **watch the camera follow the text** — the pan is triggered by the typing but shaped by the
-  plate. It opens 2.3s in at normal speed — stored as a fraction of the typing rather than a
+  plate. It opens 1.85s in at normal speed — stored as a fraction of the typing rather than a
   time, so it re-times with the rate and always starts at the same point in the sentence —
   closes as the AI Mode outline is about to light, and in between runs the measured curve's own
   easing, landing on the same parked position. Everything after the typing — the outline, the

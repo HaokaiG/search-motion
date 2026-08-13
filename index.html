@@ -1326,11 +1326,11 @@ function paintRamp(grads, segs, shift, scale, pad, ramp, cycle){
    the hold is now expressed by WHEN the window opens.                     */
 /* The move opens 2.3s in at normal speed. That is stored as a FRACTION of the
    typing span rather than as a time, so it re-times with the rate on its own:
-   at 1x the span is 18…108 and 2.3s is frame 55.1, which is 0.413 of the way
+   at 1x the span is 18…108 and 1.85s is frame 44.4, which is 0.293 of the way
    through it. Faster typing therefore opens the camera earlier in absolute
    time and slower opens it later, while the move always begins at the same
    point in the sentence.                                                  */
-const CAM_START_S    = 2.3;        // at 1x
+const CAM_START_S    = 1.85;       // at 1x
 const CAM_START_FRAC = (CAM_START_S * FPS - TYPE_F0) / (TYPE_F1 - TYPE_F0);
 const PAN_SHAPE = (() => {
   let i0 = 0;
