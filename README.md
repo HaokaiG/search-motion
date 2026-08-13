@@ -21,14 +21,20 @@ NOTICE.md           third-party assets and trademarks — read this before repub
 
 ## Running it
 
-Open `index.html` directly, or `python3 -m http.server` and visit it. The control bar lets you:
+Open `index.html` directly, or `python3 -m http.server` and visit it. The controls sit in a side
+panel on the right, grouped by what they do; the stage centres in the space beside it. The panel
+lets you:
 
-- **edit the query** — the typing re-times around fixed beats, so the caret still starts on
-  frame 26, the last character still lands on 108, and the button still lights and is clicked on
-  schedule whatever length you type. The bar sizes itself to the question and the camera move
-  follows from that: the pan covers whatever distance parks the bar's right cap on screen
-  x=1236, which is where the plate parks it. Because the typing always spans frames 26-108, the
-  move stays locked to the progression of the text however long it is
+- **edit the query** — always lower case, as the plate's is. The typing re-times around fixed
+  beats, so the last character still lands on frame 108 and the button still lights and is
+  clicked on schedule whatever length you type. The bar sizes itself to the question and the
+  camera move follows from that: the pan covers whatever distance parks the bar's right cap on
+  screen x=1236, which is where the plate parks it
+- **set the typing speed** — a slider from 0.75x to 4x. It is anchored on the *end*, so the last
+  character lands on 108 at any rate and nothing downstream moves: faster typing starts later,
+  slower typing starts earlier. That gives the slow end a hard floor — the earliest it can begin
+  is frame 0, which is 4.50s of typing against the measured 3.42s, so about 0.76x. The panel
+  reports the run in seconds and says when the slider has hit that floor
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
@@ -61,8 +67,8 @@ the answer when it passes the bottom of its measured column.
 
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
-answer, `#logo=0` drops the wordmark and `#icon=g` puts the G in the search bar, so an edit
-survives a reload and works in headless renders.
+answer, `#logo=0` drops the wordmark, `#icon=g` puts the G in the search bar and `#speed=` sets
+the typing rate, so an edit survives a reload and works in headless renders.
 
 ---
 
