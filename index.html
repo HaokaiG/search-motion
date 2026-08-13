@@ -364,24 +364,26 @@
           <filter id="bloom" x="-8%" y="-60%" width="116%" height="220%">
             <feGaussianBlur id="beamBlurF" stdDeviation="16"/>
           </filter>
-          <!-- The bar's outline lives ON the bubble, so its bloom is confined
-               TO the bubble: the mask is black everywhere and white over the
-               bar's own rounded rect, which is the inverse of what it was
-               when the outline ringed the bar from outside. Without it the
-               fat blurred stroke spills past the pill's edge and the glow
-               reads as a halo again. Both rects follow the width in
-               layoutBar. The chip's ring keeps the outward mask.
+          <!-- The two halves go opposite ways. The crisp core stroke sits ON
+               the bubble — its geometry is pulled in, in layoutBar — while
+               the bloom is masked to everything OUTSIDE the bar's rounded
+               rect, so the glow reads as an outer glow off an outline that
+               is drawn on the pill. The bloom's stroke is 28 wide and centred
+               on 422.5, so masking away everything from y 420 in leaves the
+               outward half of it and nothing over the white face.
+               Both rects follow the width in layoutBar. The chip's ring is
+               masked the same way, though its outline is outside too.
                The region must be given explicitly: a userSpaceOnUse mask
                defaults to -10%..120% resolved as ABSOLUTE user units, and this
                viewBox starts at 280,370, so the default lands off the content
                and masks everything away.                                   -->
-          <mask id="beamOnBar" maskUnits="userSpaceOnUse"
+          <mask id="beamGlowOut" maskUnits="userSpaceOnUse"
                 x="280" y="370" width="2660" height="340">
-            <rect id="beamMaskAll"  x="280" y="370" width="2660" height="340" fill="#000"/>
-            <rect id="beamMaskHole" x="328" y="420" width="2547" height="234" rx="117" fill="#fff"/>
+            <rect id="beamMaskAll"  x="280" y="370" width="2660" height="340" fill="#fff"/>
+            <rect id="beamMaskHole" x="328" y="420" width="2547" height="234" rx="117" fill="#000"/>
           </mask>
         </defs>
-        <g id="beamBloom" class="bg" filter="url(#bloom)" mask="url(#beamOnBar)"
+        <g id="beamBloom" class="bg" filter="url(#bloom)" mask="url(#beamGlowOut)"
            opacity=".62" stroke-width="28">
           <path class="bp" d="M2758 652 L445 652"                    stroke="url(#gBot)"/>
           <path class="bp" d="M445 652 A115 115 0 0 1 445 422"       stroke="url(#gCap)"/>
@@ -961,7 +963,7 @@ const blurG  = document.getElementById("mblurG");
 const bar       = document.querySelector(".bar");
 const beam      = document.querySelector(".beam");
 const beamSvg   = beam;
-const beamMask     = document.getElementById("beamOnBar");
+const beamMask     = document.getElementById("beamGlowOut");
 const beamMaskAll  = document.getElementById("beamMaskAll");
 const beamMaskHole = document.getElementById("beamMaskHole");
 const gBot      = document.getElementById("gBot");
