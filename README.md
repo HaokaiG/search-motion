@@ -30,14 +30,15 @@ lets you:
   clicked on schedule whatever length you type. The bar sizes itself to the question and the
   camera move follows from that: the pan covers whatever distance parks the bar's right cap on
   screen x=1236, which is where the plate parks it
-- **set the typing speed** — a slider from 0.2x to 8x, or type the number in; the two drive each
-  other. Typing always begins on frame 18 — the same frame the bar's gradient does — whatever
+- **set the typing speed** — a slider from 0.2x to 5x, or type the number in for anything up to
+  20x; the two drive each other, and past 5x the bar simply sits at its end while the field
+  carries the value. Typing always begins on frame 18 — the same frame the bar's gradient does — whatever
   the rate, so the speed moves the *end*. The caret blinks at the measured 8 on / 8 off until
   then and goes solid as the first character lands. 1x still lands the last character on 108 as
   the plate does; slower runs past it, and past 113 it is still typing when the button lights,
   which the panel says outright rather than preventing
 - **watch the camera follow the text** — the pan is triggered by the typing but shaped by the
-  plate. It opens 1.85s in at normal speed — stored as a fraction of the typing rather than a
+  plate. It opens 1.92s in at normal speed — stored as a fraction of the typing rather than a
   time, so it re-times with the rate and always starts at the same point in the sentence —
   closes as the AI Mode outline is about to light, and in between runs the measured curve's own
   easing, landing on the same parked position. Everything after the typing — the outline, the
