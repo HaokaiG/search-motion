@@ -40,8 +40,10 @@ lets you:
 - **set the camera speed** — the pan follows the newest character rather than running a baked
   curve: it chases a target derived from the caret by a fixed fraction of the remaining distance
   each frame, which makes it smooth by construction and lets it settle rather than stop. The
-  slider scales that fraction. At 1x it is measured against the source clip's own camera — peak
-  53 px/frame against the plate's 54 — and parks the bar's cap on x=1236 as the outline lights.
+  slider scales that fraction. It holds until 1.92s at normal typing speed — the plate holds its
+  own camera 51 frames — and that hold is stored as a fraction of the typing, so it re-times
+  with the rate. At 1x the move is measured against the source clip's own camera: peak 54
+  px/frame at frame 66, against the plate's 54 at 65-69.
   Everything after the typing — the outline, the click, the cut, act 2 — rides on the text too,
   so the piece runs 162 frames at 1x and 117 at 2x
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a

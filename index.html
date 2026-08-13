@@ -1402,27 +1402,52 @@ function paintRamp(grads, segs, shift, scale, pad, ramp, cycle){
    position at all. So the target LEADS: it runs CAM_LEAD times the caret's
    own offset and clamps at PAN_END, which is to say the camera aims where the
    text is going rather than where it is, gets there while the query is still
-   being typed, and then settles. That also puts the peak back: measured, this
-   pair gives 52 px/frame against the plate's 54, where a plain follow gave
-   18. The price is the decay, 0.91 against the plate's 0.95, and the peak
-   arriving earlier in the move than the plate's does.
+   being typed, and then settles. That also puts the peak back, where a plain
+   follow gave 18 px/frame against the plate's 54.
+
+   The pair is set to match the source's move rather than to park perfectly,
+   which is a real trade and worth knowing about. Tracking that clip gives a
+   peak of 54 px/frame at frame 66; these values give 54 at 66. Buying the
+   last of the parking instead — alpha .13, lead 1.8 — lands within 2px but
+   drags the peak out to frame 75, a third of a second late. As set, the pan
+   is ~29px short of PAN_END when the outline lights and closes to under 10 by
+   the cut, on a move of 1583.
 
    Integrated once per query into a table rather than stepped live, because
    render() is called at arbitrary times when seeking and exporting — an
    incremental camera would give a different answer depending on how you got
    to the frame.                                                          */
-const CAM_ALPHA_REF = 0.09;        // CAM_SPEED 1; see CAM_LEAD for why not .05
-const CAM_LEAD      = 2.75;        // the target aims ahead of the caret
+const CAM_ALPHA_REF = 0.07;        // CAM_SPEED 1; see CAM_LEAD for why not .05
+const CAM_LEAD      = 2.4;         // the target aims ahead of the caret
+/* And it does not start at the first character. The plate holds its camera
+   for 51 frames and then moves, so the target is pinned at 0 until 1.92s in
+   at normal speed — frame 46, which is that hold to within five frames. It is
+   stored as a FRACTION of the typing span, not a time, so it re-times with
+   the rate: the hold always ends at the same point in the sentence and only
+   its wall-clock length changes.                                          */
+const CAM_START_S    = 1.92;       // at 1x
+const CAM_START_FRAC = (CAM_START_S * FPS - TYPE_F0) / (TYPE_F1 - TYPE_F0);
 let   CAM_SPEED  = 1;
 let   CAM_TRACK  = new Float64Array(1);
 function buildCamera(){
-  const trackX = PARK_X - (CHIP_GAP + CHIP_W + CHIP_TO_CAP);
   const a = clamp(CAM_ALPHA_REF * CAM_SPEED, 0.004, 0.6);
+  /* The target tracks the caret's advance FROM the wake frame, not its
+     absolute position. Pinning the absolute target at 0 through the hold and
+     then releasing it is the obvious thing and it is wrong: by 1.92s the
+     caret is already 460px past the offset, so the target steps straight to
+     1265 and the lag lurches after it at 129 px/frame against the plate's 54.
+     Measuring the advance instead starts the target at 0 where the camera
+     actually is, so it accelerates out of the hold rather than snapping.  */
+  const hold = TYPE_F0 + CAM_START_FRAC * (typeEnd() - TYPE_F0);
+  const x0   = caretPlaneX(hold);
+  const runX = Math.max(1, (TEXT_LEFT + PREFIX_W[PREFIX_W.length - 1]) - x0);
   const n = Math.max(2, Math.ceil(NF_EFF) + 2);
   const arr = new Float64Array(n);
   let p = 0;
   for (let f = 0; f < n; f++){
-    const target = clamp((caretPlaneX(f) - trackX) * CAM_LEAD, 0, PAN_END);
+    const target = f < hold ? 0
+                 : clamp((caretPlaneX(f) - x0) / runX * PAN_END * CAM_LEAD,
+                         0, PAN_END);
     p += (target - p) * a;
     arr[f] = p;
   }
