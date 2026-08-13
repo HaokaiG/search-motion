@@ -40,7 +40,7 @@ lets you:
 - **watch the camera follow the text** — the pan is triggered by the typing but shaped by the
   plate. It opens 1.92s in at normal speed — stored as a fraction of the typing rather than a
   time, so it re-times with the rate and always starts at the same point in the sentence —
-  closes as the AI Mode outline is about to light, and in between runs the measured curve's own
+  closes on the frame the AI Mode outline appears, and in between runs the measured curve's own
   easing, landing on the same parked position. Everything after the typing — the outline, the
   click, the cut, act 2 — rides on the text too, so the piece runs 162 frames at 1x and 117 at 2x
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a

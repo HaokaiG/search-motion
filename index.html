@@ -732,11 +732,16 @@ const RING_RAMP = BEAM_RAMP.slice(1, -1).map(([r, c]) => [r - 1250, c])
    ink curve straight in therefore came out 26-44% dim off-peak. These are the
    values after dividing that back out, so the rendered result — not the
    input — is what matches the plate.                                      */
-const RING_F0   = 114;             // the outline's first frame
+const RING_F0   = 114;             // the outline's envelope opens here, at 0
+/* …and it is first actually VISIBLE on the next entry, 115. The camera closes
+   on that rather than on RING_F0, so the move ends on the frame the gradient
+   appears rather than the frame before it. Read off the table so the two
+   cannot drift if the envelope is ever re-cut.                           */
 const RING_FADE = [[RING_F0, 0], [115, 0.077], [116, 0.352], [117, 0.502],
                    [118, 0.661], [119, 0.926], [120, 0.942], [121, 0.971],
                    [122, 1.000], [123, 0.962], [124, 0.920], [125, 0.679],
                    [126, 0.365], [127, 0.204], [128, 0]];
+const RING_VISIBLE_F = (RING_FADE.find(([, v]) => v > 0) || [RING_F0])[0];  // 115
 /* measured press, frame → scale */
 const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
                [131, 0.94], [132, 1.00]];
@@ -1332,12 +1337,25 @@ function paintRamp(grads, segs, shift, scale, pad, ramp, cycle){
    point in the sentence.                                                  */
 const CAM_START_S    = 1.92;       // at 1x
 const CAM_START_FRAC = (CAM_START_S * FPS - TYPE_F0) / (TYPE_F1 - TYPE_F0);
+/* The plate's decay is asymptotic, so its last several frames move under half
+   a pixel each. Left in, the camera reaches its parked position and then sits
+   there while the curve finishes — measured, it was visibly still from ~105
+   with the window not closing until 115. Both ends are therefore trimmed: the
+   51-frame hold at the head, because the hold is expressed by WHEN the window
+   opens, and the dead run at the tail, because the close is meant to be the
+   frame the camera stops.                                                  */
+const PAN_TAIL_CUT = 0.995;        // trim once this much of the move is done
 const PAN_SHAPE = (() => {
   let i0 = 0;
   while (i0 < PAN.length - 1 && PAN[i0] <= 0) i0++;
-  const tail = PAN.slice(Math.max(0, i0 - 1));
-  const last = tail[tail.length - 1] || 1;
-  return tail.map(v => v / last);                 // 0 → 1, the plate's easing
+  let seq = PAN.slice(Math.max(0, i0 - 1));
+  const full = seq[seq.length - 1] || 1;
+  seq = seq.map(v => v / full);
+  let i1 = 0;
+  while (i1 < seq.length - 1 && seq[i1] < PAN_TAIL_CUT) i1++;
+  seq = seq.slice(0, i1 + 1);
+  const last = seq[seq.length - 1] || 1;
+  return seq.map(v => v / last);                  // 0 → 1, the plate's easing
 })();
 function panShape(u){
   const x = sat(u) * (PAN_SHAPE.length - 1), i = Math.floor(x);
@@ -1357,7 +1375,7 @@ function panShape(u){
 let CAM_A = 0, CAM_B = 1;
 function camWindow(){
   const a = TYPE_F0 + CAM_START_FRAC * (typeEnd() - TYPE_F0);
-  const b = RING_F0 + TAIL;
+  const b = RING_VISIBLE_F + TAIL;
   CAM_A = a; CAM_B = Math.max(a + 1, b);
 }
 function panAt(t){
