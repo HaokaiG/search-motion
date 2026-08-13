@@ -30,11 +30,14 @@ lets you:
   clicked on schedule whatever length you type. The bar sizes itself to the question and the
   camera move follows from that: the pan covers whatever distance parks the bar's right cap on
   screen x=1236, which is where the plate parks it
-- **set the typing speed** — a slider from 0.75x to 4x. It is anchored on the *end*, so the last
-  character lands on 108 at any rate and nothing downstream moves: faster typing starts later,
-  slower typing starts earlier. That gives the slow end a hard floor — the earliest it can begin
-  is frame 0, which is 4.50s of typing against the measured 3.42s, so about 0.76x. The panel
-  reports the run in seconds and says when the slider has hit that floor
+- **set the typing speed** — a slider from 0.2x to 8x, or type the number in; the two drive each
+  other. Typing always begins on frame 38, two full caret blinks after it appears, whatever the
+  rate — so the speed moves the *end*. 1x still lands the last character on 108 as the plate
+  does; slower runs past it, and past 113 it is still typing when the button lights, which the
+  panel says outright rather than preventing
+- **watch the camera follow the text** — the pan is no longer the plate's baked curve. It holds
+  until the query outgrows the frame, then tracks the newest character, and lands on the same
+  parked position the measurement gives. The motion blur follows it for free
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
@@ -93,7 +96,7 @@ fades up out of the white.
 
 | Quantity | Method | Result |
 |---|---|---|
-| Camera path | Phase-correlate the static logo band, frame to frame | Pure horizontal pan. **0 px** vertical, bar height held at 234 px throughout → **no tilt, no zoom** |
+| Camera path *(measured; the camera now tracks the caret instead — see `docs/NOTES.md`)* | Phase-correlate the static logo band, frame to frame | Pure horizontal pan. **0 px** vertical, bar height held at 234 px throughout → **no tilt, no zoom** |
 | Pan curve | Cumulative sum of the above | Holds 51 frames, ramps to a **56 px/frame** peak, then decays exponentially (**≈0.95 per frame**) into a **1639 px** landing. Baked into the `PAN` array verbatim |
 | Typing | Track the caret's right edge across frames 20-110 | **Not** a clean 2-frame cadence. 43 change-frames, first on 26, last on 108, with two 1-frame steps (26→27, 69→70) — a ~12.3 char/s rate quantised onto the 23.976 fps grid. Baked frame by frame, not modelled |
 | Type sizes | Solve each run's size from its measured ink width using the real font's metrics | Query **90.95px**; body **37.97px**; heading 46.22px; nav 35.34px; chip label 63.53px; legal 16.94px — all at the font's default optical size and default tracking |

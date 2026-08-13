@@ -288,6 +288,8 @@
        gap:8px}
   #hud .lbl b{color:#e8e8ef;font-weight:600;letter-spacing:0;
        font-variant-numeric:tabular-nums;text-transform:none}
+  #hud .lbl input[type=number]{width:74px;flex:none;padding:5px 8px;
+       text-align:right;font-variant-numeric:tabular-nums}
   #hud input[type=range]{padding:0;height:20px;background:none;border:none;
        accent-color:#7f9cff;cursor:pointer}
   #hud .warn{text-transform:none;letter-spacing:0;min-height:14px;
@@ -499,8 +501,10 @@
     <input id="qin" type="text" spellcheck="false"
            value="what is the most popular sport in the world">
     <span class="warn" id="qwarn"></span>
-    <div class="lbl"><label for="tspd">Typing speed</label><b id="tspdv">1.00&times;</b></div>
-    <input id="tspd" type="range" min="0.75" max="4" step="0.05" value="1">
+    <div class="lbl"><label for="tspd">Typing speed</label>
+      <input id="tspdn" type="number" min="0.2" max="8" step="0.05" value="1.00">
+    </div>
+    <input id="tspd" type="range" min="0.2" max="8" step="0.05" value="1">
     <span class="warn" id="twarn"></span>
   </div>
 
@@ -770,26 +774,38 @@ const ANSWER_REF =
    clicked on 129. So a different string keeps those, and the cadence
    stretches or compresses to fit — 2 frames per character is only the right
    answer for a 43-character string.                                        */
-const TYPE_F0 = 26, TYPE_F1 = 108;
-/* TYPE_SPEED scales the typing, and it is anchored on the END rather than the
-   start: the last character still lands on 108 whatever the rate, so the
-   button still lights on 113 and is clicked on 129 with nothing downstream
-   moving. Faster typing therefore starts later; slower typing starts earlier.
-   That gives the slow end a hard floor — the earliest it can begin is frame
-   0, which is 108 frames for the run against the measured 82, so about 0.76x.
-   The UI reports the run in seconds so the ceiling is visible rather than
-   just felt.                                                             */
+/* Typing starts after the caret has blinked twice, whatever the rate — the
+   caret arrives on BLINK_ON and a blink is BLINK_HALF on plus BLINK_HALF off,
+   so two of them put the first character on 6 + 32 = 38. The plate starts on
+   26, mid-blink; this is a departure, and it is what makes the start hold
+   still while the speed slider moves the END instead.                     */
+const TYPE_F0 = BLINK_ON + 2 * (2 * BLINK_HALF);       // 38
+const TYPE_F1 = 108;                                   // the measured landing
+/* TYPE_SPEED scales the typing and is anchored on the START, which is fixed at
+   two caret blinks. So the rate moves the END: 1x lands the last character on
+   108 as the plate does, faster finishes earlier, slower finishes later.
+   Slower than 1x therefore runs past 108, and past 113 it is still typing
+   when the button lights. That is not prevented — it is the honest
+   consequence of holding the start still — but the panel prints the end frame
+   and says when it has crossed the button.                               */
 let TYPE_SPEED = 1;
-function typeStart(){
-  return Math.max(0, TYPE_F1 - (TYPE_F1 - TYPE_F0) / TYPE_SPEED);
+function typeEnd(){
+  return TYPE_F0 + (TYPE_F1 - TYPE_F0) / TYPE_SPEED;
 }
 function scheduleFor(str){
-  const n = str.length;
-  if (str === QUERY_REF && TYPE_SPEED === 1) return TYPE_REF.slice();
-  if (n <= 1) return [TYPE_F1];              // one character still lands on 108
-  const f0 = typeStart();
+  const n = str.length, f1 = typeEnd();
+  /* The plate's own cadence is uneven — 43 change-frames with two 1-frame
+     steps — and that is worth keeping, so for the reference string the
+     measured schedule is remapped onto the new window rather than replaced
+     by an even spread. At 1x that is 26…108 compressed onto 38…108.      */
+  if (str === QUERY_REF){
+    const a = TYPE_REF[0], b = TYPE_REF[TYPE_REF.length - 1];
+    return TYPE_REF.map(f =>
+      Math.round(TYPE_F0 + (f - a) * (f1 - TYPE_F0) / (b - a)));
+  }
+  if (n <= 1) return [Math.round(f1)];
   return Array.from({length: n}, (_, k) =>
-    Math.round(f0 + (TYPE_F1 - f0) * k / (n - 1)));
+    Math.round(TYPE_F0 + (f1 - TYPE_F0) * k / (n - 1)));
 }
 function setQuery(str){
   /* the bar's text is always lower case — the plate's is, and a stray capital
@@ -803,8 +819,38 @@ function setQuery(str){
   if (chipEcho) chipEcho.textContent = str;   // act 2 echoes the same query
   qtext.textContent = str;                    // measure at full length
   const geo = layoutBar();
+  buildPrefixes(str, geo.textEnd - TEXT_LEFT);
   qtext.dataset.n = "";
   return geo;
+}
+/* ── where the caret is, at any instant ─────────────────────────────────
+   The camera follows the caret, so it needs the caret's position BETWEEN
+   characters, not just on the frames one lands. These are the ink widths of
+   every prefix: canvas gives the shape cheaply, and the whole set is then
+   scaled so the last one equals the width layout actually used — that way
+   the camera's landing agrees with the bar's own geometry exactly rather
+   than to within a rounding error.                                       */
+let PREFIX_W = [0];
+function buildPrefixes(str, domWidth){
+  const cv = buildPrefixes.cv ||
+            (buildPrefixes.cv = document.createElement("canvas").getContext("2d"));
+  cv.font = getComputedStyle(qtext).font;
+  const w = [0];
+  for (let i = 1; i <= str.length; i++) w.push(cv.measureText(str.slice(0, i)).width);
+  const raw = w[w.length - 1];
+  const k = raw > 0 ? domWidth / raw : 1;
+  PREFIX_W = w.map(v => v * k);
+}
+function caretPlaneX(f){
+  const T = TYPE_FRAMES, last = PREFIX_W[PREFIX_W.length - 1];
+  if (!T.length) return TEXT_LEFT;
+  if (f <= T[0])              return TEXT_LEFT;             // nothing typed yet
+  if (f >= T[T.length - 1])   return TEXT_LEFT + last;      // all of it
+  let k = 0;
+  while (k < T.length - 2 && T[k + 1] <= f) k++;
+  const a = PREFIX_W[k + 1] ?? last, b = PREFIX_W[k + 2] ?? a;
+  const f0 = T[k], f1 = T[k + 1];
+  return TEXT_LEFT + lerp(a, b, f1 > f0 ? sat((f - f0) / (f1 - f0)) : 0);
 }
 /* ── the bar sizes itself to the question ───────────────────────────────
    Measured on the plate: the query ink ends at 2258, the chip runs
@@ -869,8 +915,9 @@ function textEndPx(){
 const LOGO_INK_MID = 3273 * 0.2022;
 const LOGO_NUDGE   = 0;
 function layoutBar(){
+  const textEnd  = textEndPx();
   const barRight = Math.max(BAR_MIN_RIGHT,
-                            textEndPx() + CHIP_GAP + CHIP_W + CHIP_TO_CAP);
+                            textEnd + CHIP_GAP + CHIP_W + CHIP_TO_CAP);
   bar.style.width  = (barRight - BAR_LEFT) + "px";
   chip.style.left  = (barRight - CHIP_TO_CAP - CHIP_W) + "px";
   PAN_END = Math.max(0, barRight - PARK_X);
@@ -923,7 +970,7 @@ function layoutBar(){
   const mid = (BAR_LEFT + barRight) / 2;
   logoG.setAttribute("transform",
     `translate(${(mid - LOGO_INK_MID + LOGO_NUDGE).toFixed(2)} 206) scale(0.2022 -0.2022)`);
-  return { barRight, pan: PAN_END, mid };
+  return { barRight, pan: PAN_END, mid, textEnd };
 }
 
 /* ══════════════════════════ build the answer text ═══════════════════════
@@ -1266,13 +1313,28 @@ function paintRamp(grads, segs, shift, scale, pad, ramp, cycle){
 }
 
 /* sample the baked pan curve at an arbitrary (sub-frame) time */
+/* ── the camera ─────────────────────────────────────────────────────────
+   It tracks the caret rather than running the plate's baked curve: the pan
+   is whatever keeps the newest character on screen x = TRACK_X, so the move
+   is driven by the text instead of by the clock, and it holds still until
+   the query is long enough to need it.
+   TRACK_X is not chosen — it falls out of where the bar parks. At the end of
+   the move the cap sits on PARK_X, and the caret is exactly the chip's gap,
+   the chip and its inset to the left of that. Tracking at that same x means
+   the follow lands on PAN_END on its own, with no seam between the tracking
+   and the parking.
+   The measured PAN curve above is kept as the record and the way back — it
+   no longer drives anything.                                             */
+const PAN_SETTLE = 0.90;           // per frame, for whatever is left to close
 function panAt(t){
   const f = t * FPS;
-  if (f <= 0) return 0;
-  const k = PAN_END / PAN_REF;
-  if (f >= PAN.length - 1) return PAN_END;
-  const i = Math.floor(f);
-  return lerp(PAN[i], PAN[i + 1], f - i) * k;
+  const TRACK_X = PARK_X - (CHIP_GAP + CHIP_W + CHIP_TO_CAP);
+  const track = clamp(caretPlaneX(f) - TRACK_X, 0, PAN_END);
+  const last  = TYPE_FRAMES[TYPE_FRAMES.length - 1];
+  if (f <= last) return track;
+  /* a short query does not need the whole move, so anything still owed once
+     the text has landed is eased out rather than left short of the park */
+  return PAN_END - (PAN_END - track) * Math.pow(PAN_SETTLE, f - last);
 }
 
 let t0 = performance.now();
@@ -1449,27 +1511,32 @@ function render(t){
 
 /* ══════════════════════════ editing the query ═══════════════════════════ */
 const $q = document.getElementById("qin"), $qw = document.getElementById("qwarn");
-const $ts = document.getElementById("tspd"), $tsv = document.getElementById("tspdv"),
+const $ts = document.getElementById("tspd"), $tsn = document.getElementById("tspdn"),
       $tw = document.getElementById("twarn");
 function applyQuery(){
   const geo = setQuery($q.value);
   $qw.textContent = `bar ${Math.round(geo.barRight - 328)}px · pan ${Math.round(geo.pan)}px`;
-  /* the run in seconds, and a word when the slider has hit the floor */
-  const f0 = typeStart(), run = (TYPE_F1 - f0) / FPS;
-  $tsv.textContent = TYPE_SPEED.toFixed(2) + "×";
-  $tw.textContent  = `types ${run.toFixed(2)}s, frames ${Math.round(f0)}-${TYPE_F1}`
-                   + (f0 <= 0 ? " — floor: cannot start earlier" : "");
+  /* the run in seconds, and a word once it is still typing through a beat */
+  const f1 = typeEnd(), run = (f1 - TYPE_F0) / FPS;
+  $tw.textContent = `types ${run.toFixed(2)}s, frames ${TYPE_F0}-${Math.round(f1)}`
+    + (f1 > RING_SPIN_F0 ? " — still typing when the button lights"
+                         : f1 > TYPE_F1 ? " — past the plate's landing" : "");
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
 }
-$ts.addEventListener("input", () => {
-  TYPE_SPEED = +$ts.value;
+/* slider and field drive each other; either one is the speed */
+function setSpeed(v, from){
+  TYPE_SPEED = clamp(+v || 1, +$ts.min, +$ts.max);
+  if (from !== "range")  $ts.value  = TYPE_SPEED;
+  if (from !== "number") $tsn.value = TYPE_SPEED.toFixed(2);
   applyQuery();
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-  TYPE_SPEED === 1 ? h.delete("speed") : h.set("speed", $ts.value);
+  TYPE_SPEED === 1 ? h.delete("speed") : h.set("speed", TYPE_SPEED.toFixed(2));
   const s = h.toString();
   history.replaceState(null, "", s ? "#" + s : location.pathname);
-});
+}
+$ts.addEventListener("input",  () => setSpeed($ts.value,  "range"));
+$tsn.addEventListener("change", () => setSpeed($tsn.value, "number"));
 /* ── editing the answer ─────────────────────────────────────────────────
    The blocks reflow, so the reveal re-derives its lines after every edit. */
 const $a = document.getElementById("ain"), $aw = document.getElementById("awarn");
@@ -1867,8 +1934,9 @@ function boot(){
   buildAnswer($a.value);
   if (Q.has("q")) $q.value = Q.get("q");     // #q=… carries an edited query
   if (Q.has("speed")){                       // #speed=… carries the typing rate
-    $ts.value  = Q.get("speed");
-    TYPE_SPEED = +$ts.value || 1;
+    TYPE_SPEED = clamp(+Q.get("speed") || 1, +$ts.min, +$ts.max);
+    $ts.value  = TYPE_SPEED;
+    $tsn.value = TYPE_SPEED.toFixed(2);
   }
   applyQuery();                              // always: it sizes the bar
   render(hold !== null ? hold : 0);
