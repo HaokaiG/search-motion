@@ -22,8 +22,8 @@ NOTICE.md           third-party assets and trademarks — read this before repub
 ## Running it
 
 Open `index.html` directly, or `python3 -m http.server` and visit it. The controls sit in a side
-panel on the right, grouped by what they do; the stage centres in the space beside it. The panel
-lets you:
+panel on the right — playback, query, answer, look, motion, footage, export — with the stage
+centred in the space beside it. The panel lets you:
 
 - **edit the query** — always lower case, as the plate's is. The typing re-times around fixed
   beats, so the last character still lands on frame 108 and the button still lights and is
