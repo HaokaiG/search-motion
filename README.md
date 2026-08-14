@@ -40,7 +40,8 @@ lets you:
 - **shape the camera move** — the pan is a function of how far through the query the typing has
   got rather than of the clock, so it tracks the text at any rate and lands exactly as the last
   character does. Its easing is a cubic bezier with the same four handles After Effects and CSS
-  use, editable in the panel with a live curve, and a speed slider scales the progress on top.
+  use, with draggable handles on the curve itself and the four numbers under it — either drives
+  the other — and a speed slider scaling the progress on top.
   It holds until 1.92s at normal typing speed — the plate holds its own camera 51 frames. The
   default handles are solved against the source clip rather than picked: 0.35, 0.08, 0.35, 1.00
   gives a peak of 52 px/frame at frame 67, against the clip's measured 54 at 66.

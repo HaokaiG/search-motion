@@ -301,7 +301,8 @@
        accent-color:#7f9cff;cursor:pointer}
   /* the easing editor: a square curve preview over the four handle fields */
   #hud canvas#bzc{width:100%;height:auto;aspect-ratio:1;display:block;
-       background:#0e0e11;border:1px solid #212127;border-radius:7px}
+       background:#0e0e11;border:1px solid #212127;border-radius:7px;
+       cursor:crosshair;touch-action:none}
   #hud .bez{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
   #hud .bez input{padding:6px 4px;text-align:center;font-size:11px}
   #hud .warn{text-transform:none;letter-spacing:0;min-height:14px;
@@ -526,9 +527,9 @@
     <canvas id="bzc" width="252" height="252"></canvas>
     <div class="bez">
       <input id="bz0" type="number" min="0" max="1" step="0.01" value="0.35">
-      <input id="bz1" type="number" min="-1" max="2" step="0.01" value="0.08">
+      <input id="bz1" type="number" min="-0.25" max="1.25" step="0.01" value="0.08">
       <input id="bz2" type="number" min="0" max="1" step="0.01" value="0.35">
-      <input id="bz3" type="number" min="-1" max="2" step="0.01" value="1.00">
+      <input id="bz3" type="number" min="-0.25" max="1.25" step="0.01" value="1.00">
     </div>
     <span class="warn" id="cwarn"></span>
   </div>
@@ -1677,36 +1678,87 @@ $csn.addEventListener("change", () => setCam($csn.value, "number"));
 const $bz  = [0,1,2,3].map(i => document.getElementById("bz" + i));
 const $bzt = document.getElementById("bztxt");
 const bzc  = document.getElementById("bzc");
+/* The curve is drawn on a box that runs a little past the unit square on y,
+   so a handle can be dragged into overshoot and still be visible rather than
+   disappearing off the top of its own chart.                              */
+const BZ_M = 18, BZ_LO = -0.25, BZ_HI = 1.25;
+const bzX = u => BZ_M + u * (bzc.width - 2 * BZ_M);
+const bzY = v => bzc.height - BZ_M
+              - ((v - BZ_LO) / (BZ_HI - BZ_LO)) * (bzc.height - 2 * BZ_M);
+const bzU = px => sat((px - BZ_M) / (bzc.width - 2 * BZ_M));
+const bzV = py => clamp(BZ_LO + (bzc.height - BZ_M - py) /
+                        (bzc.height - 2 * BZ_M) * (BZ_HI - BZ_LO), BZ_LO, BZ_HI);
 function drawBez(){
-  const g = bzc.getContext("2d"), W = bzc.width, H = bzc.height, m = 16;
-  const X = u => m + u * (W - 2 * m), Y = v => H - m - v * (H - 2 * m);
+  const g = bzc.getContext("2d"), W = bzc.width, H = bzc.height;
   g.clearRect(0, 0, W, H);
+  /* the unit square, so it is clear where 0 and 1 actually are */
   g.strokeStyle = "#20202a"; g.lineWidth = 1;
   for (let i = 0; i <= 4; i++){
     const u = i / 4;
-    g.beginPath(); g.moveTo(X(u), Y(0)); g.lineTo(X(u), Y(1)); g.stroke();
-    g.beginPath(); g.moveTo(X(0), Y(u)); g.lineTo(X(1), Y(u)); g.stroke();
+    g.beginPath(); g.moveTo(bzX(u), bzY(0)); g.lineTo(bzX(u), bzY(1)); g.stroke();
+    g.beginPath(); g.moveTo(bzX(0), bzY(u)); g.lineTo(bzX(1), bzY(u)); g.stroke();
   }
-  /* the handles, drawn from the anchors the way the reference panel does */
   const [x1, y1, x2, y2] = CAM_BEZ;
-  g.strokeStyle = "#43434f";
-  g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(x1), Y(y1)); g.stroke();
-  g.beginPath(); g.moveTo(X(1), Y(1)); g.lineTo(X(x2), Y(y2)); g.stroke();
-  g.fillStyle = "#e8b93a";
-  for (const [a, b] of [[0,0],[1,1],[x1,y1],[x2,y2]]){
-    g.beginPath(); g.arc(X(a), Y(b), 3.5, 0, 7); g.fill();
-  }
+  g.strokeStyle = "#43434f"; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(bzX(0), bzY(0)); g.lineTo(bzX(x1), bzY(y1)); g.stroke();
+  g.beginPath(); g.moveTo(bzX(1), bzY(1)); g.lineTo(bzX(x2), bzY(y2)); g.stroke();
   g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath();
-  for (let i = 0; i <= 120; i++){
-    const u = i / 120, v = bezAt(u, CAM_BEZ);
-    i ? g.lineTo(X(u), Y(v)) : g.moveTo(X(u), Y(v));
+  for (let i = 0; i <= 160; i++){
+    const u = i / 160, v = bezAt(u, CAM_BEZ);
+    i ? g.lineTo(bzX(u), bzY(v)) : g.moveTo(bzX(u), bzY(v));
   }
   g.stroke();
+  /* anchors small and flat, the draggable handles larger and ringed */
+  g.fillStyle = "#6a6a76";
+  for (const [a, b] of [[0,0],[1,1]]){
+    g.beginPath(); g.arc(bzX(a), bzY(b), 3, 0, 7); g.fill();
+  }
+  for (const [a, b] of [[x1,y1],[x2,y2]]){
+    g.beginPath(); g.arc(bzX(a), bzY(b), 6, 0, 7);
+    g.fillStyle = "#e8b93a"; g.fill();
+    g.strokeStyle = "#1b1b20"; g.lineWidth = 2; g.stroke();
+  }
 }
+/* ── dragging the handles ─────────────────────────────────────────────
+   Pointer coordinates come in CSS pixels and the canvas has its own backing
+   size, so every event is scaled by the ratio between them — the canvas is
+   laid out at 100% width and its buffer is fixed, so the two are not equal
+   and reading clientX straight would put the handle somewhere else.      */
+let bzDrag = 0;                     // 0 none, 1 the first handle, 2 the second
+function bzPoint(e){
+  const r = bzc.getBoundingClientRect();
+  const sx = bzc.width / r.width, sy = bzc.height / r.height;
+  return [(e.clientX - r.left) * sx, (e.clientY - r.top) * sy];
+}
+function bzNearest(px, py){
+  const d1 = Math.hypot(px - bzX(CAM_BEZ[0]), py - bzY(CAM_BEZ[1]));
+  const d2 = Math.hypot(px - bzX(CAM_BEZ[2]), py - bzY(CAM_BEZ[3]));
+  return d1 <= d2 ? 1 : 2;
+}
+bzc.addEventListener("pointerdown", e => {
+  const [px, py] = bzPoint(e);
+  bzDrag = bzNearest(px, py);
+  bzc.setPointerCapture(e.pointerId);
+  bzMove(e);
+});
+function bzMove(e){
+  if (!bzDrag) return;
+  const [px, py] = bzPoint(e);
+  const i = (bzDrag - 1) * 2;
+  $bz[i].value     = bzU(px).toFixed(2);
+  $bz[i + 1].value = bzV(py).toFixed(2);
+  setBez();
+}
+bzc.addEventListener("pointermove", bzMove);
+bzc.addEventListener("pointerup",   () => { bzDrag = 0; });
+bzc.addEventListener("pointercancel", () => { bzDrag = 0; });
 function setBez(){
   CAM_BEZ = $bz.map((el, i) => {
     const v = +el.value;
-    return isFinite(v) ? (i % 2 === 0 ? clamp(v, 0, 1) : clamp(v, -1, 2)) : CAM_BEZ[i];
+    /* the same bounds the chart can draw, so a typed value and a dragged
+       one cannot disagree about where the handle is */
+    return isFinite(v) ? (i % 2 === 0 ? clamp(v, 0, 1)
+                                     : clamp(v, BZ_LO, BZ_HI)) : CAM_BEZ[i];
   });
   $bz.forEach((el, i) => el.value = CAM_BEZ[i].toFixed(2));
   $bzt.textContent = CAM_BEZ.map(v => v.toFixed(2)).join(", ");
