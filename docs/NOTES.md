@@ -53,6 +53,14 @@ Nothing here is judged by eye. Every change goes through the same loop:
 - **`render()` runs off rAF, so anything it touches is touched ~60x a second.** Syncing the
   video's `currentTime` from inside it re-issued the seek before it could ever land, and the
   element sat at `readyState` 1 forever. A frozen frame is not a still world.
+- **Alpha cannot go through WebCodecs here, and the failure is a flat no.** Every VP8/VP9 config
+  with `alpha: "keep"` comes back unsupported, so the deterministic MP4 path cannot carry it at
+  all. MediaRecorder's WebM can, and `canvas.captureStream(0)` gives a track with
+  `requestFrame()` — which is what makes it frame-accurate rather than a screen capture. But
+  MediaRecorder timestamps by wall clock and a frame here takes far longer to render than it
+  lasts, so the frames have to be rendered first and only then played into the recorder at the
+  real rate. The content is exact; only the encode is live, which costs about 2% of drift on the
+  duration (6.76s against an expected 6.88).
 - **The GIF export is a different document.** It serialises `#stage` into a
   foreignObject inside a plain `<div>`, so any rule hung on `body` — or on
   anything outside `#stage` — silently does not apply. `font-family` lived on

@@ -69,6 +69,11 @@ lets you:
   and the query and the chip's label both step up to Medium, the query going white — the plate's
   356 is too light to hold against a moving background. The video follows the piece's clock and
   wraps if it is shorter than 6.757s
+- **go transparent instead** — the same treatment footage mode gives the bar, but with nothing
+  behind it: the scrim, the white Medium query and the 75% chip, over an empty background. Act 2
+  keeps its own white card, exactly as it does over footage, so the transparency is act 1's.
+  Turning it on reveals a WebM export that carries the alpha, for compositing the move over your
+  own plate in an editor
 - **export a GIF or an MP4** — up to 1920px and 60fps, shared by both. The MP4 is H.264 via
   WebCodecs, with the container written by hand alongside the GIF encoder, so there is still
   nothing to install; the profile level is asked for at export time rather than hard-coded,

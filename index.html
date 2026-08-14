@@ -61,6 +61,11 @@
   /* transparent, not black: the export composites the footage UNDER the
      serialised stage, so anything painted here would hide it */
   #stage.has-bg{background:transparent}
+  /* Alpha mode wears exactly what footage mode wears — the scrim bar, the
+     white Medium query, the 75% chip — but with nothing behind it. Act 2
+     keeps its own white card, the same as over footage, where it covers the
+     plate as the answer page rises; the transparency is act 1's.        */
+  #stage.has-alpha{background:transparent}
   #stage.has-bg #bgvid{display:block}
   /* Over footage the bar is not clear glass — it carries a black scrim, which
      is what keeps white text legible against a busy plate. Measured by
@@ -74,7 +79,7 @@
      black rather than a tint. Set to 0.30 by request, which is where the two
      cleanest frames of that set landed anyway — background static and the
      subject clear of the bar's span. --bar-scrim is the dial.            */
-  #stage.has-bg .bar{background:rgba(0,0,0,var(--bar-scrim));
+  #stage.has-bg .bar, #stage.has-alpha .bar{background:rgba(0,0,0,var(--bar-scrim));
                      border-color:transparent;box-shadow:none}
   /* The chip is a solid pill on the plate's white card; over footage the
      plate reads through it. The alpha goes on the FILL, not on the element:
@@ -84,22 +89,22 @@
      (#f5f6f8) at 75%. Sampling the reference's own pill gives ~202/207/212
      over dark footage, which back-solves to roughly 0.78, so 75% sits right
      next to what that clip does.                                         */
-  #stage.has-bg .aichip{background:rgba(245,246,248,.75)}
+  #stage.has-bg .aichip, #stage.has-alpha .aichip{background:rgba(245,246,248,.75)}
   /* and its label steps up with the query's — 400 was set for a solid pill on
      a white card, and the pill is only 75% here */
-  #stage.has-bg .aichip b{font-weight:500}
+  #stage.has-bg .aichip b, #stage.has-alpha .aichip b{font-weight:500}
   /* the bloom's own opacity, up from the measured .55 — a CSS rule beats the
      presentation attribute on the element, so this is all it takes */
-  #stage.has-bg #ringBloom{opacity:.85}
+  #stage.has-bg #ringBloom, #stage.has-alpha #ringBloom{opacity:.85}
   /* Medium over footage, against 356 on the white card. Measured, not
      assumed: the reference's white query ink runs a mean stem of 7.74 at its
      own scale, and its bar is 165 tall against our 234, so at our 90.95px
      that is 10.98 — against 8.53 for 356, 9.19 for 400 and 11.01 for 500.
      White-on-dark blooms a little in a threshold measure, so read it as "500
      or a shade under", not as evidence for anything heavier.             */
-  #stage.has-bg .query{color:#fff;font-weight:500}
-  #stage.has-bg #caret{background:#fff}
-  #stage.has-bg .plus i{background:#fff}
+  #stage.has-bg .query, #stage.has-alpha .query{color:#fff;font-weight:500}
+  #stage.has-bg #caret, #stage.has-alpha #caret{background:#fff}
+  #stage.has-bg .plus i, #stage.has-alpha .plus i{background:#fff}
 
   /* ============ ACT 1 — the homepage, held on one flat plane ============ */
   /* Children are positioned in "content space": the same pixel grid the
@@ -548,6 +553,7 @@
     <h3>Footage</h3>
     <input id="bgin" type="file" accept="video/*">
     <button id="bgclr" hidden>Clear footage</button>
+    <button id="alphabtn">Transparent: off</button>
   </div>
 
   <div class="grp">
@@ -571,6 +577,7 @@
     </div>
     <button id="gexport">Export GIF</button>
     <button id="mexport">Export MP4</button>
+    <button id="wexport" hidden>Export WebM · alpha</button>
     <span id="gstat"></span>
   </div>
 </div>
@@ -1924,7 +1931,7 @@ function stageSVG(){
   bgvid.style.display = prev;
   return svg;
 }
-function drawStage(ctx, W, H){
+function drawStage(ctx, W, H, keepAlpha){
   return new Promise((res, rej) => {
     const img = new Image();
     const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(stageSVG());
@@ -1932,9 +1939,13 @@ function drawStage(ctx, W, H){
       /* white base, then the footage if there is any, then the stage over the
          top — with #stage.has-bg transparent, act 1 composites onto the video
          and act 2's own white covers it as it rises. The <video> itself never
-         survives serialisation, so this is where the two layers meet.     */
-      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
-      bgDrawInto(ctx, W, H);
+         survives serialisation, so this is where the two layers meet.
+         keepAlpha skips the base entirely, which is the whole of what makes
+         an alpha export transparent: the stage is already see-through in
+         that mode, so anything painted underneath would fill it back in. */
+      if (keepAlpha) ctx.clearRect(0, 0, W, H);
+      else { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H); }
+      if (!keepAlpha) bgDrawInto(ctx, W, H);
       ctx.drawImage(img, 0, 0, W, H); res();
     };
     img.onerror = () => rej(new Error("frame render failed"));
@@ -2071,6 +2082,90 @@ document.getElementById("gexport").onclick = async () => {
   } catch (e){
     $gs.textContent = "failed: " + e.message;
   } finally {
+    hold = wasHold; busy = false;
+    if (hold === null) window.play();
+  }
+};
+
+/* ── the alpha mode, and its export ──────────────────────────────────────
+   WebCodecs will not keep alpha here — every VP8/VP9 config with
+   alpha:"keep" comes back unsupported — so the deterministic MP4 path cannot
+   carry it. MediaRecorder's WebM can, and a canvas captureStream(0) hands
+   back a track with requestFrame(), which is what makes it frame-accurate
+   rather than a screen capture.
+   The catch is that MediaRecorder timestamps by wall clock, and rendering a
+   frame here takes far longer than a frame lasts. So the frames are rendered
+   first, deterministically, and only then played into the recorder at the
+   real rate — the content is exact and only the encode is live.         */
+let alphaOn = false;
+const $ab = document.getElementById("alphabtn");
+$ab.onclick = () => {
+  alphaOn = !alphaOn;
+  stage.classList.toggle("has-alpha", alphaOn);
+  $ab.textContent = "Transparent: " + (alphaOn ? "on" : "off");
+  document.getElementById("wexport").hidden = !alphaOn;
+  render(hold !== null ? hold : 0);
+};
+document.getElementById("wexport").onclick = async () => {
+  if (busy) return;
+  const W = +document.getElementById("gw").value;
+  const H = Math.round(W * 1080 / 1920);
+  const fps = +document.getElementById("gfps").value;
+  const step = FPS / fps;
+  const n = Math.ceil(NF_EFF / step);
+  /* the frames are held as bitmaps between the two passes, so the same sort
+     of ceiling applies as the GIF's — smaller, since these are GPU-backed,
+     but not nothing */
+  if (n * W * H * 4 > 900e6){
+    $gs.textContent = `too many frames to hold at ${W}px — drop the size or rate`;
+    return;
+  }
+  busy = true;
+  const wasHold = hold;
+  const cvs = document.createElement("canvas");
+  cvs.width = W; cvs.height = H;
+  const ctx = cvs.getContext("2d", { alpha: true });
+  const shots = [];
+  try {
+    for (let k = 0; k < n; k++){
+      hold = (k * step) / FPS;
+      render(hold);
+      await drawStage(ctx, W, H, true);
+      shots.push(await createImageBitmap(cvs));
+      $gs.textContent = `frame ${k + 1}…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    $gs.textContent = "encoding…";
+    const out = document.createElement("canvas");
+    out.width = W; out.height = H;
+    const og = out.getContext("2d", { alpha: true });
+    const st = out.captureStream(0), tr = st.getVideoTracks()[0];
+    const rec = new MediaRecorder(st, { mimeType: "video/webm;codecs=vp9",
+      videoBitsPerSecond: Math.round(clamp(W * H * fps * 0.25, 2e6, 24e6)) });
+    const parts = [];
+    rec.ondataavailable = e => { if (e.data.size) parts.push(e.data); };
+    const done = new Promise(r => rec.onstop = r);
+    rec.start();
+    const t0 = performance.now();
+    for (let k = 0; k < shots.length; k++){
+      og.clearRect(0, 0, W, H);
+      og.drawImage(shots[k], 0, 0);
+      tr.requestFrame();
+      const due = t0 + (k + 1) * 1000 / fps;
+      await new Promise(r => setTimeout(r, Math.max(0, due - performance.now())));
+    }
+    rec.stop(); await done;
+    const blob = new Blob(parts, { type: "video/webm" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "search-motion-alpha.webm";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    $gs.textContent = `${shots.length} frames · ${(blob.size/1048576).toFixed(1)} MB`;
+  } catch (e){
+    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+  } finally {
+    for (const b of shots) b.close();
     hold = wasHold; busy = false;
     if (hold === null) window.play();
   }
