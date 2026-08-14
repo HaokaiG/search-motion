@@ -303,8 +303,7 @@
   #hud canvas#bzc{width:100%;height:auto;aspect-ratio:1;display:block;
        background:#0e0e11;border:1px solid #212127;border-radius:7px;
        cursor:crosshair;touch-action:none}
-  #hud .bez{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
-  #hud .bez input{padding:6px 4px;text-align:center;font-size:11px}
+  #hud h3.sub{margin:2px 0 0}
   #hud .warn{text-transform:none;letter-spacing:0;min-height:14px;
        line-height:1.25;font-size:11px}
   #hud #qwarn{color:#8a8a92;font-variant-numeric:tabular-nums}
@@ -523,14 +522,9 @@
       <input id="cspdn" type="number" min="0.2" max="8" step="0.05" value="1.00">
     </div>
     <input id="cspd" type="range" min="0.2" max="4" step="0.05" value="1">
-    <div class="lbl"><label for="bz0">Easing</label><b id="bztxt">0.35, 0.08, 0.35, 1.00</b></div>
+    <h3 class="sub">Easing</h3>
     <canvas id="bzc" width="252" height="252"></canvas>
-    <div class="bez">
-      <input id="bz0" type="number" min="0" max="1" step="0.01" value="0.35">
-      <input id="bz1" type="number" min="-0.25" max="1.25" step="0.01" value="0.08">
-      <input id="bz2" type="number" min="0" max="1" step="0.01" value="0.35">
-      <input id="bz3" type="number" min="-0.25" max="1.25" step="0.01" value="1.00">
-    </div>
+    <button id="bzreset">Reset curve</button>
     <span class="warn" id="cwarn"></span>
   </div>
 
@@ -1675,9 +1669,7 @@ $cs.addEventListener("input",  () => setCam($cs.value,  "range"));
 $csn.addEventListener("change", () => setCam($csn.value, "number"));
 
 /* ── the easing editor ───────────────────────────────────────────────── */
-const $bz  = [0,1,2,3].map(i => document.getElementById("bz" + i));
-const $bzt = document.getElementById("bztxt");
-const bzc  = document.getElementById("bzc");
+const bzc = document.getElementById("bzc");
 /* The curve is drawn on a box that runs a little past the unit square on y,
    so a handle can be dragged into overshoot and still be visible rather than
    disappearing off the top of its own chart.                              */
@@ -1744,24 +1736,17 @@ bzc.addEventListener("pointerdown", e => {
 function bzMove(e){
   if (!bzDrag) return;
   const [px, py] = bzPoint(e);
-  const i = (bzDrag - 1) * 2;
-  $bz[i].value     = bzU(px).toFixed(2);
-  $bz[i + 1].value = bzV(py).toFixed(2);
-  setBez();
+  const i = (bzDrag - 1) * 2, next = CAM_BEZ.slice();
+  next[i]     = bzU(px);
+  next[i + 1] = bzV(py);
+  setBez(next);
 }
 bzc.addEventListener("pointermove", bzMove);
 bzc.addEventListener("pointerup",   () => { bzDrag = 0; });
 bzc.addEventListener("pointercancel", () => { bzDrag = 0; });
-function setBez(){
-  CAM_BEZ = $bz.map((el, i) => {
-    const v = +el.value;
-    /* the same bounds the chart can draw, so a typed value and a dragged
-       one cannot disagree about where the handle is */
-    return isFinite(v) ? (i % 2 === 0 ? clamp(v, 0, 1)
-                                     : clamp(v, BZ_LO, BZ_HI)) : CAM_BEZ[i];
-  });
-  $bz.forEach((el, i) => el.value = CAM_BEZ[i].toFixed(2));
-  $bzt.textContent = CAM_BEZ.map(v => v.toFixed(2)).join(", ");
+function setBez(next){
+  if (next) CAM_BEZ = next.map((v, i) =>
+    i % 2 === 0 ? clamp(v, 0, 1) : clamp(v, BZ_LO, BZ_HI));
   drawBez();
   setCam(CAM_SPEED, "bez");                 // rebuilds, re-reads, re-renders
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
@@ -1770,7 +1755,7 @@ function setBez(){
   const q = h.toString();
   history.replaceState(null, "", q ? "#" + q : location.pathname);
 }
-$bz.forEach(el => el.addEventListener("change", setBez));
+document.getElementById("bzreset").onclick = () => setBez(CAM_BEZ_REF.slice());
 /* ── editing the answer ─────────────────────────────────────────────────
    The blocks reflow, so the reveal re-derives its lines after every edit. */
 const $a = document.getElementById("ain"), $aw = document.getElementById("awarn");
@@ -2182,10 +2167,9 @@ function boot(){
   }
   if (Q.has("bez")){                         // #bez=x1,y1,x2,y2
     const d = Q.get("bez").split(",").map(Number);
-    if (d.length === 4 && d.every(isFinite))
-      d.forEach((v, i) => $bz[i].value = v.toFixed(2));
+    if (d.length === 4 && d.every(isFinite)) CAM_BEZ = d;
   }
-  setBez();                                  // draws the curve, builds the camera
+  setBez(CAM_BEZ);                           // draws the curve, builds the camera
   applyQuery();                              // always: it sizes the bar
   render(hold !== null ? hold : 0);
 }
