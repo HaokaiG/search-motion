@@ -69,10 +69,14 @@ lets you:
   and the query and the chip's label both step up to Medium, the query going white — the plate's
   356 is too light to hold against a moving background. The video follows the piece's clock and
   wraps if it is shorter than 6.757s
-- **export a GIF or an MP4** — width and frame rate selectable, shared by both. The MP4 is
-  H.264 via WebCodecs, with the container written by hand alongside the GIF encoder, so there
-  is still nothing to install. Both walk the same deterministic render path rather than
-  capturing the screen, so a frame is a frame whatever the machine is doing
+- **export a GIF or an MP4** — up to 1920px and 60fps, shared by both. The MP4 is H.264 via
+  WebCodecs, with the container written by hand alongside the GIF encoder, so there is still
+  nothing to install; the profile level is asked for at export time rather than hard-coded,
+  since Baseline 3.0 cannot carry 1080p at all and 4.0 cannot carry it at 60. Both walk the
+  same deterministic render path rather than capturing the screen, so a frame is a frame
+  whatever the machine is doing. The GIF keeps every frame in memory to build its palette, so
+  it declines the largest combinations and says how much it would have needed — the MP4 has no
+  such ceiling
 
 Both fields warn when the text outruns its room: the query when it reaches the AI Mode button,
 the answer when it passes the bottom of its measured column.

@@ -558,11 +558,15 @@
         <option value="640" selected>640px</option>
         <option value="800">800px</option>
         <option value="960">960px</option>
+        <option value="1280">1280px</option>
+        <option value="1920">1920px · 1080p</option>
       </select>
       <select id="gfps">
         <option value="8">8 fps</option>
         <option value="12" selected>12 fps</option>
         <option value="24">24 fps</option>
+        <option value="30">30 fps</option>
+        <option value="60">60 fps</option>
       </select>
     </div>
     <button id="gexport">Export GIF</button>
@@ -2022,11 +2026,23 @@ const $gs = document.getElementById("gstat");
 let busy = false;
 document.getElementById("gexport").onclick = async () => {
   if (busy) return;
-  busy = true;
   const W = +document.getElementById("gw").value;
   const H = Math.round(W * 1080 / 1920);
   const fps = +document.getElementById("gfps").value;
   const step = FPS / fps;
+  /* The GIF holds every frame as raw RGBA until the palette is built, because
+     the palette is sampled across the whole animation — so its cost is frames
+     x W x H x 4 and it climbs fast. 1920 at 60fps is about 3.4 GB, which does
+     not fail politely, it takes the tab with it. The MP4 has no such ceiling:
+     it hands each frame to the encoder and keeps only the compressed chunk,
+     so say that rather than just refusing.                                */
+  const est = Math.ceil(NF_EFF / step) * W * H * 4;
+  if (est > 700e6){
+    $gs.textContent = `GIF needs ~${(est / 1073741824).toFixed(1)} GB here — `
+                    + `use MP4, or drop the size or rate`;
+    return;
+  }
+  busy = true;
   const wasHold = hold;
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
@@ -2092,12 +2108,24 @@ document.getElementById("mexport").onclick = async () => {
       },
       error: e => { failed = e; }
     });
-    enc.configure({
-      codec: "avc1.42E01E",                    // Baseline 3.0 — plays anywhere
-      width: W, height: H, framerate: fps,
-      bitrate: Math.min(16e6, Math.max(1.5e6, Math.round(W * H * fps * 0.9))),
-      avc: { format: "avc" }                   // AVCC + avcC, not Annex-B
-    });
+    /* Baseline 3.0 tops out around 720x576, so it cannot carry 1080p at all
+       and 4.0 cannot carry it at 60. Rather than hard-code a level and hope,
+       ask the encoder which of these it will take for THIS size and rate and
+       use the first that answers yes — lowest profile first, so a small
+       export still comes out as widely playable as it was.               */
+    const want = { width: W, height: H, framerate: fps,
+      bitrate: Math.round(clamp(W * H * fps * 0.25, 2e6, 24e6)),
+      avc: { format: "avc" } };                // AVCC + avcC, not Annex-B
+    let codec = null;
+    for (const c of ["avc1.42E01E", "avc1.42E028", "avc1.42E033",
+                     "avc1.4D0033", "avc1.640033"]){
+      try {
+        const r = await VideoEncoder.isConfigSupported({ ...want, codec: c });
+        if (r && r.supported){ codec = c; break; }
+      } catch (e){ /* an unsupported string throws rather than answering */ }
+    }
+    if (!codec) throw new Error(`no H.264 level for ${W}x${H} at ${fps}fps`);
+    enc.configure({ ...want, codec });
     for (let k = 0; k * step < NF_EFF; k++){
       if (failed) throw failed;
       hold = (k * step) / FPS;
