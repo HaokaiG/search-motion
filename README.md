@@ -37,13 +37,13 @@ lets you:
   then and goes solid as the first character lands. 1x still lands the last character on 108 as
   the plate does; slower runs past it, and past 113 it is still typing when the button lights,
   which the panel says outright rather than preventing
-- **set the camera speed** — the pan follows the newest character rather than running a baked
-  curve: it chases a target derived from the caret by a fixed fraction of the remaining distance
-  each frame, which makes it smooth by construction and lets it settle rather than stop. The
-  slider scales that fraction. It holds until 1.92s at normal typing speed — the plate holds its
-  own camera 51 frames — and that hold is stored as a fraction of the typing, so it re-times
-  with the rate. At 1x the move is measured against the source clip's own camera: peak 54
-  px/frame at frame 66, against the plate's 54 at 65-69.
+- **shape the camera move** — the pan is a function of how far through the query the typing has
+  got rather than of the clock, so it tracks the text at any rate and lands exactly as the last
+  character does. Its easing is a cubic bezier with the same four handles After Effects and CSS
+  use, editable in the panel with a live curve, and a speed slider scales the progress on top.
+  It holds until 1.92s at normal typing speed — the plate holds its own camera 51 frames. The
+  default handles are solved against the source clip rather than picked: 0.35, 0.08, 0.35, 1.00
+  gives a peak of 52 px/frame at frame 67, against the clip's measured 54 at 66.
   Everything after the typing — the outline, the click, the cut, act 2 — rides on the text too,
   so the piece runs 162 frames at 1x and 117 at 2x
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
@@ -79,7 +79,7 @@ the answer when it passes the bottom of its measured column.
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
 answer, `#logo=0` drops the wordmark, `#icon=g` puts the G in the search bar, `#speed=` sets
-the typing rate and `#cam=` the camera's, so an edit survives a reload and works in headless renders.
+the typing rate, `#cam=` the camera's and `#bez=` its easing, so an edit survives a reload and works in headless renders.
 
 ---
 

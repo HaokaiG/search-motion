@@ -299,6 +299,11 @@
        text-align:right;font-variant-numeric:tabular-nums}
   #hud input[type=range]{padding:0;height:20px;background:none;border:none;
        accent-color:#7f9cff;cursor:pointer}
+  /* the easing editor: a square curve preview over the four handle fields */
+  #hud canvas#bzc{width:100%;height:auto;aspect-ratio:1;display:block;
+       background:#0e0e11;border:1px solid #212127;border-radius:7px}
+  #hud .bez{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+  #hud .bez input{padding:6px 4px;text-align:center;font-size:11px}
   #hud .warn{text-transform:none;letter-spacing:0;min-height:14px;
        line-height:1.25;font-size:11px}
   #hud #qwarn{color:#8a8a92;font-variant-numeric:tabular-nums}
@@ -517,6 +522,14 @@
       <input id="cspdn" type="number" min="0.2" max="8" step="0.05" value="1.00">
     </div>
     <input id="cspd" type="range" min="0.2" max="4" step="0.05" value="1">
+    <div class="lbl"><label for="bz0">Easing</label><b id="bztxt">0.35, 0.08, 0.35, 1.00</b></div>
+    <canvas id="bzc" width="252" height="252"></canvas>
+    <div class="bez">
+      <input id="bz0" type="number" min="0" max="1" step="0.01" value="0.35">
+      <input id="bz1" type="number" min="-1" max="2" step="0.01" value="0.08">
+      <input id="bz2" type="number" min="0" max="1" step="0.01" value="0.35">
+      <input id="bz3" type="number" min="-1" max="2" step="0.01" value="1.00">
+    </div>
     <span class="warn" id="cwarn"></span>
   </div>
 
@@ -855,39 +868,9 @@ function setQuery(str){
   if (chipEcho) chipEcho.textContent = str;   // act 2 echoes the same query
   qtext.textContent = str;                    // measure at full length
   const geo = layoutBar();
-  buildPrefixes(str, geo.textEnd - TEXT_LEFT);
   buildCamera();                    // the follow is integrated per query
   qtext.dataset.n = "";
   return geo;
-}
-/* ── where the caret is, at any instant ─────────────────────────────────
-   The camera follows the newest character, so it needs the caret's position
-   BETWEEN the frames one lands, not just on them. These are the ink widths of
-   every prefix: canvas gives the shape cheaply, and the set is then scaled so
-   the last equals the width layout actually used, which keeps the camera's
-   landing and the bar's own geometry in agreement rather than within a
-   rounding error.                                                         */
-let PREFIX_W = [0];
-function buildPrefixes(str, domWidth){
-  const cv = buildPrefixes.cv ||
-            (buildPrefixes.cv = document.createElement("canvas").getContext("2d"));
-  cv.font = getComputedStyle(qtext).font;
-  const w = [0];
-  for (let i = 1; i <= str.length; i++) w.push(cv.measureText(str.slice(0, i)).width);
-  const raw = w[w.length - 1];
-  const k = raw > 0 ? domWidth / raw : 1;
-  PREFIX_W = w.map(v => v * k);
-}
-function caretPlaneX(f){
-  const T = TYPE_FRAMES, last = PREFIX_W[PREFIX_W.length - 1];
-  if (!T.length) return TEXT_LEFT;
-  if (f <= T[0])            return TEXT_LEFT;
-  if (f >= T[T.length - 1]) return TEXT_LEFT + last;
-  let k = 0;
-  while (k < T.length - 2 && T[k + 1] <= f) k++;
-  const a = PREFIX_W[k + 1] ?? last, b = PREFIX_W[k + 2] ?? a;
-  const f0 = T[k], f1 = T[k + 1];
-  return TEXT_LEFT + lerp(a, b, f1 > f0 ? sat((f - f0) / (f1 - f0)) : 0);
 }
 /* ── the bar sizes itself to the question ───────────────────────────────
    Measured on the plate: the query ink ends at 2258, the chip runs
@@ -1351,74 +1334,21 @@ function paintRamp(grads, segs, shift, scale, pad, ramp, cycle){
 
 /* sample the baked pan curve at an arbitrary (sub-frame) time */
 /* ── the camera ─────────────────────────────────────────────────────────
-   It tracks the caret rather than running the plate's baked curve: the pan
-   is whatever keeps the newest character on screen x = TRACK_X, so the move
-   is driven by the text instead of by the clock, and it holds still until
-   the query is long enough to need it.
-   TRACK_X is not chosen — it falls out of where the bar parks. At the end of
-   the move the cap sits on PARK_X, and the caret is exactly the chip's gap,
-   the chip and its inset to the left of that. Tracking at that same x means
-   the follow lands on PAN_END on its own, with no seam between the tracking
-   and the parking.
-   The measured PAN curve above is kept as the record and the way back — it
-   no longer drives anything.                                             */
-/* The move is triggered by the text but shaped by the plate. It starts the
-   frame the caret first reaches the middle of the frame, ends a little before
-   the typing does, and in between it runs the measured PAN curve's own
-   profile — accelerate to a peak, then decay exponentially into the landing —
-   remapped onto that window. So the timing follows the typing at any speed
-   while the easing is still the reference's, rather than a linear follow that
-   moves at a constant rate and stops dead.
-   PAN holds at 0 for its first 51 frames; that hold is stripped here, because
-   the hold is now expressed by WHEN the window opens.                     */
-/* The move opens 2.3s in at normal speed. That is stored as a FRACTION of the
-   typing span rather than as a time, so it re-times with the rate on its own:
-   at 1x the span is 18…108 and 1.92s is frame 46.0, which is 0.311 of the way
-   through it. Faster typing therefore opens the camera earlier in absolute
-   time and slower opens it later, while the move always begins at the same
-   point in the sentence.                                                  */
-/* ── the camera ─────────────────────────────────────────────────────────
-   It follows the newest character. The target is wherever the caret is, less
-   a fixed offset, and the pan chases that target by a constant fraction of
-   the remaining distance each frame — a first-order lag. Two things fall out
-   of that on their own: the motion is smooth, because the pan can never step
-   further than the gap it is closing, and it settles rather than stopping.
+   It is driven by the text, not by the clock: the pan is a function of how
+   much of the query has appeared, so it tracks at any typing rate and lands
+   exactly when the last character does. CAM_BEZ shapes that mapping and
+   CAM_SPEED scales it.
 
-   The fraction is measured, not chosen. Tracking the source clip's own logo
-   band frame to frame gives a pan that ramps to 54 px/frame around frame 65
-   and then decays 54, 47, 39, 32, 26, 21, 17, 14, 11, 8, 6, 4, 3 — a ratio of
-   ~0.95 per frame. A first-order lag decays at exactly (1 - alpha) once its
-   target stops, so the plate IS an alpha of 0.05, and CAM_SPEED 1 is that.
-   Higher is a tighter, faster camera; lower is a longer, lazier one.
+   The reference for the default is the source clip's own camera. Tracking its
+   static logo band frame to frame gives a total pan of 1656px, a peak of 54
+   px/frame around frame 66, and a decay of 54, 47, 39, 32, 26, 21, 17, 14,
+   11, 8, 6, 4, 3 — a hard ramp and a long exponential settle, which is what
+   a handle pair of (0.40, 0.00) and (0.00, 1.00) draws.
 
-   The offset is what makes the landing exact rather than approximate: the
-   target is caret - (PARK_X - the chip's own run), so when the last character
-   lands the target is exactly PAN_END, which is where the bar's right cap
-   parks on x=1236.
-
-   CAM_LEAD is why the numbers above are not simply alpha 0.05. A lag always
-   trails, and following the caret at the plate's own decay leaves the pan 230
-   px short when the outline lights — the bar never reaches its parked
-   position at all. So the target LEADS: it runs CAM_LEAD times the caret's
-   own offset and clamps at PAN_END, which is to say the camera aims where the
-   text is going rather than where it is, gets there while the query is still
-   being typed, and then settles. That also puts the peak back, where a plain
-   follow gave 18 px/frame against the plate's 54.
-
-   The pair is set to match the source's move rather than to park perfectly,
-   which is a real trade and worth knowing about. Tracking that clip gives a
-   peak of 54 px/frame at frame 66; these values give 54 at 66. Buying the
-   last of the parking instead — alpha .13, lead 1.8 — lands within 2px but
-   drags the peak out to frame 75, a third of a second late. As set, the pan
-   is ~29px short of PAN_END when the outline lights and closes to under 10 by
-   the cut, on a move of 1583.
-
-   Integrated once per query into a table rather than stepped live, because
-   render() is called at arbitrary times when seeking and exporting — an
-   incremental camera would give a different answer depending on how you got
-   to the frame.                                                          */
-const CAM_ALPHA_REF = 0.07;        // CAM_SPEED 1; see CAM_LEAD for why not .05
-const CAM_LEAD      = 2.4;         // the target aims ahead of the caret
+   Built once per query into a table rather than stepped live, because
+   render() is called at arbitrary times when seeking and exporting — anything
+   incremental would give a different answer depending on how you reached the
+   frame.                                                                 */
 /* And it does not start at the first character. The plate holds its camera
    for 51 frames and then moves, so the target is pinned at 0 until 1.92s in
    at normal speed — frame 46, which is that hold to within five frames. It is
@@ -1429,27 +1359,70 @@ const CAM_START_S    = 1.92;       // at 1x
 const CAM_START_FRAC = (CAM_START_S * FPS - TYPE_F0) / (TYPE_F1 - TYPE_F0);
 let   CAM_SPEED  = 1;
 let   CAM_TRACK  = new Float64Array(1);
+/* ── the easing curve ───────────────────────────────────────────────────
+   A cubic bezier on the unit square, the same four numbers After Effects and
+   CSS use: (0,0) and (1,1) are fixed, CAM_BEZ is the two handles. x is how
+   far the text has come, y is how far the camera has. Solving y from x needs
+   t first, which is Newton with a bisection fallback for the flat stretches
+   where the derivative goes near zero — a plain Newton wanders there.     */
+/* The default is solved against the source clip, not taken from the panel in
+   the reference shot. That shot reads 0.40, 0.00, 0.00, 1.00, which is a hard
+   ease-in-out — run here it peaks at 109 px/frame, twice what the clip's own
+   camera does. Searching the handles for the clip's profile instead (peak 54
+   around frame 66, after a ~15-frame ramp out of the hold) lands on these,
+   which give 52 at 67. Type the other four in if you want that curve.    */
+const CAM_BEZ_REF = [0.35, 0.08, 0.35, 1.00];
+let CAM_BEZ = CAM_BEZ_REF.slice();
+function bezAt(x, P){
+  const [x1, y1, x2, y2] = P;
+  if (x1 === y1 && x2 === y2) return x;                 // the identity, free
+  const cx = t => ((1 - t) * (1 - t) * 3 * t * x1) + ((1 - t) * 3 * t * t * x2) + t * t * t;
+  const cy = t => ((1 - t) * (1 - t) * 3 * t * y1) + ((1 - t) * 3 * t * t * y2) + t * t * t;
+  const dx = t => 3 * (1 - t) * (1 - t) * x1 + 6 * (1 - t) * t * (x2 - x1) + 3 * t * t * (1 - x2);
+  let t = sat(x);
+  for (let i = 0; i < 8; i++){
+    const e = cx(t) - x, d = dx(t);
+    if (Math.abs(e) < 1e-6) return cy(t);
+    if (Math.abs(d) < 1e-6) break;
+    t = sat(t - e / d);
+  }
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 40; i++){
+    t = (lo + hi) / 2;
+    if (cx(t) < x) lo = t; else hi = t;
+  }
+  return cy(t);
+}
+
 function buildCamera(){
-  const a = clamp(CAM_ALPHA_REF * CAM_SPEED, 0.004, 0.6);
-  /* The target tracks the caret's advance FROM the wake frame, not its
-     absolute position. Pinning the absolute target at 0 through the hold and
-     then releasing it is the obvious thing and it is wrong: by 1.92s the
-     caret is already 460px past the offset, so the target steps straight to
-     1265 and the lag lurches after it at 129 px/frame against the plate's 54.
-     Measuring the advance instead starts the target at 0 where the camera
-     actually is, so it accelerates out of the hold rather than snapping.  */
+  /* The camera's position is a function of how much text has appeared, not of
+     the clock — so it tracks the query at any typing rate — and CAM_BEZ is
+     what shapes that mapping. Progress runs 0 at the wake frame to 1 when the
+     last character lands, CAM_SPEED scales it so a faster camera finishes the
+     move before the text does, and the curve turns progress into distance.
+
+     This replaces a first-order lag. The lag was smooth and settled nicely
+     but it only had one number in it; a bezier is the same four handles the
+     reference panel shows, so the whole speed profile is adjustable rather
+     than just how hard it chases. It also lands exactly instead of
+     asymptotically: bez(1) is 1, so the pan is ON PAN_END when the text
+     lands, where the lag was still ~29px short as the outline lit.
+
+     Progress runs on the typing's own schedule rather than on the caret's
+     measured x, and that is deliberate. Reading the caret's position makes
+     the camera inherit the typing's per-character steps: characters land
+     every couple of frames at uneven widths, so the pan comes out jagged —
+     measured, a 150 px/frame peak with the profile jumping 5, 64, 46, 27, 33,
+     5. The first-order lag this replaces was hiding that. Progress through
+     the typing window is the same quantity without the stair edges, since
+     the schedule is what puts the characters on screen in the first place. */
   const hold = TYPE_F0 + CAM_START_FRAC * (typeEnd() - TYPE_F0);
-  const x0   = caretPlaneX(hold);
-  const runX = Math.max(1, (TEXT_LEFT + PREFIX_W[PREFIX_W.length - 1]) - x0);
+  const run  = Math.max(1, typeEnd() - hold);
   const n = Math.max(2, Math.ceil(NF_EFF) + 2);
   const arr = new Float64Array(n);
-  let p = 0;
   for (let f = 0; f < n; f++){
-    const target = f < hold ? 0
-                 : clamp((caretPlaneX(f) - x0) / runX * PAN_END * CAM_LEAD,
-                         0, PAN_END);
-    p += (target - p) * a;
-    arr[f] = p;
+    const u = sat((f - hold) / run * CAM_SPEED);
+    arr[f] = PAN_END * bezAt(u, CAM_BEZ);
   }
   CAM_TRACK = arr;
 }
@@ -1687,7 +1660,9 @@ function setCam(v, from){
   const atRing = PAN_END > 0 ? panAt((RING_VISIBLE_F + TAIL) * F) / PAN_END : 1;
   $cw.textContent = `peak ${peak.toFixed(0)} px/frame · ${(atRing * 100).toFixed(1)}%`
                   + ` there as the outline lights`
-                  + (CAM_SPEED === 1 ? " — the plate's own rate" : "");
+                  + (CAM_SPEED === 1 &&
+                     CAM_BEZ.every((v, i) => v === CAM_BEZ_REF[i])
+                       ? " — the clip's own move" : "");
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
@@ -1697,6 +1672,53 @@ function setCam(v, from){
 }
 $cs.addEventListener("input",  () => setCam($cs.value,  "range"));
 $csn.addEventListener("change", () => setCam($csn.value, "number"));
+
+/* ── the easing editor ───────────────────────────────────────────────── */
+const $bz  = [0,1,2,3].map(i => document.getElementById("bz" + i));
+const $bzt = document.getElementById("bztxt");
+const bzc  = document.getElementById("bzc");
+function drawBez(){
+  const g = bzc.getContext("2d"), W = bzc.width, H = bzc.height, m = 16;
+  const X = u => m + u * (W - 2 * m), Y = v => H - m - v * (H - 2 * m);
+  g.clearRect(0, 0, W, H);
+  g.strokeStyle = "#20202a"; g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++){
+    const u = i / 4;
+    g.beginPath(); g.moveTo(X(u), Y(0)); g.lineTo(X(u), Y(1)); g.stroke();
+    g.beginPath(); g.moveTo(X(0), Y(u)); g.lineTo(X(1), Y(u)); g.stroke();
+  }
+  /* the handles, drawn from the anchors the way the reference panel does */
+  const [x1, y1, x2, y2] = CAM_BEZ;
+  g.strokeStyle = "#43434f";
+  g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(x1), Y(y1)); g.stroke();
+  g.beginPath(); g.moveTo(X(1), Y(1)); g.lineTo(X(x2), Y(y2)); g.stroke();
+  g.fillStyle = "#e8b93a";
+  for (const [a, b] of [[0,0],[1,1],[x1,y1],[x2,y2]]){
+    g.beginPath(); g.arc(X(a), Y(b), 3.5, 0, 7); g.fill();
+  }
+  g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath();
+  for (let i = 0; i <= 120; i++){
+    const u = i / 120, v = bezAt(u, CAM_BEZ);
+    i ? g.lineTo(X(u), Y(v)) : g.moveTo(X(u), Y(v));
+  }
+  g.stroke();
+}
+function setBez(){
+  CAM_BEZ = $bz.map((el, i) => {
+    const v = +el.value;
+    return isFinite(v) ? (i % 2 === 0 ? clamp(v, 0, 1) : clamp(v, -1, 2)) : CAM_BEZ[i];
+  });
+  $bz.forEach((el, i) => el.value = CAM_BEZ[i].toFixed(2));
+  $bzt.textContent = CAM_BEZ.map(v => v.toFixed(2)).join(", ");
+  drawBez();
+  setCam(CAM_SPEED, "bez");                 // rebuilds, re-reads, re-renders
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  const d = CAM_BEZ.map(v => v.toFixed(2)).join(",");
+  d === CAM_BEZ_REF.map(v => v.toFixed(2)).join(",") ? h.delete("bez") : h.set("bez", d);
+  const q = h.toString();
+  history.replaceState(null, "", q ? "#" + q : location.pathname);
+}
+$bz.forEach(el => el.addEventListener("change", setBez));
 /* ── editing the answer ─────────────────────────────────────────────────
    The blocks reflow, so the reveal re-derives its lines after every edit. */
 const $a = document.getElementById("ain"), $aw = document.getElementById("awarn");
@@ -2106,6 +2128,12 @@ function boot(){
     $cs.value  = CAM_SPEED;
     $csn.value = CAM_SPEED.toFixed(2);
   }
+  if (Q.has("bez")){                         // #bez=x1,y1,x2,y2
+    const d = Q.get("bez").split(",").map(Number);
+    if (d.length === 4 && d.every(isFinite))
+      d.forEach((v, i) => $bz[i].value = v.toFixed(2));
+  }
+  setBez();                                  // draws the curve, builds the camera
   applyQuery();                              // always: it sizes the bar
   render(hold !== null ? hold : 0);
 }
