@@ -246,7 +246,11 @@
   .body p + p{margin-top:49.3px}
   /* the plate's heading stems measure 7.0px against 4.0px body — that is
      SemiBold, not Bold. At 700 it came out 8.0px, visibly too thick.     */
-  .body h2{font-size:46.22px;font-weight:600;line-height:1;margin:50.7px 0 0}
+  /* Medium by request, against the plate's SemiBold. Its stems measure 7.0px
+     on the x-height where the body's are 4.0 — a 1.75 ratio, which is what
+     put it on 600; 700 came out 8.0 and visibly too thick. 500 is a step the
+     other way, so this is a departure rather than a correction.          */
+  .body h2{font-size:46.22px;font-weight:500;line-height:1;margin:50.7px 0 0}
   .body h2 + p{margin-top:49.3px}
 
   .w{color:#000}                       /* answer word, post-reveal */
