@@ -529,7 +529,6 @@
     <h3 class="sub">Easing</h3>
     <canvas id="bzc" width="252" height="252"></canvas>
     <button id="bzreset">Reset curve</button>
-    <span class="warn" id="cwarn"></span>
   </div>
 
   <div class="grp">
@@ -1641,27 +1640,13 @@ $ts.addEventListener("input",  () => setSpeed($ts.value,  "range"));
 $tsn.addEventListener("change", () => setSpeed($tsn.value, "number"));
 
 /* the camera's own speed, same shape of control */
-const $cs = document.getElementById("cspd"), $csn = document.getElementById("cspdn"),
-      $cw = document.getElementById("cwarn");
+const $cs = document.getElementById("cspd"), $csn = document.getElementById("cspdn");
 const CAM_MIN = 0.2, CAM_MAX = 8;
 function setCam(v, from){
   CAM_SPEED = clamp(+v || 1, CAM_MIN, CAM_MAX);
   if (from !== "range")  $cs.value  = CAM_SPEED;
   if (from !== "number") $csn.value = CAM_SPEED.toFixed(2);
   buildCamera();
-  /* the readouts worth having are what it actually does: how hard it moves at
-     its hardest, and how much of the way it has got by the frame the outline
-     lights, which is where the piece wants it parked                       */
-  const F = 1 / FPS;
-  let peak = 0;
-  for (let f = 0; f <= NF_EFF; f += 0.5)
-    peak = Math.max(peak, Math.abs(panAt((f + 0.5) * F) - panAt((f - 0.5) * F)));
-  const atRing = PAN_END > 0 ? panAt((RING_VISIBLE_F + TAIL) * F) / PAN_END : 1;
-  $cw.textContent = `peak ${peak.toFixed(0)} px/frame · ${(atRing * 100).toFixed(1)}%`
-                  + ` there as the outline lights`
-                  + (CAM_SPEED === 1 &&
-                     CAM_BEZ.every((v, i) => v === CAM_BEZ_REF[i])
-                       ? " — the clip's own move" : "");
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
