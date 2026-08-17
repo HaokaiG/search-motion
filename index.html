@@ -238,19 +238,20 @@
   /* The plate squares off the corner nearest the sender: scanning the fill
      boundary, the right edge reaches full width within 4px of the top while
      the left takes ~40px, and both bottom corners take ~40px too.        */
-  /* It wraps rather than running on. The cap is the reference query's own
-     pill, which the plate measures at 822 and our own text metrics render at
-     824.7 — so the plate's string stays on one row and anything longer takes
-     a second. 828 rather than 825: the narrowest glyph at this size still
-     adds about 8px, so 3px of headroom cannot let a longer query through, and
-     it keeps the reference off a cap it would otherwise sit 0.3px inside.
+  /* The width follows the text. The bubble hugs whatever is typed and only
+     wraps once it genuinely runs out of room, and the room is 1438: its right
+     edge is pinned 241 from the frame's, and 241 is also where the answer
+     column begins, so the widest it can get is that column's own span. A
+     limit read off the layout rather than off one string — the plate's 43
+     characters still sit on one row at 825, 72 fit on one at 1333, and it
+     takes about 80 before there is nowhere to go but a second row.
      A row is 54px — the measured 102 less 24 of padding top and
      bottom, which is also the body's line-height ratio (1.414) at this size
      to within 0.05, so the single row still lands on 102 exactly.
      pre-wrap, not pre: it still keeps the query's own spacing, but now it is
      allowed to break. Lines set from the left as a chat bubble's do, while
      the bubble itself stays pinned to the right.                          */
-  .qchip{right:241px;top:288px;max-width:828px;padding:24px 45px;
+  .qchip{right:241px;top:288px;max-width:1438px;padding:24px 45px;
          line-height:54px;
          background:var(--chip2);border-radius:51px 10px 51px 51px;
          display:grid;place-items:center start;

@@ -51,9 +51,11 @@ centred in the space beside it. The panel lets you:
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
-- **act 2's query bubble wraps, and breaks where you tell it to** — it used to hug its text
-  however long that ran. It now stops at the reference query's own pill width, so the plate's
-  string still sits on one row and anything longer takes a second, a third, as many as it needs.
+- **act 2's query bubble sizes itself to the query** — its width follows the text continuously,
+  from 120px at two characters through the plate's 825 at 43 to 1302 at 69, and it only wraps
+  once it runs out of room. That room is 1438px: the bubble's right edge is pinned 241 from the
+  frame's, and 241 is also where the answer column begins, so at its widest the bubble's left
+  edge lands exactly on the column's. A limit read off the layout rather than off any one string.
   The query field is a text area, so **Enter puts a break in** and the bubble takes a row there
   whether or not the line was long enough to need one. Each extra row is 54px and pushes the
   answer down by exactly that, which means a one-row query leaves every measured position where
