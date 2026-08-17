@@ -533,7 +533,7 @@
 
   <div class="grp">
     <h3>Query</h3>
-    <textarea id="qin" rows="2" spellcheck="false"
+    <textarea id="qin" rows="1" spellcheck="false"
       >what is the most popular sport in the world</textarea>
     <span class="warn" id="qwarn"></span>
   </div>
@@ -897,6 +897,52 @@ function scheduleFor(str){
   return Array.from({length: n}, (_, k) =>
     Math.round(TYPE_F0 + (f1 - TYPE_F0) * k / (n - 1)));
 }
+/* ── the bubble takes the field's line breaks ────────────────────────────
+   What the query field shows is what the bubble does: its soft wraps become
+   rows in act 2, so the shape is visible while typing and needs no Enter to
+   ask for. The breaks are found by mirroring the field — same font, same
+   content width, same wrapping — and reading which line each character
+   landed on. The mirror lives on <body>, deliberately outside #stage, so it
+   cannot reach the export the way anything inside the stage would.
+   This ties the bubble's layout to the panel's field, which is the point,
+   but it is worth knowing that it cuts both ways: the field breaks at about
+   44 characters and the plate's query is 43, so the reference sits one
+   character inside a single row. Anything that narrows the field — a classic
+   scrollbar in the panel rather than an overlay one — wraps the field and so
+   wraps the bubble. That is the feature behaving as asked, not a fault, and
+   the way back is to hand `qq` the raw string again.                     */
+let qMirror = null;
+function fieldLines(str){
+  const ta = $q, cs = getComputedStyle(ta);
+  if (!qMirror){
+    qMirror = document.createElement("div");
+    document.body.appendChild(qMirror);
+  }
+  qMirror.style.cssText = "position:absolute;visibility:hidden;left:-9999px;" +
+    "top:0;white-space:pre-wrap;overflow-wrap:break-word;" +
+    `font:${cs.font};letter-spacing:${cs.letterSpacing};` +
+    `width:${ta.clientWidth - parseFloat(cs.paddingLeft)
+                            - parseFloat(cs.paddingRight)}px;`;
+  const r = document.createRange(), out = [];
+  for (const seg of str.split("\n")){
+    if (!seg){ out.push(""); continue; }
+    qMirror.textContent = seg;
+    const node = qMirror.firstChild;
+    let cur = "", top = null;
+    for (let i = 0; i < seg.length; i++){
+      r.setStart(node, i); r.setEnd(node, i + 1);
+      const t = Math.round(r.getBoundingClientRect().top);
+      if (top === null) top = t;
+      if (t !== top){ out.push(cur); cur = ""; top = t; }
+      cur += seg[i];
+    }
+    out.push(cur);
+  }
+  /* a soft wrap leaves its space at the end of the line, and pre-wrap would
+     draw it — trim, since the break is now doing that space's job */
+  return out.map(l => l.replace(/[ \t]+$/, ""));
+}
+
 function setQuery(str){
   /* the bar's text is always lower case — the plate's is, and a stray capital
      from the field would be the one thing in act 1 that is not measured */
@@ -908,7 +954,8 @@ function setQuery(str){
   setTail();                                  // the tail rides on the typing
   qtext.dataset.n = "";                       // force the typist to redraw
   const chipEcho = document.getElementById("qq");
-  if (chipEcho) chipEcho.textContent = str;   // act 2 echoes the same query
+  /* act 2 echoes the query broken as the field broke it */
+  if (chipEcho) chipEcho.textContent = fieldLines(str).join("\n");
   placeAnswer();                    // and the bubble may now be two rows deep
   qtext.textContent = QUERY_BAR;              // measure at full length
   const geo = layoutBar();

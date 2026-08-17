@@ -51,13 +51,16 @@ centred in the space beside it. The panel lets you:
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
-- **act 2's query bubble sizes itself to the query** — its width follows the text continuously,
-  from 120px at two characters through the plate's 825 at 43 to 1302 at 69, and it only wraps
-  once it runs out of room. That room is 1438px: the bubble's right edge is pinned 241 from the
-  frame's, and 241 is also where the answer column begins, so at its widest the bubble's left
-  edge lands exactly on the column's. A limit read off the layout rather than off any one string.
-  The query field is a text area, so **Enter puts a break in** and the bubble takes a row there
-  whether or not the line was long enough to need one. Each extra row is 54px and pushes the
+- **act 2's query bubble takes its line breaks from the query field** — what the field shows is
+  what the bubble draws. Its soft wraps become rows in act 2, so the shape is visible while you
+  type and needs no Enter to ask for, and the two row counts always agree. The field breaks at
+  about 44 characters and the plate's query is 43, so the reference stays on one row and every
+  measured position with it. The bubble's width then follows its longest line — 120px at two
+  characters, 353 at fifteen, the plate's 825 at 43 — with a 1438px limit behind it for safety,
+  that being the answer column's own span, the bubble's right edge being pinned 241 from the
+  frame's and the column beginning on 241.
+  The query field is a text area, so **Enter puts a break in** as well, wherever you want one,
+  and the bubble takes a row there too. Each extra row is 54px and pushes the
   answer down by exactly that, which means a one-row query leaves every measured position where
   the plate has it and only a wrapped one moves anything. The column's overflow warning counts
   the room the bubble took, so a long query and a long answer are weighed together.
