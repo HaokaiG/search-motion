@@ -35,9 +35,9 @@ centred in the space beside it. The panel lets you:
   20x; the two drive each other, and past 5x the bar simply sits at its end while the field
   carries the value. Typing always begins on frame 18 — the same frame the bar's gradient does — whatever
   the rate, so the speed moves the *end*. The caret blinks at the measured 8 on / 8 off until
-  then and goes solid as the first character lands. 1x still lands the last character on 108 as
-  the plate does; slower runs past it, and past 113 it is still typing when the button lights,
-  which the panel says outright rather than preventing
+  then and goes solid as the first character lands. At 1x the plate's own query lands its last
+  character on 108, as the plate does; any other rate or length moves that frame and the rest of
+  the piece with it, and the panel reports the run and the total it implies
 - **shape the camera move** — the pan is a function of how far through the query the typing has
   got rather than of the clock, so it tracks the text at any rate and lands exactly as the last
   character does. Its easing is a cubic bezier with the same four handles After Effects and CSS
@@ -84,8 +84,8 @@ centred in the space beside it. The panel lets you:
   it declines the largest combinations and says how much it would have needed — the MP4 has no
   such ceiling
 
-Both fields warn when the text outruns its room: the query when it reaches the AI Mode button,
-the answer when it passes the bottom of its measured column.
+The query field reports what it costs — the bar's width and the pan's distance, both derived
+from it — and the answer field warns when the copy passes the bottom of its measured column.
 
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
