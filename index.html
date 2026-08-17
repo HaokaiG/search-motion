@@ -238,10 +238,23 @@
   /* The plate squares off the corner nearest the sender: scanning the fill
      boundary, the right edge reaches full width within 4px of the top while
      the left takes ~40px, and both bottom corners take ~40px too.        */
-  .qchip{right:241px;top:288px;height:102px;padding:0 45px;
+  /* It wraps rather than running on. The cap is the reference query's own
+     pill, which the plate measures at 822 and our own text metrics render at
+     824.7 — so the plate's string stays on one row and anything longer takes
+     a second. 828 rather than 825: the narrowest glyph at this size still
+     adds about 8px, so 3px of headroom cannot let a longer query through, and
+     it keeps the reference off a cap it would otherwise sit 0.3px inside.
+     A row is 54px — the measured 102 less 24 of padding top and
+     bottom, which is also the body's line-height ratio (1.414) at this size
+     to within 0.05, so the single row still lands on 102 exactly.
+     pre-wrap, not pre: it still keeps the query's own spacing, but now it is
+     allowed to break. Lines set from the left as a chat bubble's do, while
+     the bubble itself stays pinned to the right.                          */
+  .qchip{right:241px;top:288px;max-width:828px;padding:24px 45px;
+         line-height:54px;
          background:var(--chip2);border-radius:51px 10px 51px 51px;
-         display:grid;place-items:center;
-         font-size:38.22px;font-weight:400;color:#1f1f1f;white-space:pre}
+         display:grid;place-items:center start;
+         font-size:38.22px;font-weight:400;color:#1f1f1f;white-space:pre-wrap}
   /* Flow layout, not absolute: the answer is editable, so the blocks have
      to push each other down. Column width 1290 reproduces the plate's line
      breaks for the reference copy (its longest line is 1279).            */
@@ -888,6 +901,7 @@ function setQuery(str){
   qtext.dataset.n = "";                       // force the typist to redraw
   const chipEcho = document.getElementById("qq");
   if (chipEcho) chipEcho.textContent = str;   // act 2 echoes the same query
+  placeAnswer();                    // and the bubble may now be two rows deep
   qtext.textContent = str;                    // measure at full length
   const geo = layoutBar();
   buildCamera();                    // the follow is integrated per query
@@ -1062,11 +1076,26 @@ function relineAnswer(){
   LINE_GROUPS.forEach(g => { g.op = -1; });       // cache, so we only write on change
 }
 
+/* ── the bubble pushes the answer, not the other way round ───────────────
+   The query bubble wraps now, and a second row has to go somewhere: it grows
+   down from its measured top and the answer moves down by exactly what it
+   grew. A one-row query therefore leaves every measured position where the
+   plate has it, and only a query long enough to wrap moves anything.     */
+const BODY_TOP = 460, QCHIP_ROW = 102;
+const qchipEl = document.querySelector(".qchip");
+function placeAnswer(){
+  bodyEl.style.top =
+    (BODY_TOP + Math.max(0, qchipEl.offsetHeight - QCHIP_ROW)) + "px";
+  warnAnswer();
+}
+
 /* How far the answer runs past its room. The 1010 limit is where the plate's
    legal line left off; that line is no longer drawn, but the bound it implies
-   is still the measured bottom of the answer's column, so it stands. */
+   is still the measured bottom of the answer's column, so it stands. Read off
+   the live top rather than the constant, so a wrapped bubble counts against
+   the room it took.                                                       */
 function answerOverflowPx(){
-  return Math.max(0, (460 + bodyEl.offsetHeight) - 1010);
+  return Math.max(0, (bodyEl.offsetTop + bodyEl.offsetHeight) - 1010);
 }
 
 /* ══════════════════════════════ layout fit ══════════════════════════════ */
@@ -1775,10 +1804,16 @@ document.getElementById("bzreset").onclick = () => setBez(CAM_BEZ_REF.slice());
    The blocks reflow, so the reveal re-derives its lines after every edit. */
 const $a = document.getElementById("ain"), $aw = document.getElementById("awarn");
 $a.value = ANSWER_REF;
-function applyAnswer(){
-  buildAnswer($a.value);
+/* The answer's room is no longer a function of the answer alone: a query long
+   enough to wrap the bubble pushes the column down and takes some. So the
+   warning lives here and both fields ask for it.                          */
+function warnAnswer(){
   const over = answerOverflowPx();
   $aw.textContent = over > 0 ? `${Math.round(over)}px past the column` : "";
+}
+function applyAnswer(){
+  buildAnswer($a.value);
+  warnAnswer();
   render(hold !== null ? hold : 0);
 }
 $a.addEventListener("input", () => {

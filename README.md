@@ -51,6 +51,12 @@ centred in the space beside it. The panel lets you:
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
+- **act 2's query bubble wraps** — it used to hug its text however long that ran. It now stops at
+  the reference query's own pill width, so the plate's string still sits on one row and anything
+  longer takes a second, a third, as many as it needs. Each extra row is 54px and pushes the
+  answer down by exactly that, which means a one-row query leaves every measured position where
+  the plate has it and only a wrapped one moves anything. The column's overflow warning counts
+  the room the bubble took, so a long query and a long answer are weighed together
 - **turn the wordmark off** — Act 1's Google logo drops out and the bar sits alone in the white.
   Nothing measures back off the logo, so the bar width, the pan and the beam are untouched; the
   small G in the Act 2 header is a separate mark and stays
