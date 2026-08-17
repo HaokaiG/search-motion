@@ -3,7 +3,7 @@
 A 6.8-second Google Search "AI Mode" spot, rebuilt from the footage in plain HTML, CSS and
 JavaScript. No build step, no libraries, no framework — `index.html` is one self-contained file.
 
-**[▶ Live demo](https://YOUR-USERNAME.github.io/search-motion/)** ·
+**[▶ Live demo](https://HaokaiG.github.io/search-motion/)** ·
 [recreation.mp4](docs/recreation.mp4)
 
 The source clip is 1920×1080, 23.976 fps, **162 frames (6.757 s)**. Every number in the code
