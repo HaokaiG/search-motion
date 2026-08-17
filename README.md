@@ -73,16 +73,33 @@ centred in the space beside it. The panel lets you:
 - **go transparent instead** — the same treatment footage mode gives the bar, but with nothing
   behind it: the scrim, the white Medium query and the 75% chip, over an empty background. Act 2
   keeps its own white card, exactly as it does over footage, so the transparency is act 1's.
-  Turning it on reveals a WebM export that carries the alpha, for compositing the move over your
-  own plate in an editor
-- **export a GIF or an MP4** — up to 1920px and 60fps, shared by both. The MP4 is H.264 via
-  WebCodecs, with the container written by hand alongside the GIF encoder, so there is still
-  nothing to install; the profile level is asked for at export time rather than hard-coded,
-  since Baseline 3.0 cannot carry 1080p at all and 4.0 cannot carry it at 60. Both walk the
-  same deterministic render path rather than capturing the screen, so a frame is a frame
-  whatever the machine is doing. The GIF keeps every frame in memory to build its palette, so
-  it declines the largest combinations and says how much it would have needed — the MP4 has no
-  such ceiling
+  Turning it on puts the alpha into both exports that can hold one — the MOV keeps the whole
+  graded matte, the GIF what its single transparent index can — for compositing the move over
+  your own plate in an editor
+- **export a MOV, a GIF or an MP4** — every size up to 1920px at every rate up to 60fps, and
+  all three share the one size and rate. All three walk the same deterministic render path
+  rather than capturing the screen, so a frame is a frame whatever the machine is doing:
+  - the **MOV is ProRes 4444 with an alpha channel**, and the codec is written here — the DCT,
+    the quantiser, the run-level entropy coder and the frame layout, then the container. Nothing
+    in a browser will produce ProRes, and WebCodecs will not keep an alpha channel at all: every
+    VP8/VP9 config with `alpha:"keep"` comes back unsupported. Writing it was possible because
+    ffmpeg's own output could be used as ground truth — see `docs/NOTES.md`. It is quantised at
+    qscale 1, which with ProRes's default matrices rounds each coefficient to the nearest integer
+    and does nothing else, so it is visually lossless and correspondingly large: 63 MB for the
+    6.8s piece at 1920 and 24fps. Verified by decoding the export back with ffmpeg — RGB matches
+    the canvas to within the 1 code the sRGB → BT.709 video-range round trip costs, and the alpha
+    exactly — and then again through macOS's own AVFoundation, which is the stricter reader of
+    the two and the one an editor here would use
+  - the **GIF** carries transparency too, but GIF has one all-or-nothing index rather than a
+    channel, so a pixel has to fall one side of half-covered. That keeps the query, the chip and
+    the gradient and drops the bar's 30% scrim, which is under the line
+  - the **MP4** is H.264 via WebCodecs, with the container written by hand alongside the others;
+    the profile level is asked for at export time rather than hard-coded, since Baseline 3.0
+    cannot carry 1080p at all and 4.0 cannot carry it at 60
+  The GIF used to hold every frame as raw RGBA — the palette is sampled across the whole
+  animation and could not be settled until the end — which is 3.4 GB at 1920 and 60fps, so it
+  declined the largest combinations. It now renders the piece twice instead, once for the
+  colours and once for the frames, and has no ceiling
 
 The query field reports what it costs — the bar's width and the pan's distance, both derived
 from it — and the answer field warns when the copy passes the bottom of its measured column.

@@ -54,13 +54,34 @@ Nothing here is judged by eye. Every change goes through the same loop:
   video's `currentTime` from inside it re-issued the seek before it could ever land, and the
   element sat at `readyState` 1 forever. A frozen frame is not a still world.
 - **Alpha cannot go through WebCodecs here, and the failure is a flat no.** Every VP8/VP9 config
-  with `alpha: "keep"` comes back unsupported, so the deterministic MP4 path cannot carry it at
-  all. MediaRecorder's WebM can, and `canvas.captureStream(0)` gives a track with
-  `requestFrame()` — which is what makes it frame-accurate rather than a screen capture. But
-  MediaRecorder timestamps by wall clock and a frame here takes far longer to render than it
-  lasts, so the frames have to be rendered first and only then played into the recorder at the
-  real rate. The content is exact; only the encode is live, which costs about 2% of drift on the
-  duration (6.76s against an expected 6.88).
+  with `alpha: "keep"` comes back unsupported, so the H.264 path cannot carry a matte at all and
+  nothing else in a browser will. The answer is `proresFrame` — ProRes 4444 written out by hand,
+  which is what the notes below are about. It replaced a MediaRecorder VP9 WebM that worked but
+  had to be *played* into the encoder at the real rate, because MediaRecorder timestamps by wall
+  clock while a frame here takes far longer to render than it lasts; that cost about 2% of drift
+  on the duration. The ProRes path has none, being deterministic end to end.
+- **Write the decoder first.** A bit-exact encoder cannot be debugged by looking at it. What
+  made ProRes tractable in an afternoon was going the other way: encode a known pattern with
+  ffmpeg's own `prores_ks`, then write a parser in Python (`scratchpad/prores/pdec.py` while it
+  lasted) until it reproduced ffmpeg's decode to the value. That pins every field, and the
+  encoder is then written as the exact inverse of something proven rather than from memory. The
+  DCs of a flat block came out at exactly `32V - 16384` over `qmat[0] * qscale`, which confirmed
+  the transform's scale, the DC bias and the quantiser in one number.
+- **The chroma blocks of a macroblock are ordered down-then-across; luma is across-then-down.**
+  Four 8x8 blocks either way, and no reference file will show up the difference unless its chroma
+  varies *inside* a macroblock — flat colour fields do not, and neither does a grey ramp, whose
+  chroma is 512 everywhere. It survived the first three test images and then put a mean error of
+  6.4 across a noisy one, luma pixel-exact beside it. If a codec is right on flat content and
+  wrong on detail, suspect the block order before the transform.
+- **ProRes's default quantisation matrices are all 4s**, which is what a matrix-flags byte of
+  zero selects — so the whole quantiser is `4 * qscale` and qscale 1 is "round each coefficient
+  to the nearest integer". ffmpeg writes its own 128-byte matrices instead; there is no need to.
+- **The forward transform's 4x scale is not a choice.** The decoder's inverse divides by it, so a
+  flat block of value V has to arrive as DC = 32V or everything is wrong by a constant factor.
+- **A slice narrows at the right edge by halving, and never widens back.** 8, then 4, 2, 1 as the
+  row runs out — 30 macroblocks come out as 8+8+8+4+2. The decoder halves by the same rule and
+  the two are never told about each other, so an encoder that resets to 8 mid-row desynchronises
+  every slice after it.
 - **The GIF export is a different document.** It serialises `#stage` into a
   foreignObject inside a plain `<div>`, so any rule hung on `body` — or on
   anything outside `#stage` — silently does not apply. `font-family` lived on
@@ -85,6 +106,10 @@ Departures from the plate that were deliberate, and the one-line way back:
 | Outline glow +2px | `RING_GLOW_GROW`. The plate's glow reads ~12px across at its peak; the bloom's width and its blur are scaled together by 14/12 so the falloff keeps its shape rather than just growing a fatter core. Back: set it to 0. |
 | `CHIP_GAP_BG = 140` | Over footage only, against the measured 111. The bar is a scrim there and the chip only 75% opaque, so the two crowd each other at the plate's spacing. **By eye — no measurement behind it**; opened to 200, then pulled 30% back. It pushes the chip right, so the bar and pan grow with it, and the Medium query adds to that too: together they take the bar 2491 → 2577. The white card keeps the measured 111. Back: set it to 111. |
 | The camera is a bezier on the typing's progress | **The baked `PAN` curve no longer drives the camera at all.** The pan is a function of how far through the query the typing has got, not of the clock, so it re-times with the rate and lands exactly as the last character does. `CAM_BEZ` is the easing — the same four handles After Effects and CSS use, editable in the panel with a live curve, carried as `#bez=`; `CAM_SPEED` scales the progress so a faster camera finishes before the text does. Held until `CAM_START_S` (1.92s at 1x, stored as a fraction of the span) against the plate's own 51-frame hold. **The default is solved against the clip, not copied from the reference panel** — that panel reads 0.40, 0.00, 0.00, 1.00, which run here peaks at 109 px/frame, twice what the clip does; searching the handles for the clip's own profile lands on 0.35, 0.08, 0.35, 1.00, giving peak 52 at frame 67 against the measured 54 at 66. Progress runs on the typing schedule rather than the caret's measured x on purpose: reading the caret inherits the per-character steps and the pan comes out jagged, a 150 px/frame peak jumping 5, 64, 46, 27, 33, 5. `PAN`/`PAN_REF` are kept as the record and the way back. |
+| The MOV's alpha is `a * 257`, not ffmpeg's | 8-bit alpha goes straight to 16, so opaque is exactly 65535. ffmpeg's own encoder goes through its 10-bit plane and stores 65343 — 99.71% opaque, which over a stack of layers is a real 0.75-of-255 error on something that should be solid. The cost, measured: read back *through ffmpeg* 127 of 256 alpha values come out 1 off, because ffmpeg divides by 65280 rather than 65535 on the way back. Every editor reads the 16-bit channel directly. Back: `(a << 2) << 6 | (a >> 2)`. |
+| The GIF's transparency is a threshold at half | GIF has one all-or-nothing palette index, not a channel, so a partly covered pixel has to fall one side of a line. At 128 the query, the chip fill (75%) and the gradient survive and the bar's 30% scrim (76) does not — the bar reads as an outline. Lowering the line keeps the bar but paints a 30% wash as solid black, which is a bigger lie about the design than leaving it out; the MOV is the one that carries the real matte. Back: change the 128 in `GifWriter.prototype.frame`. |
+| The GIF renders the piece twice | Its palette is sampled across the whole animation, so it cannot be settled until the last frame has been seen. Holding the frames to come back to is frames x W x H x 4 — 3.4 GB at 1920 and 60fps — so the largest combinations used to be refused outright. Time instead of memory: 1920 at 60fps is 406 frames, 812 renders, and it finishes. The sample stride is also chosen from the total now rather than fixed at every 23rd pixel, so the list the median cut runs on stays near 400k colours whatever the export. |
+| The GIF samples at the rate it can hold, not the one asked for | Its delay field is whole centiseconds, so 60fps is not expressible — the shortest frame is 2cs, which is 50 — and 30 rounds to 3cs, which is 33.3. It used to sample at the requested rate and then stamp the rounded delay, so a 60fps GIF carried 406 frames and played for 8.12s instead of 6.76 — 17% slow. It now samples at `100/delayCs`, so the frame count changes and the duration is right. The MOV and MP4 have a 90000 timescale and are exact at every rate. |
 | The typing's length sets the act's | `TYPE_PER_CHAR` is taken from the plate — 43 characters across frames 18…108, so 2.093 frames each — and the run is that times the query's length. The plate stretched or crammed every query into the same 90 frames; this gives a short query a short act. The reference length reproduces the plate exactly, since 43 × 2.093 is 90 again. Everything downstream follows through `TAIL`: 2 chars is a 76-frame piece, 8 is 89, 43 is 162, 73 is 225, and the outline lights 7 frames after the last character in all of them. **Very short queries are violent** — 2 characters gives the camera 2.9 frames for its whole move, a 272 px/frame whip, and the pan is 1.2px shy at that instant before landing on the next frame. Nothing is clamped; the rate is the rate. Back: `typeEnd` returning `TYPE_F0 + (TYPE_F1 - TYPE_F0) / TYPE_SPEED`. |
 | Everything after the typing rides on it | `TAIL` is how far the text's landing has moved off the plate's 108, and every downstream beat — outline, press, push, act 2 — reads a clock shifted by it, so the whole tail follows the typing speed. `NF_EFF` and `DUR` carry it too, so the piece gets longer or shorter rather than running off its own end: 162 frames at 1x, 127 at 2x, 209 at 0.6x, with act 2 fully resolved at the last frame in each. The plate's beats are fixed. Back: set `TAIL = 0` in `setTail`. |
 | Typing starts on frame 18, with the beam | The text's first character and the bar's gradient arrive on the same frame. The caret keeps the plate's own 8 on / 8 off up to that point and then stops — solid from the first character until the string completes, which is the plate's behaviour too. Between the caret arriving on 6 and the beam on 18 that is one full on-phase and part of an off-phase rather than a whole number of blinks; the alignment to the beam is what is being held, not a blink count. Verified frame by frame: gone to 5, solid 6-13, off 14-17, then solid from 18 with the first character and `BEAM_FADE`'s first entry, solid through to 108, gone from 109. The plate types from 26 with the beam already running. Back: `TYPE_F0 = 26`. |
