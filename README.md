@@ -25,11 +25,12 @@ Open `index.html` directly, or `python3 -m http.server` and visit it. The contro
 panel on the right — playback, query, answer, look, motion, footage, export — with the stage
 centred in the space beside it. The panel lets you:
 
-- **edit the query** — always lower case, as the plate's is. The typing re-times around fixed
-  beats, so the last character still lands on frame 108 and the button still lights and is
-  clicked on schedule whatever length you type. The bar sizes itself to the question and the
-  camera move follows from that: the pan covers whatever distance parks the bar's right cap on
-  screen x=1236, which is where the plate parks it
+- **edit the query** — always lower case, as the plate's is. Its **length sets the length of the
+  act**: the plate types 43 characters across frames 18-108, so 2.093 frames each, and the run is
+  that rate times whatever you type. Everything after the typing rides on it, so the whole piece
+  follows — 8 characters is 3.70s, the plate's 43 is 6.76s, 73 is 9.38s — and the outline always
+  lights 7 frames after the last character. The bar sizes itself to the question too, and the
+  pan covers whatever distance parks the bar's right cap on screen x=1236, where the plate parks it
 - **set the typing speed** — a slider from 0.2x to 5x, or type the number in for anything up to
   20x; the two drive each other, and past 5x the bar simply sits at its end while the field
   carries the value. Typing always begins on frame 18 — the same frame the bar's gradient does — whatever

@@ -850,8 +850,18 @@ const TYPE_F1 = 108;                                   // the measured landing
    consequence of holding the start still — but the panel prints the end frame
    and says when it has crossed the button.                               */
 let TYPE_SPEED = 1;
+/* How long the typing runs is now the text's business, at a rate taken from
+   the plate: its 43 characters cross frames 18…108, which is 90 frames, so
+   2.093 frames a character. A short query is therefore a short act and a long
+   one a long act, instead of every query being stretched or crammed into the
+   same 90 frames — the reference length is what makes the plate's own timing
+   come out unchanged, since 43 x 2.093 is 90 again.
+   Everything downstream already rides on TAIL, so the outline, the press, the
+   cut, act 2 and the piece's own length all follow from this without anything
+   else being told about it.                                              */
+const TYPE_PER_CHAR = (TYPE_F1 - TYPE_F0) / QUERY_REF.length;   // 2.093
 function typeEnd(){
-  return TYPE_F0 + (TYPE_F1 - TYPE_F0) / TYPE_SPEED;
+  return TYPE_F0 + Math.max(1, QUERY.length) * TYPE_PER_CHAR / TYPE_SPEED;
 }
 function scheduleFor(str){
   const n = str.length, f1 = typeEnd();
@@ -1629,10 +1639,13 @@ function applyQuery(){
   const geo = setQuery($q.value);
   $qw.textContent = `bar ${Math.round(geo.barRight - 328)}px · pan ${Math.round(geo.pan)}px`;
   /* the run in seconds, and a word once it is still typing through a beat */
+  /* the run, and the piece it implies. The old note about typing through the
+     button cannot happen any more: the outline is quoted against the text's
+     landing through TAIL, so it always lights the same seven frames after
+     the last character however long the query is.                        */
   const f1 = typeEnd(), run = (f1 - TYPE_F0) / FPS;
-  $tw.textContent = `types ${run.toFixed(2)}s, frames ${TYPE_F0}-${Math.round(f1)}`
-    + (f1 > RING_SPIN_F0 ? " — still typing when the button lights"
-                         : f1 > TYPE_F1 ? " — past the plate's landing" : "");
+  $tw.textContent = `${QUERY.length} chars · types ${run.toFixed(2)}s · `
+                  + `piece ${(NF_EFF / FPS).toFixed(2)}s`;
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
 }
