@@ -82,6 +82,13 @@ Nothing here is judged by eye. Every change goes through the same loop:
   row runs out — 30 macroblocks come out as 8+8+8+4+2. The decoder halves by the same rule and
   the two are never told about each other, so an encoder that resets to 8 mid-row desynchronises
   every slice after it.
+- **A newline in the query is two different strings.** `QUERY` keeps it, because the act-2 bubble
+  draws a row there; `QUERY_BAR` swaps it for a space, because act 1 is one pill and `pre` on the
+  bar would break the text onto a second line and take `offsetWidth` — and so the bar's width,
+  the chip's position and the pan — off the longer half. Substituting a **space rather than
+  nothing** is the whole trick: every index in the piece is a position in this string (the typing
+  schedule, the caret's frame table, the camera's progress), so the length has to survive. Verified
+  by breaking the reference query in two and checking the bar stayed on 2491px and the pan on 1583.
 - **The GIF export is a different document.** It serialises `#stage` into a
   foreignObject inside a plain `<div>`, so any rule hung on `body` — or on
   anything outside `#stage` — silently does not apply. `font-family` lived on

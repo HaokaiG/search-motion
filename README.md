@@ -51,12 +51,20 @@ centred in the space beside it. The panel lets you:
 - **edit the answer** — blank line starts a paragraph, `## ` makes a heading, `**…**` marks a
   highlighted run. The copy reflows in the measured 1290px column, and the reveal re-derives its
   lines from where layout actually put the words, so the top-down gradient survives the edit
-- **act 2's query bubble wraps** — it used to hug its text however long that ran. It now stops at
-  the reference query's own pill width, so the plate's string still sits on one row and anything
-  longer takes a second, a third, as many as it needs. Each extra row is 54px and pushes the
+- **act 2's query bubble wraps, and breaks where you tell it to** — it used to hug its text
+  however long that ran. It now stops at the reference query's own pill width, so the plate's
+  string still sits on one row and anything longer takes a second, a third, as many as it needs.
+  The query field is a text area, so **Enter puts a break in** and the bubble takes a row there
+  whether or not the line was long enough to need one. Each extra row is 54px and pushes the
   answer down by exactly that, which means a one-row query leaves every measured position where
   the plate has it and only a wrapped one moves anything. The column's overflow warning counts
-  the room the bubble took, so a long query and a long answer are weighed together
+  the room the bubble took, so a long query and a long answer are weighed together.
+  Act 1 cannot have rows — it is one pill — so the bar types a break as a space. That keeps the
+  string's length, and every index in the piece is a position in it: the typing schedule, the
+  caret, the camera. Breaking `what is the most popular sport in the world` in two therefore
+  leaves the bar on 2491px and the pan on 1583 exactly where they were, and only act 2 changes.
+  The panel reports the rows the bubble actually draws rather than the newlines counted — a
+  trailing break makes no row of its own, and a long line makes one without any break at all
 - **turn the wordmark off** — Act 1's Google logo drops out and the bar sits alone in the white.
   Nothing measures back off the logo, so the bar width, the pan and the beam are untouched; the
   small G in the Act 2 header is a separate mark and stays
@@ -112,7 +120,8 @@ from it — and the answer field warns when the copy passes the bottom of its me
 
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
-answer, `#logo=0` drops the wordmark, `#icon=g` puts the G in the search bar, `#speed=` sets
+answer — `%0A` in `#q=` is a row break, so a broken query survives a reload and a headless
+render — `#logo=0` drops the wordmark, `#icon=g` puts the G in the search bar, `#speed=` sets
 the typing rate, `#cam=` the camera's and `#bez=` its easing, so an edit survives a reload and works in headless renders.
 
 ---

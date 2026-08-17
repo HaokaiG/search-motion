@@ -532,8 +532,8 @@
 
   <div class="grp">
     <h3>Query</h3>
-    <input id="qin" type="text" spellcheck="false"
-           value="what is the most popular sport in the world">
+    <textarea id="qin" rows="2" spellcheck="false"
+      >what is the most popular sport in the world</textarea>
     <span class="warn" id="qwarn"></span>
   </div>
 
@@ -657,6 +657,12 @@ const SHUTTER = 60 / 360;          // measured off the moving edges, see below
    rate quantised onto the 23.976 fps grid — so it is baked, not modelled.  */
 const QUERY_REF = "what is the most popular sport in the world";
 let   QUERY     = QUERY_REF;             // editable; see setQuery()
+/* The same query in a form the bar can draw. A newline is a row in the act-2
+   bubble, but the bar is one pill and cannot have rows, so it takes a space
+   there instead — a space, not nothing, because every index in the piece is a
+   position in this string: the typing schedule, the caret, the camera's
+   progress. Substituting keeps the length and so keeps all of them.       */
+let   QUERY_BAR = QUERY_REF;
 /* the measured schedule, used verbatim while the reference string is in play */
 const TYPE_REF = [
    26, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59,
@@ -893,8 +899,9 @@ function scheduleFor(str){
 function setQuery(str){
   /* the bar's text is always lower case — the plate's is, and a stray capital
      from the field would be the one thing in act 1 that is not measured */
-  str = str.toLowerCase();
+  str = str.toLowerCase().replace(/\r\n?/g, "\n");   // one kind of newline
   QUERY       = str;
+  QUERY_BAR   = str.replace(/\n/g, " ");
   TYPE_FRAMES = scheduleFor(str);
   TYPE_END    = TYPE_FRAMES[TYPE_FRAMES.length - 1] + 1;
   setTail();                                  // the tail rides on the typing
@@ -902,7 +909,7 @@ function setQuery(str){
   const chipEcho = document.getElementById("qq");
   if (chipEcho) chipEcho.textContent = str;   // act 2 echoes the same query
   placeAnswer();                    // and the bubble may now be two rows deep
-  qtext.textContent = str;                    // measure at full length
+  qtext.textContent = QUERY_BAR;              // measure at full length
   const geo = layoutBar();
   buildCamera();                    // the follow is integrated per query
   qtext.dataset.n = "";
@@ -954,7 +961,7 @@ const PARK_X = 1236;             // where the plate parks the bar's right cap
 
 function textEndPx(){
   const probe = qtext.cloneNode(false);
-  probe.textContent = QUERY;
+  probe.textContent = QUERY_BAR;              // pre would break on a newline
   probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre";
   qtext.parentNode.appendChild(probe);
   const w = probe.offsetWidth;
@@ -1081,8 +1088,15 @@ function relineAnswer(){
    down from its measured top and the answer moves down by exactly what it
    grew. A one-row query therefore leaves every measured position where the
    plate has it, and only a query long enough to wrap moves anything.     */
-const BODY_TOP = 460, QCHIP_ROW = 102;
+const BODY_TOP = 460, QCHIP_ROW = 102, QCHIP_LINE = 54;
 const qchipEl = document.querySelector(".qchip");
+/* Rows as DRAWN, not as counted off the newlines. The two can disagree: a
+   trailing break makes no line box of its own, so "hello\n" is one row however
+   many newlines are in it, and a query long enough to wrap is two rows with
+   none at all. Asking the bubble is the only answer that cannot be wrong. */
+function qchipRows(){
+  return 1 + Math.round((qchipEl.offsetHeight - QCHIP_ROW) / QCHIP_LINE);
+}
 function placeAnswer(){
   bodyEl.style.top =
     (BODY_TOP + Math.max(0, qchipEl.offsetHeight - QCHIP_ROW)) + "px";
@@ -1522,7 +1536,7 @@ function render(t){
   while (n < TYPE_FRAMES.length && TYPE_FRAMES[n] <= f) n++;
   if (qtext.dataset.n !== String(n)){
     qtext.dataset.n = n;
-    qtext.textContent = QUERY.slice(0, n);
+    qtext.textContent = QUERY_BAR.slice(0, n);
   }
   /* caret: blinks on a 16-frame cycle before typing, solid while typing,
      and is gone once the last character lands                            */
@@ -1665,14 +1679,21 @@ const $ts = document.getElementById("tspd"), $tsn = document.getElementById("tsp
       $tw = document.getElementById("twarn");
 function applyQuery(){
   const geo = setQuery($q.value);
+  /* the field hugs what was typed, so the rows it holds are the rows you see */
+  $q.style.height = "auto";
+  $q.style.height = $q.scrollHeight + "px";
   $qw.textContent = `bar ${Math.round(geo.barRight - 328)}px · pan ${Math.round(geo.pan)}px`;
   /* the run, and the piece it implies. The old note about typing through the
      button cannot happen any more: the outline is quoted against the text's
      landing through TAIL, so it always lights the same seven frames after
      the last character however long the query is.                        */
   const f1 = typeEnd(), run = (f1 - TYPE_F0) / FPS;
-  $tw.textContent = `${QUERY.length} chars · types ${run.toFixed(2)}s · `
-                  + `piece ${(NF_EFF / FPS).toFixed(2)}s`;
+  /* the bubble's rows are worth saying, since a newline is a character the bar
+     spends time typing as well as a break the bubble takes */
+  const rows = qchipRows();
+  $tw.textContent = `${QUERY.length} chars · `
+                  + (rows > 1 ? `${rows} rows · ` : "")
+                  + `types ${run.toFixed(2)}s · piece ${(NF_EFF / FPS).toFixed(2)}s`;
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
 }
