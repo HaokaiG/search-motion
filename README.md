@@ -3,8 +3,12 @@
 A 6.8-second Google Search "AI Mode" spot, rebuilt from the footage in plain HTML, CSS and
 JavaScript. No build step, no libraries, no framework — `index.html` is one self-contained file.
 
-**[▶ Live demo](https://HaokaiG.github.io/search-motion/)** ·
-[recreation.mp4](docs/recreation.mp4)
+**[▶ recreation.mp4](docs/recreation.mp4)** — this recreation's own output. To run the piece
+itself, open `index.html` or serve the folder; see [Running it](#running-it).
+
+<!-- The repository is private, so there is no Pages link: Pages will not serve a private repo
+     on a free plan. If it is ever made public, the demo lives at
+     https://HaokaiG.github.io/search-motion/ once Pages is enabled on the default branch. -->
 
 The source clip is 1920×1080, 23.976 fps, **162 frames (6.757 s)**. Every number in the code
 came out of those frames; nothing was matched by eye. The point of the exercise was to see how
