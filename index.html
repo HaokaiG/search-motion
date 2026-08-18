@@ -56,7 +56,7 @@
      already is, which is what the reference shows too.
      Act 2 is untouched: its own white background covers the video as it
      rises, so the footage washes out exactly as it does in the reference. */
-  #bgvid{position:absolute;inset:0;width:100%;height:100%;
+  #bgvid,#bgimg{position:absolute;inset:0;width:100%;height:100%;
          object-fit:cover;display:none}
   /* transparent, not black: the export composites the footage UNDER the
      serialised stage, so anything painted here would hide it */
@@ -66,7 +66,9 @@
      keeps its own white card, the same as over footage, where it covers the
      plate as the answer page rises; the transparency is act 1's.        */
   #stage.has-alpha{background:transparent}
-  #stage.has-bg #bgvid{display:block}
+  /* whichever kind was loaded — only one is ever shown */
+  #stage.has-bg.bg-video #bgvid{display:block}
+  #stage.has-bg.bg-still #bgimg{display:block}
   /* Over footage the bar is not clear glass — it carries a black scrim, which
      is what keeps white text legible against a busy plate. Measured by
      interpolating the background vertically ACROSS the bar from clean bands
@@ -345,6 +347,7 @@
          as the answer page fades up — which is what the reference does: the
          footage stays live through the chip's blow-up, then washes out. -->
     <video id="bgvid" muted playsinline preload="auto"></video>
+    <img id="bgimg" alt="">
 
 
     <!-- ─────────────────────── ACT 2 ───────────────────────
@@ -569,13 +572,18 @@
 
   <div class="grp">
     <h3>Footage</h3>
-    <input id="bgin" type="file" accept="video/*">
+    <input id="bgin" type="file" accept="video/*,image/*">
     <button id="bgclr" hidden>Clear footage</button>
     <button id="alphabtn">Transparent: off</button>
   </div>
 
   <div class="grp">
     <h3>Export</h3>
+    <select id="seg">
+      <option value="all" selected>Whole piece</option>
+      <option value="button">Button motion only</option>
+      <option value="chat">AI Mode chat only</option>
+    </select>
     <div class="row">
       <select id="gw">
         <option value="480">480px</option>
@@ -1284,9 +1292,13 @@ applyLogo();
    frame is reproducible — an export must not depend on how far a video
    happened to have played.                                                */
 const bgvid = document.getElementById("bgvid");
+const bgimg = document.getElementById("bgimg");
 const $bgin = document.getElementById("bgin");
 const $bgclr = document.getElementById("bgclr");
-let bgOn = false, bgURL = null;
+/* A still is the same plate with the clock taken out of it: nothing to seek,
+   nothing to wrap, the same frame every time. bgStill says which kind is
+   loaded and every timing path below returns early on it.               */
+let bgOn = false, bgStill = false, bgURL = null;
 
 function bgWrap(t){
   const d = bgvid.duration;
@@ -1294,7 +1306,7 @@ function bgWrap(t){
 }
 let bgSeeking = false;
 function bgSync(t){
-  if (!bgOn || !bgvid.duration) return;
+  if (!bgOn || bgStill || !bgvid.duration) return;
   /* Never touch currentTime while a seek is in flight. render() runs off the
      rAF loop, so a frozen frame calls this ~60x a second; re-issuing the seek
      each time restarted it before it could ever land, and the video sat at
@@ -1313,7 +1325,7 @@ function bgSync(t){
    still 1, and drawing then silently paints nothing — which is how the first
    export came out with the footage missing.                               */
 function bgSeek(t){
-  if (!bgOn || !bgvid.duration) return Promise.resolve();
+  if (!bgOn || bgStill || !bgvid.duration) return Promise.resolve();
   const want = bgWrap(t);
   if (Math.abs(bgvid.currentTime - want) < 0.002 && bgvid.readyState >= 2)
     return Promise.resolve();
@@ -1342,12 +1354,20 @@ function bgSeek(t){
 }
 /* cover-fit the footage into a W x H frame, matching object-fit:cover */
 function bgDrawInto(ctx, W, H){
-  if (!bgOn || bgvid.readyState < 2 || !bgvid.videoWidth) return false;
-  const vr = bgvid.videoWidth / bgvid.videoHeight, sr = W / H;
+  if (!bgOn) return false;
+  let src, sw, sh;
+  if (bgStill){
+    if (!bgimg.naturalWidth) return false;
+    src = bgimg; sw = bgimg.naturalWidth; sh = bgimg.naturalHeight;
+  } else {
+    if (bgvid.readyState < 2 || !bgvid.videoWidth) return false;
+    src = bgvid; sw = bgvid.videoWidth; sh = bgvid.videoHeight;
+  }
+  const vr = sw / sh, sr = W / H;
   let dw = W, dh = H, dx = 0, dy = 0;
   if (vr > sr){ dw = H * vr; dx = (W - dw) / 2; }
   else        { dh = W / vr; dy = (H - dh) / 2; }
-  ctx.drawImage(bgvid, dx, dy, dw, dh);
+  ctx.drawImage(src, dx, dy, dw, dh);
   return true;
 }
 $bgin.addEventListener("change", () => {
@@ -1355,26 +1375,38 @@ $bgin.addEventListener("change", () => {
   if (!f) return;
   if (bgURL) URL.revokeObjectURL(bgURL);
   bgURL = URL.createObjectURL(f);
-  bgvid.src = bgURL;
-  bgvid.addEventListener("loadedmetadata", async () => {
+  bgStill = /^image\//.test(f.type);
+  const ready = async () => {
     bgOn = true;
     stage.classList.add("has-bg");
+    stage.classList.toggle("bg-still", bgStill);
+    stage.classList.toggle("bg-video", !bgStill);
     $bgclr.hidden = false;
     CHIP_GAP = CHIP_GAP_BG;
     applyQuery();                  // the bar re-derives from the wider gap
     /* warm it through one decode so the first exported frame is not cold */
     await bgSeek(hold !== null ? hold : 0);
     render(hold !== null ? hold : 0);
-  }, { once: true });
+  };
+  if (bgStill){
+    bgvid.removeAttribute("src"); bgvid.load();
+    bgimg.addEventListener("load", ready, { once: true });
+    bgimg.src = bgURL;
+  } else {
+    bgimg.removeAttribute("src");
+    bgvid.src = bgURL;
+    bgvid.addEventListener("loadedmetadata", ready, { once: true });
+  }
 });
 $bgclr.onclick = () => {
-  bgOn = false;
-  stage.classList.remove("has-bg");
+  bgOn = false; bgStill = false;
+  stage.classList.remove("has-bg", "bg-still", "bg-video");
   CHIP_GAP = CHIP_GAP_REF;
   applyQuery();
   bgvid.pause();
   bgvid.removeAttribute("src");
   bgvid.load();
+  bgimg.removeAttribute("src");
   if (bgURL){ URL.revokeObjectURL(bgURL); bgURL = null; }
   $bgin.value = "";
   $bgclr.hidden = true;
@@ -1549,9 +1581,25 @@ let t0 = performance.now();
 let hold = Q.has("t") ? parseFloat(Q.get("t")) : null;
 window.seek  = s => { hold = s; render(s); };
 window.play  = () => { hold = null; t0 = performance.now(); };
+/* ── the two halves ──────────────────────────────────────────────────────
+   The piece is one move, but it is really two: the search bar up to the
+   button being pressed, and the answer that comes out of it. The seam is
+   frame 136 — the chip starts blowing up on 131 and act 1's opacity reaches
+   zero at 135.8, so 136 is the first frame with nothing of act 1 left in it
+   and the whole zoom is behind you. Quoted on the plate's clock, so it rides
+   TAIL with everything else after the typing.
+   Nothing about the motion changes: render() still works in absolute time
+   and every constant keeps its measured frame. Only the range that plays and
+   exports moves, and an exported half starts its own clock at zero.     */
+const SPLIT_FP = 136;
+let SEG = "all";
+const segStart = () => SEG === "chat"   ? SPLIT_FP + TAIL : 0;
+const segEnd   = () => SEG === "button" ? SPLIT_FP + TAIL : NF_EFF;
+
 function frame(now){
-  let t = hold !== null ? hold : (now - t0) / 1000;
-  if (hold === null && t > DUR + 0.9){ t0 = now; t = 0; }   // loop w/ short hold
+  const a = segStart() / FPS, b = segEnd() / FPS;
+  let t = hold !== null ? hold : a + (now - t0) / 1000;
+  if (hold === null && t > b + 0.9){ t0 = now; t = a; }     // loop w/ short hold
   render(t);
   requestAnimationFrame(frame);
 }
@@ -1739,9 +1787,11 @@ function applyQuery(){
   /* the bubble's rows are worth saying, since a newline is a character the bar
      spends time typing as well as a break the bubble takes */
   const rows = qchipRows();
+  const segS = (segEnd() - segStart()) / FPS;
   $tw.textContent = `${QUERY.length} chars · `
                   + (rows > 1 ? `${rows} rows · ` : "")
-                  + `types ${run.toFixed(2)}s · piece ${(NF_EFF / FPS).toFixed(2)}s`;
+                  + `types ${run.toFixed(2)}s · piece ${(NF_EFF / FPS).toFixed(2)}s`
+                  + (SEG === "all" ? "" : ` · this half ${segS.toFixed(2)}s`);
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
 }
@@ -2065,8 +2115,12 @@ function stageSVG(){
      footage drawn underneath it (measured: a flat #333 over the whole frame).
      Hiding it for the length of the serialise leaves a transparent hole for
      the composite in drawStage to show through.                           */
-  const prev = bgvid.style.display;
+  const prev = bgvid.style.display, prevImg = bgimg.style.display;
   bgvid.style.display = "none";
+  /* the still goes out with it: an <img>-loaded SVG will not fetch a blob:
+     URL either, and whatever it paints instead would sit on the footage that
+     drawStage composites underneath */
+  bgimg.style.display = "none";
   const svg =
          '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">' +
          '<foreignObject width="1920" height="1080">' +
@@ -2076,7 +2130,7 @@ function stageSVG(){
          XS.serializeToString(document.getElementById("mblurdefs")) +
          XS.serializeToString(document.getElementById("stage")) +
          '</div></foreignObject></svg>';
-  bgvid.style.display = prev;
+  bgvid.style.display = prev; bgimg.style.display = prevImg;
   return svg;
 }
 function drawStage(ctx, W, H, keepAlpha){
@@ -2195,7 +2249,8 @@ document.getElementById("gexport").onclick = async () => {
      playing 17% slow with the right number of frames in it.               */
   const delayCs = Math.max(2, Math.round(100 / fps));
   const step = FPS / (100 / delayCs);
-  const n = Math.ceil(NF_EFF / step);
+  const segA = segStart();                    // the chosen half
+  const n = Math.ceil((segEnd() - segA) / step);
   busy = true;
   const wasHold = hold;
   const cvs = document.createElement("canvas");
@@ -2214,7 +2269,7 @@ document.getElementById("gexport").onclick = async () => {
     const per = Math.max(1, Math.round(W * H * n / 400000)) * 4;
     const samp = [];
     for (let k = 0; k < n; k++){
-      hold = (k * step) / FPS;
+      hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
@@ -2230,7 +2285,7 @@ document.getElementById("gexport").onclick = async () => {
     const pal = palette(samp, alphaOn ? 255 : 256);
     const gif = new GifWriter(W, H, pal, delayCs, alphaOn ? pal.length : -1);
     for (let k = 0; k < n; k++){
-      hold = (k * step) / FPS;
+      hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
@@ -2320,9 +2375,10 @@ document.getElementById("mexport").onclick = async () => {
     }
     if (!codec) throw new Error(`no H.264 level for ${W}x${H} at ${fps}fps`);
     enc.configure({ ...want, codec });
-    for (let k = 0; k * step < NF_EFF; k++){
+    const segA = segStart(), segN = Math.ceil((segEnd() - segA) / step);
+    for (let k = 0; k < segN; k++){
       if (failed) throw failed;
-      hold = (k * step) / FPS;
+      hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);          // exact frame, not wherever it had played to
       await drawStage(ctx, W, H);
@@ -2727,7 +2783,8 @@ document.getElementById("vexport").onclick = async () => {
   const H = Math.round(W * 1080 / 1920);
   const fps = +document.getElementById("gfps").value;
   const step = FPS / fps;
-  const n = Math.ceil(NF_EFF / step);
+  const segA = segStart();                    // the chosen half
+  const n = Math.ceil((segEnd() - segA) / step);
   busy = true;
   const wasHold = hold;
   const cvs = document.createElement("canvas");
@@ -2737,7 +2794,7 @@ document.getElementById("vexport").onclick = async () => {
   let bytes = 0;
   try {
     for (let k = 0; k < n; k++){
-      hold = (k * step) / FPS;
+      hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
@@ -2765,6 +2822,12 @@ document.getElementById("vexport").onclick = async () => {
     if (hold === null) window.play();
   }
 };
+
+document.getElementById("seg").addEventListener("change", e => {
+  SEG = e.target.value;
+  applyQuery();                    // the readout carries the half's own length
+  window.play();                   // and playback restarts inside it
+});
 
 document.getElementById("replay").onclick = window.play;
 
