@@ -104,9 +104,10 @@ centred in the space beside it. The panel lets you:
   the answer that comes out of it. The seam is frame 136 — the chip starts blowing up on 131 and
   act 1's opacity reaches zero at 135.8, so 136 is the first frame with nothing of act 1 left in
   it and the whole zoom behind you. **The preview follows the choice**, not just the export: it
-  starts at the seam, stops on it rather than running past, and holds there before looping — a
-  beat scaled to what is playing, since the 0.9s that reads as a pause at the end of the whole
-  6.76 reads as a stall at the end of a 1.08s half. Nothing else changes: every constant keeps
+  starts at the seam and stops on it rather than running past. It loops straight back with no
+  pause on the last frame — there used to be one, 0.9s on the whole piece and scaled down on a
+  half, and measured at 0.883s, 0.835s and 0.149s it read as a stall rather than a beat.
+  Nothing else changes: every constant keeps
   its measured frame, and an exported half starts its own clock at zero. The two partition the
   piece exactly — at 480px and 8fps the query half is 46 frames and the chat half 9, against 55
   for the whole. The seam rides the typing like everything else after it, so a 7-character query
@@ -120,15 +121,14 @@ centred in the space beside it. The panel lets you:
   where the last frame is white at every sampled pixel; nothing over transparency, where it
   measures 100% clear; and the plate over footage, where it measures 0% white and the corner
   reads the footage's own colour
-- **drop footage behind act 1 — and behind act 2** — pick a video **or a still image** and it
+- **drop footage behind act 1, and through the cut** — pick a video **or a still image** and it
   sits under the search bar instead of the white card, with the bar, the beam and the AI Mode
-  button compositing over it. **It stays there through the cut**: act 2 lays no card down over
-  footage, so the plate carries on behind the answer instead of being covered by it. That is by
-  request and it is a departure — the reference *does* cut to white here, and act 2's own white
-  background is what did it. What follows from taking it away is that the answer is dark ink on
-  whatever the footage happens to be, which is the design being asked for rather than a problem
-  to solve; a busy or light plate will fight the copy. Measured, act 2's corner pixels over a
-  plate now read the same values act 1's do. Over footage the furniture changes with it: the bar
+  button compositing over it. **It stays there while the button opens**: act 2's white card no
+  longer arrives with the cut on frame 132, it comes up on the answer body's own ramp, so the
+  plate is still behind the frame as the button blows out. The chat itself is on a fully white
+  card as it always was — measured over a plate, the card is at 0 through 133, 0.181 on 136,
+  0.598 on 140 and a flat 255,255,255 from 144 to the end. Over footage the furniture changes
+  with it: the bar
   swaps its white fill for a black scrim at `--bar-scrim` (0.20), the AI Mode chip's fill drops
   to 75% so the plate reads through it while its label and gradient outline stay fully opaque,
   and the query steps up to Medium and goes white — the plate's 356 is too light to hold against
@@ -142,13 +142,13 @@ centred in the space beside it. The panel lets you:
   It is spaced like footage mode too: the wider text-to-chip gap goes with the look rather than
   with the video, so both sit at 140 and measure the same 140.22 on screen. It used to key off
   the video alone, which left the two modes spaced differently while looking otherwise identical.
-  Act 2 still ends on its white card, but **over transparency the card waits for the chat**. On
-  the plain card and over footage it arrives with the cut on frame 132, opaque the instant it
-  does, which is what covers the plate as the page rises. Against a matte that was wrong — it
-  filled the frame six frames before any of the chat had drawn, taking the alpha from 82% clear
-  to none of it with nothing to show for it. It now comes up on the answer body's own measured
-  ramp, that being the first act-2 ink there is: the query chip's is 5.672 and the chrome's
-  5.756, both later. Measured, frame 132 goes from 0% clear to 80%.
+  Act 2 still ends on its white card, and **the card waits for the chat here as it does over
+  footage**. On the plain card it arrives with the cut on frame 132, opaque the instant it does,
+  which is invisible against white. Against a matte, or a plate, it was not: it filled the frame
+  six frames before any of the chat had drawn, taking the alpha from 82% clear to none of it with
+  nothing to show for it. It now comes up on the answer body's own measured ramp, that being the
+  first act-2 ink there is: the query chip's is 5.672 and the chrome's 5.756, both later.
+  Measured, frame 132 goes from 0% clear to 80%.
   Frames 133 to 135 are still not clear, and should not be — act 1's own chip is blown up across
   the whole frame by then. That is the foreground, not the background.
   Turning it on puts the alpha into both exports that can hold one — the MOV keeps the whole
