@@ -581,8 +581,8 @@
     <h3>Export</h3>
     <select id="seg">
       <option value="all" selected>Whole piece</option>
-      <option value="button">Button motion only</option>
-      <option value="chat">AI Mode chat only</option>
+      <option value="query">Search Query Only</option>
+      <option value="chat">AI Mode Chat Only</option>
     </select>
     <div class="row">
       <select id="gw">
@@ -1593,13 +1593,24 @@ window.play  = () => { hold = null; t0 = performance.now(); };
    exports moves, and an exported half starts its own clock at zero.     */
 const SPLIT_FP = 136;
 let SEG = "all";
-const segStart = () => SEG === "chat"   ? SPLIT_FP + TAIL : 0;
-const segEnd   = () => SEG === "button" ? SPLIT_FP + TAIL : NF_EFF;
+const segStart = () => SEG === "chat"  ? SPLIT_FP + TAIL : 0;
+const segEnd   = () => SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
 
 function frame(now){
   const a = segStart() / FPS, b = segEnd() / FPS;
+  /* the pause before it loops, scaled to what is playing: 0.9s reads as a
+     beat at the end of the whole 6.76, and as a stall at the end of a 1.08s
+     half. The whole piece keeps its 0.9 — 15% of it is more than that.   */
+  const beat = Math.min(0.9, (b - a) * 0.15);
   let t = hold !== null ? hold : a + (now - t0) / 1000;
-  if (hold === null && t > b + 0.9){ t0 = now; t = a; }     // loop w/ short hold
+  if (hold === null){
+    if (t > b + beat){ t0 = now; t = a; }
+    /* hold ON the seam rather than past it. Without this the preview of a
+       half runs on into the next one for the length of the beat — the query
+       half played the answer rising, which is the half it is meant to
+       exclude.                                                           */
+    else if (t > b) t = b;
+  }
   render(t);
   requestAnimationFrame(frame);
 }

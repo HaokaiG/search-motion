@@ -80,15 +80,20 @@ centred in the space beside it. The panel lets you:
   575.3, and since the bar's right edge derives from where the text ends, the bar grows 59px and
   the pan with it — the cap still parks on x=1236, it just travels further. The plate's plus is
   the default
-- **export one half at a time** — the piece is one move but really two: the search bar up to the
-  button being pressed, and the answer that comes out of it. The seam is frame 136 — the chip
-  starts blowing up on 131 and act 1's opacity reaches zero at 135.8, so 136 is the first frame
-  with nothing of act 1 left in it and the whole zoom behind you. Picking a half changes what
-  plays and what exports and nothing else: every constant keeps its measured frame, and an
-  exported half starts its own clock at zero. The two partition the piece exactly — at 480px and
-  8fps the button half is 46 frames and the chat half 9, against 55 for the whole. The seam rides
-  the typing like everything else after it, so a 7-character query puts it at 2.53s and a
-  95-character one at 10.21s, while the chat half stays 1.08s either way
+- **play and export one half at a time** — *Whole piece*, *Search Query Only*, *AI Mode Chat
+  Only*. The piece is one move but really two: the search bar up to the button being pressed, and
+  the answer that comes out of it. The seam is frame 136 — the chip starts blowing up on 131 and
+  act 1's opacity reaches zero at 135.8, so 136 is the first frame with nothing of act 1 left in
+  it and the whole zoom behind you. **The preview follows the choice**, not just the export: it
+  starts at the seam, stops on it rather than running past, and holds there before looping — a
+  beat scaled to what is playing, since the 0.9s that reads as a pause at the end of the whole
+  6.76 reads as a stall at the end of a 1.08s half. Nothing else changes: every constant keeps
+  its measured frame, and an exported half starts its own clock at zero. The two partition the
+  piece exactly — at 480px and 8fps the query half is 46 frames and the chat half 9, against 55
+  for the whole. The seam rides the typing like everything else after it, so a 7-character query
+  puts it at 2.53s and a 95-character one at 10.21s, while the chat half stays 1.08s either way.
+  The query half ends on the cut, so its last few frames do show the answer through the blown-out
+  chip — that is the cut itself, and cutting before it would leave the button press unresolved
 - **drop footage behind act 1** — pick a video **or a still image** and it sits under the search bar instead of the
   white card, with the bar, the beam and the AI Mode button compositing over it. Act 2 is
   untouched: its own white background covers the footage as the answer page rises, which is how
