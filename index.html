@@ -176,20 +176,23 @@
      than the vertical. Its G is also 0.86 of the AI Mode pill, not equal.
      Then +8.72% by request, taken about the mark's own centre so it grows in
      place: 132.53 x 135.68, which holds the 250x256 aspect.
-     Its margins are then set by request rather than measured. Vertical is
-     what centring in the 245.44 bar gives, (245.44 - 135.68) / 2 = 54.88.
-     Horizontal is 19% over that, 65.31, on BOTH sides — the left inset from
-     the bar's edge, and the same clear space on the right, where what the
-     mark faces is the query rather than an edge of the bar. That right-hand
-     figure replaces the 73.0 icon-to-text ink gap for the G, and being an
-     ink gap it is quoted to the query's ink: the 'h' bears 5.596, so the
-     text BOX starts 585.55 to put its first stem 65.31 clear of the mark.
+     Its margins are then set by request rather than measured, and the three
+     are now all different. Vertical is what centring in the 245.44 bar
+     gives, (245.44 - 135.68) / 2 = 54.88. Horizontal started at 19% over
+     that, 65.31, and each side has since been asked for separately: the
+     left is that plus 2, so 67.31, and the right is that times 1.167, so
+     76.22. Against the vertical they run 1.2265 and 1.3888.
+     The right-hand figure is what the mark faces the QUERY across rather
+     than an edge of the bar, so it replaces the 73.0 icon-to-text ink gap
+     for the G. Being an ink gap it is quoted to the query's ink: the 'h'
+     bears 5.596, so the text BOX starts 598.46 to put its first stem 76.22
+     clear of the mark.
      The plate uses none of this — its own left inset is 58.1 against 54.6
-     vertical, about 6% wider rather than 19%.
+     vertical, about 6% wider.
      The text-to-chip gap is untouched by all of it: the chip hangs off
      wherever the text ends by CHIP_GAP, so moving the text moves the chip
      with it and the gap between them is the measured 111 either way.     */
-  .plus.as-g{left:393.31px;top:469.16px;width:132.53px;height:135.68px;
+  .plus.as-g{left:395.31px;top:469.16px;width:132.53px;height:135.68px;
      background:var(--gmark) center/contain no-repeat}
   .plus.as-g i{display:none}
 
@@ -1050,13 +1053,14 @@ let   CAP_R = 115, BAR_TOP = 420, BAR_BOT = 654;
    scale with it cleanly. Taking the size down 5% from 90.95 moved 'w' from
    0.68 UP to 0.853, where naive scaling predicted 0.646.                 */
 const ICON_TEXT_INK_GAP = 73.0;
-const PLUS_RIGHT = 483, GMARK_RIGHT = 525.84;  // 425+58, 393.31+132.53
-/* The G's own icon-to-text gap: its right-hand margin, 19% over its vertical
-   one, rather than the 73.0 the plus keeps.                              */
-const GMARK_TEXT_GAP = 65.31;
+const PLUS_RIGHT = 483, GMARK_RIGHT = 527.84;  // 425+58, 395.31+132.53
+/* The G's own icon-to-text gap: its right-hand margin, rather than the 73.0
+   the plus keeps. 65.31 was 19% over the mark's vertical margin; this is
+   that figure 16.7% on again.                                            */
+const GMARK_TEXT_GAP = 76.22;
 const LSB_W = 0.853, LSB_H = 5.596;            // measured at the query's 86.40px
 const TEXT_LEFT_REF = PLUS_RIGHT   + ICON_TEXT_INK_GAP - LSB_W;   // 555.3
-const TEXT_LEFT_G   = GMARK_RIGHT  + GMARK_TEXT_GAP    - LSB_H;   // 585.55
+const TEXT_LEFT_G   = GMARK_RIGHT  + GMARK_TEXT_GAP    - LSB_H;   // 598.46
 let   TEXT_LEFT     = TEXT_LEFT_REF;
 /* 117 in the plate is measured from the query's INK end; textEndPx uses the
    advance, which runs 6px further on the reference, so the gap is 111.

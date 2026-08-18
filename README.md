@@ -78,17 +78,18 @@ centred in the space beside it. The panel lets you:
   vertically and 41 on the left, so at our 234 the mark is 124.8 tall and inset 54.6 / 58.1.
   It then carries **+8.72% by request**, taken about its own centre so it grows in place —
   132.53 x 135.68, still on the artwork's 250x256 aspect. Its margins are then set by request
-  rather than measured: vertical is what centring in the 245.44 bar gives, (245.44 − 135.68) / 2
-  = 54.88, and **horizontal is 19% over that, 65.31, on both sides** — the left inset from the
-  bar's edge, and the same clear space on the right, where what the mark faces is the query
-  rather than an edge of the bar. That right-hand figure replaces the 73.0 icon-to-text ink gap
-  for the G, and being an ink gap it is quoted to the query's ink: the 'h' bears 5.596, so the
-  text box starts 585.55 to put its first stem 65.31 clear of the mark. The plate uses none of
-  this — its own left inset is 58.1 against 54.6 vertical, about 6% wider rather than 19%.
+  rather than measured, and all three now differ. Vertical is what centring in the 245.44 bar
+  gives, (245.44 − 135.68) / 2 = **54.88**. Horizontal started at 19% over that, 65.31, and each
+  side has since been asked for on its own: the left is that plus 2, **67.31**, and the right is
+  that times 1.167, **76.22**. Against the vertical they run 1.2265 and 1.3888. The right-hand
+  figure is what the mark faces the *query* across rather than an edge of the bar, so it replaces
+  the 73.0 icon-to-text ink gap for the G; being an ink gap it is quoted to the query's ink, and
+  the 'h' bears 5.596, so the text box starts 598.46 to put the first stem 76.22 clear. The plate
+  uses none of this — its own left inset is 58.1 against 54.6 vertical, about 6% wider.
   **The text-to-chip gap is untouched by any of it**, and structurally so: the chip hangs off
   wherever the text ends by `CHIP_GAP`, so moving the text moves the chip with it. Measured the
-  same 110.62 whichever icon the bar carries. The bar itself grows to 2546px and the pan to
-  1638 — the cap still parks on x=1236, it just travels further.
+  same 110.62 whichever icon the bar carries. The bar itself grows to 2559px and the pan to
+  1651 — the cap still parks on x=1236, it just travels further.
   **The bar itself also runs 4.89% over the plate's while the G is in it**, by request, and the
   AI Mode button scales with it rather than sitting in a bigger box. One factor throughout: the
   bar 234 → 245.44 taken about its own centre line, so 537 stays 537 and the pill grows 5.72
