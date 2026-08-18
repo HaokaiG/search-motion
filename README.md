@@ -92,8 +92,13 @@ centred in the space beside it. The panel lets you:
   piece exactly — at 480px and 8fps the query half is 46 frames and the chat half 9, against 55
   for the whole. The seam rides the typing like everything else after it, so a 7-character query
   puts it at 2.53s and a 95-character one at 10.21s, while the chat half stays 1.08s either way.
-  The query half ends on the cut, so its last few frames do show the answer through the blown-out
-  chip — that is the cut itself, and cutting before it would leave the button press unresolved
+  The query half ends on the cut, where act 2 has already begun showing through the swelling chip
+  — so on that setting act 2 keeps its white card and loses everything drawn on it, and the half
+  blows out to white instead of to a glimpse of the answer. Measured: its last frame is white at
+  every sampled pixel, against 2.4% of the frame carrying the answer on the whole piece, which
+  keeps the cut intact. Act 1 is identical either way. It is act 2's own white rather than the
+  stage's, which is what makes this white over footage too, where that card is what covers the
+  plate as the page rises
 - **drop footage behind act 1** — pick a video **or a still image** and it sits under the search bar instead of the
   white card, with the bar, the beam and the AI Mode button compositing over it. Act 2 is
   untouched: its own white background covers the footage as the answer page rises, which is how

@@ -66,6 +66,15 @@
      keeps its own white card, the same as over footage, where it covers the
      plate as the answer page rises; the transparency is act 1's.        */
   #stage.has-alpha{background:transparent}
+  /* Cutting the piece in half leaves the query half ending ON the cut, where
+     act 2 has already started showing through the swelling chip. On its own
+     that is the cut doing its job; as a half meant to contain only the search
+     query it is a glimpse of the wrong thing. So act 2 keeps its white card —
+     which is what covers the footage as the page rises, and what makes this
+     white rather than transparent over a plate — and loses everything drawn
+     on it. Only the picker's query setting does this; the whole piece keeps
+     the cut intact.                                                       */
+  #stage.seg-query #act2 .row{visibility:hidden}
   /* whichever kind was loaded — only one is ever shown */
   #stage.has-bg.bg-video #bgvid{display:block}
   #stage.has-bg.bg-still #bgimg{display:block}
@@ -1593,6 +1602,12 @@ window.play  = () => { hold = null; t0 = performance.now(); };
    exports moves, and an exported half starts its own clock at zero.     */
 const SPLIT_FP = 136;
 let SEG = "all";
+/* the stage carries the choice too, because what act 2 shows depends on it
+   and the class has to ride the serialiser into the export */
+function setSeg(v){
+  SEG = v;
+  stage.classList.toggle("seg-query", v === "query");
+}
 const segStart = () => SEG === "chat"  ? SPLIT_FP + TAIL : 0;
 const segEnd   = () => SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
 
@@ -2835,7 +2850,7 @@ document.getElementById("vexport").onclick = async () => {
 };
 
 document.getElementById("seg").addEventListener("change", e => {
-  SEG = e.target.value;
+  setSeg(e.target.value);
   applyQuery();                    // the readout carries the half's own length
   window.play();                   // and playback restarts inside it
 });
