@@ -81,7 +81,15 @@ centred in the space beside it. The panel lets you:
   pixel, 49.16 above and below. Keeping the gap that frame puts between mark and text moves the
   query's start from 516 to 580.7, and since the bar's right edge derives from where the text
   ends, the bar grows 65px and the pan with it — the cap still parks on x=1236, it just travels
-  further. The plate's plus is the default
+  further.
+  **The bar itself also runs 4.89% over the plate's while the G is in it**, by request, and the
+  AI Mode button scales with it rather than sitting in a bigger box. One factor throughout: the
+  bar 234 → 245.44 taken about its own centre line, so 537 stays 537 and the pill grows 5.72
+  either way; the button 455x158 → 477.25x165.73 with its radius, padding, gap, spark and label
+  all following; and `CAP_R`, `CHIP_W`, `CHIP_TO_CAP` and the beam's y extent with them. The
+  button's outline scales for free because it is an SVG with a viewBox *inside* the button — its
+  arc lengths are in viewBox units, so the perimeter the hues were solved against never moves.
+  The plate's plus is the default, and on it every one of these is the measured number again
 - **play and export one half at a time** — *Whole piece*, *Search Query Only*, *AI Mode Chat
   Only*. The piece is one move but really two: the search bar up to the button being pressed, and
   the answer that comes out of it. The seam is frame 136 — the chip starts blowing up on 131 and

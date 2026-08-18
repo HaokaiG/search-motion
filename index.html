@@ -139,6 +139,25 @@
             width:483px;height:186px;overflow:visible;pointer-events:none;opacity:0}
   .chipring .cg{fill:none;stroke-linecap:butt}
 
+  /* ── the bar the G wears ─────────────────────────────────────────────
+     With the G in it the bar runs 4.89% over the plate's, by request, and
+     the AI Mode button scales with it rather than sitting in a bigger box.
+     Everything here is that one factor: the bar 234 -> 245.44 taken about
+     its own centre line, so 537 stays 537 and the pill grows 5.72 either
+     way; the button 455x158 -> 477.25x165.73 with its radius, padding, gap,
+     spark and label all following. The button's outline scales because it
+     is an SVG with a viewBox INSIDE the button — its arc lengths are in
+     viewBox units, so RING_P and the hues solved against them do not move.
+     The rest of the bar's geometry is not CSS and follows in the script:
+     CAP_R, CHIP_W, CHIP_TO_CAP and the beam's own y extent.             */
+  #stage.icon-g .bar{top:414.28px;height:245.44px;border-radius:122.72px}
+  #stage.icon-g .aichip{top:455.13px;width:477.25px;height:165.73px;
+            border-radius:82.86px;gap:19.93px;padding-left:61.89px}
+  #stage.icon-g .aichip svg.chipring{left:-14.68px;top:-14.68px;
+            width:506.62px;height:195.1px}
+  #stage.icon-g .aichip svg.spark{width:76.78px;height:76.78px}
+  #stage.icon-g .aichip b{font-size:66.64px}
+
   .plus{position:absolute;left:425px;top:511px;width:58px;height:58px}
   .plus i{position:absolute;background:#3c4043;border-radius:3px}
   .plus i:nth-child(1){left:0;top:26px;width:58px;height:6px}
@@ -996,7 +1015,13 @@ function setQuery(str){
    chip hangs 500 in from that edge. Both fall out of the reference numbers
    exactly. Everything downstream — the pan distance, the beam's perimeter —
    is then derived rather than baked.                                      */
-const BAR_LEFT = 328, CAP_R = 115;
+const BAR_LEFT = 328;
+/* The bar's own numbers, and the same numbers 4.89% up for when the bar
+   carries the G. iconGeom() picks between them; nothing else reads the
+   plate's values directly, so the two cannot drift apart.              */
+const BAR_G = 1.0489;
+const BAR_MID = 537;                          // the bar's centre line, fixed
+let   CAP_R = 115, BAR_TOP = 420, BAR_BOT = 654;
 /* The query's left edge, set from a single rule: whatever icon the bar
    carries, the query's first glyph starts ICON_TEXT_INK_GAP past it.
    73.0 is the ad's own icon-to-text spacing — the wide shot's first glyph
@@ -1027,7 +1052,20 @@ let   TEXT_LEFT     = TEXT_LEFT_REF;
    measurement behind it, and CHIP_GAP_BG is the dial. Widening it pushes the
    chip right, so the bar and the pan grow with it, the same as the icon gap
    does.                                                                  */
-const CHIP_W = 455, CHIP_TO_CAP = 45;
+let   CHIP_W = 455, CHIP_TO_CAP = 45;
+/* Called whenever the icon changes, before the bar re-lays-out. The beam's
+   mask is an SVG attribute rather than a style, so it is set here too.  */
+function iconGeom(g){
+  const k = g ? BAR_G : 1;
+  CAP_R       = +((117 * k) - 2).toFixed(2);
+  BAR_TOP     = +(BAR_MID - 234 * k / 2).toFixed(2);
+  BAR_BOT     = +(BAR_MID + 234 * k / 2).toFixed(2);
+  CHIP_W      = +(455 * k).toFixed(2);
+  CHIP_TO_CAP = +(45 * k).toFixed(2);
+  beamMaskHole.setAttribute("y",  BAR_TOP);
+  beamMaskHole.setAttribute("height", (234 * k).toFixed(2));
+  beamMaskHole.setAttribute("rx", (117 * k).toFixed(2));
+}
 const CHIP_GAP_REF = 111, CHIP_GAP_BG = 140;   // 200 was too wide, 30% closer
 let   CHIP_GAP = CHIP_GAP_REF;
 const BAR_MIN_RIGHT = 1700;      // keeps a plausible box for a short question
@@ -1071,7 +1109,8 @@ function layoutBar(){
      perimeter moves with it.
      The chip's outline is the other way round — it rings the button from
      outside. They are deliberately not symmetric.                        */
-  const yTop = 420 + BEAM_OFF, yBot = 654 - BEAM_OFF, rad = CAP_R + 2 - BEAM_OFF;
+  const yTop = BAR_TOP + BEAM_OFF, yBot = BAR_BOT - BEAM_OFF,
+        rad  = CAP_R + 2 - BEAM_OFF;
   const straight = R - L, cap = Math.PI * rad;
   /* Four sub-paths, one full clockwise lap of the pill, starting where the
      bottom run meets the right cap. BEAM_P always counted both caps, but only
@@ -1445,6 +1484,8 @@ let plusAsG   = Q.get("icon") === "g";
    anyway. The click handler below does the re-layout itself.             */
 function applyPlus(){
   plusEl.classList.toggle("as-g", plusAsG);
+  stage.classList.toggle("icon-g", plusAsG);   // the bar and button scale on it
+  iconGeom(plusAsG);
   $pg.textContent = "Bar icon: " + (plusAsG ? "G" : "+");
   TEXT_LEFT = plusAsG ? TEXT_LEFT_G : TEXT_LEFT_REF;
   queryEl.style.left = TEXT_LEFT + "px";
