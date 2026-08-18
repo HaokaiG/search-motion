@@ -115,14 +115,20 @@ centred in the space beside it. The panel lets you:
   — so on that setting act 2 keeps its white card and loses everything drawn on it, and the half
   blows out to white instead of to a glimpse of the answer. Measured: its last frame is white at
   every sampled pixel, against 2.4% of the frame carrying the answer on the whole piece, which
-  keeps the cut intact. Act 1 is identical either way. It is act 2's own white rather than the
-  stage's, which is what makes this white over footage too, where that card is what covers the
-  plate as the page rises — and in the transparent mode it is no card at all, so that half
-  blows out to nothing instead: its last frame measures 100% clear
-- **drop footage behind act 1** — pick a video **or a still image** and it sits under the search bar instead of the
-  white card, with the bar, the beam and the AI Mode button compositing over it. Act 2 is
-  untouched: its own white background covers the footage as the answer page rises, which is how
-  the reference cuts out of the live shot. Over footage the furniture changes with it: the bar
+  keeps the cut intact. Act 1 is identical either way. What the half blows out *to* is whatever
+  that mode puts behind act 2, so it follows one rule in three places: white on the plain card,
+  where the last frame is white at every sampled pixel; nothing over transparency, where it
+  measures 100% clear; and the plate over footage, where it measures 0% white and the corner
+  reads the footage's own colour
+- **drop footage behind act 1 — and behind act 2** — pick a video **or a still image** and it
+  sits under the search bar instead of the white card, with the bar, the beam and the AI Mode
+  button compositing over it. **It stays there through the cut**: act 2 lays no card down over
+  footage, so the plate carries on behind the answer instead of being covered by it. That is by
+  request and it is a departure — the reference *does* cut to white here, and act 2's own white
+  background is what did it. What follows from taking it away is that the answer is dark ink on
+  whatever the footage happens to be, which is the design being asked for rather than a problem
+  to solve; a busy or light plate will fight the copy. Measured, act 2's corner pixels over a
+  plate now read the same values act 1's do. Over footage the furniture changes with it: the bar
   swaps its white fill for a black scrim at `--bar-scrim` (0.20), the AI Mode chip's fill drops
   to 75% so the plate reads through it while its label and gradient outline stay fully opaque,
   and the query steps up to Medium and goes white — the plate's 356 is too light to hold against

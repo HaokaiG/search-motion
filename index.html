@@ -75,6 +75,17 @@
      on it. Only the picker's query setting does this; the whole piece keeps
      the cut intact.                                                       */
   #stage.seg-query #act2 .row{visibility:hidden}
+  /* Over footage act 2 lays no card down at all: the plate stays behind the
+     answer instead of being covered by it, so the shot carries on through
+     the cut rather than the piece cutting out of it. That is by request and
+     it is a departure — the reference DOES cut to white here, and act 2's
+     card is what did it. Two things follow from taking it away. The answer
+     is dark ink on whatever the footage happens to be, which is the design
+     being asked for rather than a problem to solve. And the query half,
+     which blows out to act 2's card, now blows out to the footage over
+     footage — the same rule it already follows in the other two modes,
+     where it goes white on the plain card and clear over transparency.  */
+  #stage.has-bg #act2{background:transparent}
   /* whichever kind was loaded — only one is ever shown */
   #stage.has-bg.bg-video #bgvid{display:block}
   #stage.has-bg.bg-still #bgimg{display:block}
@@ -244,8 +255,8 @@
 
   /* ============ ACT 2 — the AI Mode answer ============ */
   /* The card is white at full strength unless something sets --a2bg, which
-     only the transparent mode does — see render(). Over a plate or on the
-     plain card it is the flat #fff it has always been.                   */
+     only the transparent mode does — see render(). On the plain card it is
+     the flat #fff it has always been.                                    */
   #act2{position:absolute;inset:0;background:rgba(255,255,255,var(--a2bg,1));
         opacity:0;visibility:hidden}
   #act2 .row{position:absolute;will-change:transform,opacity}
