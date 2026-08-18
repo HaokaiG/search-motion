@@ -204,7 +204,11 @@
             line-height:1;color:#1f1f1f;transform:translateY(2px)}
 
   /* ============ ACT 2 — the AI Mode answer ============ */
-  #act2{position:absolute;inset:0;background:#fff;opacity:0;visibility:hidden}
+  /* The card is white at full strength unless something sets --a2bg, which
+     only the transparent mode does — see render(). Over a plate or on the
+     plain card it is the flat #fff it has always been.                   */
+  #act2{position:absolute;inset:0;background:rgba(255,255,255,var(--a2bg,1));
+        opacity:0;visibility:hidden}
   #act2 .row{position:absolute;will-change:transform,opacity}
 
   /* supplied G Logo1.svg — a 250x256 webp of the mark, cropped tight to it
@@ -1762,6 +1766,20 @@ function render(t){
      Opacity: the body blocks all ride the SAME ramp — 0.16 → 1.00 across
      5.672 → 6.048 s — so this is a plain fade-up, not a streaming wipe.
      Chrome and the query chip come in on their own, faster ramps.        */
+  /* ── what the white page does over transparency ────────────────────
+     Act 2's card arrives with the cut, on frame 132, and it is opaque the
+     instant it does — which is right on the plain card and over footage,
+     where it is what covers the plate as the page rises. Over transparency
+     it is wrong: it filled the whole frame six frames before any of the chat
+     had drawn, so the matte went from 82% clear to 0% with nothing to show
+     for it. Here it waits and comes up on the answer body's own measured
+     ramp, which is the first act-2 ink there is — the chip's is 5.672 and
+     the chrome's 5.756, both later. On the query half it never arrives at
+     all, that half being over before the chat it belongs to.            */
+  if (alphaOn) act2.style.setProperty("--a2bg",
+        SEG === "query" ? "0" : fadeIn(Tp, F_BODY, F_BODY_D).toFixed(3));
+  else act2.style.removeProperty("--a2bg");
+
   if (Tp >= T_A2){
     act2.style.visibility = "visible";
     act2.style.opacity = 1;

@@ -98,7 +98,8 @@ centred in the space beside it. The panel lets you:
   every sampled pixel, against 2.4% of the frame carrying the answer on the whole piece, which
   keeps the cut intact. Act 1 is identical either way. It is act 2's own white rather than the
   stage's, which is what makes this white over footage too, where that card is what covers the
-  plate as the page rises
+  plate as the page rises — and in the transparent mode it is no card at all, so that half
+  blows out to nothing instead: its last frame measures 100% clear
 - **drop footage behind act 1** — pick a video **or a still image** and it sits under the search bar instead of the
   white card, with the bar, the beam and the AI Mode button compositing over it. Act 2 is
   untouched: its own white background covers the footage as the answer page rises, which is how
@@ -110,8 +111,16 @@ centred in the space beside it. The panel lets you:
   wraps if it is shorter than 6.757s; a still has no clock to follow, so every seeking and
   wrapping path returns early on it and the same frame composites under every frame of the move
 - **go transparent instead** — the same treatment footage mode gives the bar, but with nothing
-  behind it: the scrim, the white Medium query and the 75% chip, over an empty background. Act 2
-  keeps its own white card, exactly as it does over footage, so the transparency is act 1's.
+  behind it: the scrim, the white Medium query and the 75% chip, over an empty background.
+  Act 2 still ends on its white card, but **over transparency the card waits for the chat**. On
+  the plain card and over footage it arrives with the cut on frame 132, opaque the instant it
+  does, which is what covers the plate as the page rises. Against a matte that was wrong — it
+  filled the frame six frames before any of the chat had drawn, taking the alpha from 82% clear
+  to none of it with nothing to show for it. It now comes up on the answer body's own measured
+  ramp, that being the first act-2 ink there is: the query chip's is 5.672 and the chrome's
+  5.756, both later. Measured, frame 132 goes from 0% clear to 80%.
+  Frames 133 to 135 are still not clear, and should not be — act 1's own chip is blown up across
+  the whole frame by then. That is the foreground, not the background.
   Turning it on puts the alpha into both exports that can hold one — the MOV keeps the whole
   graded matte, the GIF what its single transparent index can — for compositing the move over
   your own plate in an editor
