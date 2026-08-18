@@ -95,6 +95,13 @@ Nothing here is judged by eye. Every change goes through the same loop:
   find the soft wraps inside each piece. Worth checking on the mirror element too: it lives on
   `<body>`, deliberately outside `#stage`, so it cannot reach the export the way anything inside
   the stage would — confirmed by grepping the serialised SVG for its own off-screen offset.
+- **A still plate has to be hidden from the serialiser too, for a different reason.** The video is
+  hidden because an `<img>`-loaded SVG will not decode media and paints an opaque placeholder over
+  the footage composited underneath. An `<img>` will not fetch a `blob:` URL in that context
+  either, so it goes out the same way, and both are restored afterwards. Worth checking by reading
+  the tag out of the serialised string rather than grepping it for `display:block`: the stylesheet
+  travels with it, so `#stage.has-bg.bg-still #bgimg{display:block}` matches a naive regex and
+  reads as a failure when the element itself is correctly `display: none`.
 - **The GIF export is a different document.** It serialises `#stage` into a
   foreignObject inside a plain `<div>`, so any rule hung on `body` — or on
   anything outside `#stage` — silently does not apply. `font-family` lived on

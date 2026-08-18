@@ -80,15 +80,25 @@ centred in the space beside it. The panel lets you:
   575.3, and since the bar's right edge derives from where the text ends, the bar grows 59px and
   the pan with it — the cap still parks on x=1236, it just travels further. The plate's plus is
   the default
-- **drop footage behind act 1** — pick a video and it plays under the search bar instead of the
+- **export one half at a time** — the piece is one move but really two: the search bar up to the
+  button being pressed, and the answer that comes out of it. The seam is frame 136 — the chip
+  starts blowing up on 131 and act 1's opacity reaches zero at 135.8, so 136 is the first frame
+  with nothing of act 1 left in it and the whole zoom behind you. Picking a half changes what
+  plays and what exports and nothing else: every constant keeps its measured frame, and an
+  exported half starts its own clock at zero. The two partition the piece exactly — at 480px and
+  8fps the button half is 46 frames and the chat half 9, against 55 for the whole. The seam rides
+  the typing like everything else after it, so a 7-character query puts it at 2.53s and a
+  95-character one at 10.21s, while the chat half stays 1.08s either way
+- **drop footage behind act 1** — pick a video **or a still image** and it sits under the search bar instead of the
   white card, with the bar, the beam and the AI Mode button compositing over it. Act 2 is
   untouched: its own white background covers the footage as the answer page rises, which is how
   the reference cuts out of the live shot. Over footage the furniture changes with it: the bar
   swaps its white fill for a black scrim at `--bar-scrim` (0.30), the AI Mode chip's fill drops
   to 75% so the plate reads through it while its label and gradient outline stay fully opaque,
   and the query and the chip's label both step up to Medium, the query going white — the plate's
-  356 is too light to hold against a moving background. The video follows the piece's clock and
-  wraps if it is shorter than 6.757s
+  356 is too light to hold against a moving background. A video follows the piece's clock and
+  wraps if it is shorter than 6.757s; a still has no clock to follow, so every seeking and
+  wrapping path returns early on it and the same frame composites under every frame of the move
 - **go transparent instead** — the same treatment footage mode gives the bar, but with nothing
   behind it: the scrim, the white Medium query and the 75% chip, over an empty background. Act 2
   keeps its own white card, exactly as it does over footage, so the transparency is act 1's.
