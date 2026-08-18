@@ -81,11 +81,12 @@ centred in the space beside it. The panel lets you:
   rather than measured, and all three now differ. Vertical is what centring in the 245.44 bar
   gives, (245.44 − 135.68) / 2 = **54.88**. Horizontal started at 19% over that, 65.31, and each
   side has since been asked for on its own: the left is that plus 2, **67.31**, and the right is
-  that times 1.167, **76.22**. Against the vertical they run 1.2265 and 1.3888. The right-hand
-  figure is what the mark faces the *query* across rather than an edge of the bar, so it replaces
-  the 73.0 icon-to-text ink gap for the G; being an ink gap it is quoted to the query's ink, and
-  the 'h' bears 5.596, so the text box starts 598.46 to put the first stem 76.22 clear. The plate
-  uses none of this — its own left inset is 58.1 against 54.6 vertical, about 6% wider.
+  that times 1.167 and then 5% again, **80.03**. Against the vertical they run 1.2265 and 1.4583.
+  The right-hand figure is what the mark faces the *query* across rather than an edge of the bar,
+  so it replaces the 73.0 icon-to-text ink gap for the G; being an ink gap it is quoted to the
+  query's ink, and the 'h' bears 5.596, so the text box starts 602.27 to put the first stem 80.03
+  clear. The plate uses none of this — its own left inset is 58.1 against 54.6 vertical, about 6%
+  wider.
   **The text-to-chip gap is untouched by any of it**, and structurally so: the chip hangs off
   wherever the text ends by `CHIP_GAP`, so moving the text moves the chip with it. Measured the
   same 110.62 whichever icon the bar carries. The bar itself grows to 2559px and the pan to
@@ -122,7 +123,7 @@ centred in the space beside it. The panel lets you:
   white card, with the bar, the beam and the AI Mode button compositing over it. Act 2 is
   untouched: its own white background covers the footage as the answer page rises, which is how
   the reference cuts out of the live shot. Over footage the furniture changes with it: the bar
-  swaps its white fill for a black scrim at `--bar-scrim` (0.30), the AI Mode chip's fill drops
+  swaps its white fill for a black scrim at `--bar-scrim` (0.20), the AI Mode chip's fill drops
   to 75% so the plate reads through it while its label and gradient outline stay fully opaque,
   and the query steps up to Medium and goes white — the plate's 356 is too light to hold against
   a moving background. The chip's label does not: it is Regular in every mode by request, having
@@ -132,6 +133,9 @@ centred in the space beside it. The panel lets you:
   wrapping path returns early on it and the same frame composites under every frame of the move
 - **go transparent instead** — the same treatment footage mode gives the bar, but with nothing
   behind it: the scrim, the white Medium query and the 75% chip, over an empty background.
+  It is spaced like footage mode too: the wider text-to-chip gap goes with the look rather than
+  with the video, so both sit at 140 and measure the same 140.22 on screen. It used to key off
+  the video alone, which left the two modes spaced differently while looking otherwise identical.
   Act 2 still ends on its white card, but **over transparency the card waits for the chat**. On
   the plain card and over footage it arrives with the cut on frame 132, opaque the instant it
   does, which is what covers the plate as the page rises. Against a matte that was wrong — it
