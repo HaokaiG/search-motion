@@ -76,10 +76,12 @@ centred in the space beside it. The panel lets you:
 - **switch the bar's icon** — the plus at the left of the search bar becomes the G mark, measured
   off the ad's own wide shot: there the bar is 165 tall and the mark 88 square, inset 38.5
   vertically and 41 on the left, so at our 234 the mark is 124.8 tall and inset 54.6 / 58.1.
-  Keeping the gap that frame puts between mark and text moves the query's start from 516 to
-  575.3, and since the bar's right edge derives from where the text ends, the bar grows 59px and
-  the pan with it — the cap still parks on x=1236, it just travels further. The plate's plus is
-  the default
+  It then carries **+8.72% by request**, taken about its own centre so it grows in place —
+  132.53 x 135.68, still on the artwork's 250x256 aspect and still centred on the bar to the
+  pixel, 49.16 above and below. Keeping the gap that frame puts between mark and text moves the
+  query's start from 516 to 580.7, and since the bar's right edge derives from where the text
+  ends, the bar grows 65px and the pan with it — the cap still parks on x=1236, it just travels
+  further. The plate's plus is the default
 - **play and export one half at a time** — *Whole piece*, *Search Query Only*, *AI Mode Chat
   Only*. The piece is one move but really two: the search bar up to the button being pressed, and
   the answer that comes out of it. The seam is frame 136 — the chip starts blowing up on 131 and
