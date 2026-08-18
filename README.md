@@ -77,15 +77,18 @@ centred in the space beside it. The panel lets you:
   off the ad's own wide shot: there the bar is 165 tall and the mark 88 square, inset 38.5
   vertically and 41 on the left, so at our 234 the mark is 124.8 tall and inset 54.6 / 58.1.
   It then carries **+8.72% by request**, taken about its own centre so it grows in place —
-  132.53 x 135.68, still on the artwork's 250x256 aspect — and is then **squared up**, also by
-  request: every margin it has against an edge of the bar is the same 54.88, being
-  (245.44 − 135.68) / 2 vertically and the same figure in from the bar's left edge. That is 2.09
-  right of where the plate's own 58.1 left inset put it, and it is a deliberate departure — the
-  plate does not use an even margin. Note which side is not a margin: the mark's right faces the
-  query, not an edge of the bar, so what sits there is the 73.0 icon-to-text ink gap.
-  Keeping that gap moves the query's start from 516 to 582.8, and since the bar's right edge
-  derives from where the text ends, the bar grows 67px and the pan with it — the cap still parks
-  on x=1236, it just travels further.
+  132.53 x 135.68, still on the artwork's 250x256 aspect. Its margins are then set by request
+  rather than measured: vertical is what centring in the 245.44 bar gives, (245.44 − 135.68) / 2
+  = 54.88, and **horizontal is 19% over that, 65.31, on both sides** — the left inset from the
+  bar's edge, and the same clear space on the right, where what the mark faces is the query
+  rather than an edge of the bar. That right-hand figure replaces the 73.0 icon-to-text ink gap
+  for the G, and being an ink gap it is quoted to the query's ink: the 'h' bears 5.596, so the
+  text box starts 585.55 to put its first stem 65.31 clear of the mark. The plate uses none of
+  this — its own left inset is 58.1 against 54.6 vertical, about 6% wider rather than 19%.
+  **The text-to-chip gap is untouched by any of it**, and structurally so: the chip hangs off
+  wherever the text ends by `CHIP_GAP`, so moving the text moves the chip with it. Measured the
+  same 110.62 whichever icon the bar carries. The bar itself grows to 2546px and the pan to
+  1638 — the cap still parks on x=1236, it just travels further.
   **The bar itself also runs 4.89% over the plate's while the G is in it**, by request, and the
   AI Mode button scales with it rather than sitting in a bigger box. One factor throughout: the
   bar 234 → 245.44 taken about its own centre line, so 537 stays 537 and the pill grows 5.72
@@ -120,8 +123,10 @@ centred in the space beside it. The panel lets you:
   the reference cuts out of the live shot. Over footage the furniture changes with it: the bar
   swaps its white fill for a black scrim at `--bar-scrim` (0.30), the AI Mode chip's fill drops
   to 75% so the plate reads through it while its label and gradient outline stay fully opaque,
-  and the query and the chip's label both step up to Medium, the query going white — the plate's
-  356 is too light to hold against a moving background. A video follows the piece's clock and
+  and the query steps up to Medium and goes white — the plate's 356 is too light to hold against
+  a moving background. The chip's label does not: it is Regular in every mode by request, having
+  been Medium here on the reasoning that the pill is only 75% opaque and the label needed the
+  weight. A video follows the piece's clock and
   wraps if it is shorter than 6.757s; a still has no clock to follow, so every seeking and
   wrapping path returns early on it and the same frame composites under every frame of the move
 - **go transparent instead** — the same treatment footage mode gives the bar, but with nothing
