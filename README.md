@@ -77,11 +77,15 @@ centred in the space beside it. The panel lets you:
   off the ad's own wide shot: there the bar is 165 tall and the mark 88 square, inset 38.5
   vertically and 41 on the left, so at our 234 the mark is 124.8 tall and inset 54.6 / 58.1.
   It then carries **+8.72% by request**, taken about its own centre so it grows in place —
-  132.53 x 135.68, still on the artwork's 250x256 aspect and still centred on the bar to the
-  pixel, 49.16 above and below. Keeping the gap that frame puts between mark and text moves the
-  query's start from 516 to 580.7, and since the bar's right edge derives from where the text
-  ends, the bar grows 65px and the pan with it — the cap still parks on x=1236, it just travels
-  further.
+  132.53 x 135.68, still on the artwork's 250x256 aspect — and is then **squared up**, also by
+  request: every margin it has against an edge of the bar is the same 54.88, being
+  (245.44 − 135.68) / 2 vertically and the same figure in from the bar's left edge. That is 2.09
+  right of where the plate's own 58.1 left inset put it, and it is a deliberate departure — the
+  plate does not use an even margin. Note which side is not a margin: the mark's right faces the
+  query, not an edge of the bar, so what sits there is the 73.0 icon-to-text ink gap.
+  Keeping that gap moves the query's start from 516 to 582.8, and since the bar's right edge
+  derives from where the text ends, the bar grows 67px and the pan with it — the cap still parks
+  on x=1236, it just travels further.
   **The bar itself also runs 4.89% over the plate's while the G is in it**, by request, and the
   AI Mode button scales with it rather than sitting in a bigger box. One factor throughout: the
   bar 234 → 245.44 taken about its own centre line, so 537 stays 537 and the pill grows 5.72

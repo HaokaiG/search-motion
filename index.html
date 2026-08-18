@@ -174,11 +174,18 @@
      left. The plate does NOT use an even margin — the left runs ~6% wider
      than the vertical. Its G is also 0.86 of the AI Mode pill, not equal.
      Then +8.72% by request, taken about the mark's own centre so it grows in
-     place: 132.53 x 135.68, which holds the 250x256 aspect and leaves it
-     centred on the bar's 537 to the pixel, 49.16 above and below. The right
-     edge moves 513.32, and the query starts a fixed ink gap past it, so the
-     text, the bar's width and the pan all follow — GMARK_RIGHT below.     */
-  .plus.as-g{left:380.79px;top:469.16px;width:132.53px;height:135.68px;
+     place: 132.53 x 135.68, which holds the 250x256 aspect.
+     And then squared up, also by request: every margin the mark has against
+     an edge of the bar is now the same 54.88. It is centred vertically in
+     the 245.44 bar the G wears — (245.44 - 135.68) / 2 — and inset by that
+     same figure from the bar's left edge, which moved it 2.09 right of where
+     the plate's own 58.1 put it. Note what the fourth side is: the mark's
+     right faces the query, not an edge of the bar, so what sits there is the
+     73.0 icon-to-text ink gap and not a margin at all.
+     The right edge lands on 515.41, and the query starts a fixed ink gap
+     past it, so the text, the bar's width and the pan all follow —
+     GMARK_RIGHT below.                                                    */
+  .plus.as-g{left:382.88px;top:469.16px;width:132.53px;height:135.68px;
      background:var(--gmark) center/contain no-repeat}
   .plus.as-g i{display:none}
 
@@ -1039,7 +1046,7 @@ let   CAP_R = 115, BAR_TOP = 420, BAR_BOT = 654;
    scale with it cleanly. Taking the size down 5% from 90.95 moved 'w' from
    0.68 UP to 0.853, where naive scaling predicted 0.646.                 */
 const ICON_TEXT_INK_GAP = 73.0;
-const PLUS_RIGHT = 483, GMARK_RIGHT = 513.32;  // 425+58, 380.79+132.53
+const PLUS_RIGHT = 483, GMARK_RIGHT = 515.41;  // 425+58, 382.88+132.53
 const LSB_W = 0.853, LSB_H = 5.596;            // measured at the query's 86.40px
 const TEXT_LEFT_REF = PLUS_RIGHT   + ICON_TEXT_INK_GAP - LSB_W;   // 555.3
 const TEXT_LEFT_G   = GMARK_RIGHT  + ICON_TEXT_INK_GAP - LSB_H;   // 575.3
