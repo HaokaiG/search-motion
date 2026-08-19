@@ -171,7 +171,27 @@ centred in the space beside it. The panel lets you:
     the canvas to within the 1 code the sRGB → BT.709 video-range round trip costs, and the alpha
     exactly — and then again through macOS's own AVFoundation, which is the stricter reader of
     the two and the one an editor here would use
-  - the **GIF** is opaque whatever the stage is set to, and spends all 256 entries on colour.
+  - the **GIF** has the controls Save For Web has, in their own panel group, and both this and
+    the sequence importer below read them: **colour reduction** (Selective, Perceptual,
+    Adaptive), **colours** (256 down to 16), **dither** (none, diffusion, pattern, noise) with a
+    percentage, **transparency** as a threshold with a white or black **matte**, **looping**,
+    **lossy** and **interlaced**.
+    Selective is the default and Photoshop's: it gives a box the exact colour of the bin holding
+    the most pixels rather than the box's mean, so a flat area — one bin — comes out exactly
+    right. Measured on the piece, the share of pixels reproduced exactly against the plain mean
+    runs 96.1% at 256 colours, 94.8% at 64 and 93.7% at 16. Perceptual chooses which box to split
+    on a 3/6/1-weighted extent instead of a raw one, so entries land where the eye can tell them
+    apart. Restrictive is deliberately absent: a fixed 216-colour cube solved a problem 8-bit
+    displays had and would only throw colour away now.
+    No dither is the default, because that is what GIF is for — line art, logos, type — and
+    diffusion costs sharpness on flat colour. Dither earns its place on gradients, where 64
+    colours diffused measure a mean error of 1.74 against 4.4 undithered.
+    Lossy lets a pixel keep the previous index when that is nearly as good, which lengthens the
+    LZW runs. It does almost nothing on flat art — 0.9% off the file at lossy 80 — and a great
+    deal on dithered gradients, where lossy 20 takes 13.3% off with no measurable change in error
+    at all and lossy 80 takes 41.6%.
+    It is opaque when exporting the piece whatever the stage is set to, and spends all its
+    entries on colour.
     It used to reserve one for transparency when the transparent mode was on; one all-or-nothing
     index is a poor matte and the PNG sequence is the answer for that instead.
     Its palette is built from a histogram of **every pixel of every frame** rather than a sparse

@@ -662,8 +662,13 @@
     <button id="gexport">Export GIF</button>
     <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
-    <h3 class="sub">PNG sequence → GIF</h3>
+    <h3 class="sub">GIF</h3>
     <div class="row">
+      <select id="galgo">
+        <option value="selective" selected>Selective</option>
+        <option value="perceptual">Perceptual</option>
+        <option value="adaptive">Adaptive</option>
+      </select>
       <select id="pcolors">
         <option value="256" selected>256 colours</option>
         <option value="128">128 colours</option>
@@ -671,25 +676,51 @@
         <option value="32">32 colours</option>
         <option value="16">16 colours</option>
       </select>
+    </div>
+    <div class="row">
+      <select id="gdmode">
+        <option value="none" selected>No dither</option>
+        <option value="diffusion">Diffusion</option>
+        <option value="pattern">Pattern</option>
+        <option value="noise">Noise</option>
+      </select>
       <select id="pdither">
-        <option value="0" selected>No dither</option>
-        <option value="0.25">Dither 25%</option>
-        <option value="0.5">Dither 50%</option>
-        <option value="0.75">Dither 75%</option>
-        <option value="1">Dither 100%</option>
+        <option value="1" selected>100%</option>
+        <option value="0.88">88%</option>
+        <option value="0.75">75%</option>
+        <option value="0.5">50%</option>
+        <option value="0.25">25%</option>
       </select>
     </div>
-    <select id="palpha">
-      <option value="128" selected>Transparent under 50%</option>
-      <option value="192">Transparent under 75%</option>
-      <option value="64">Transparent under 25%</option>
-      <option value="8">Transparent only where clear</option>
-      <option value="0">No transparency</option>
-    </select>
-    <select id="pmatte">
-      <option value="255" selected>White matte</option>
-      <option value="0">Black matte</option>
-    </select>
+    <div class="row">
+      <select id="palpha">
+        <option value="128" selected>Transparent under 50%</option>
+        <option value="192">Transparent under 75%</option>
+        <option value="64">Transparent under 25%</option>
+        <option value="8">Transparent only where clear</option>
+        <option value="0">No transparency</option>
+      </select>
+      <select id="pmatte">
+        <option value="255" selected>White matte</option>
+        <option value="0">Black matte</option>
+      </select>
+    </div>
+    <div class="row">
+      <select id="gloop">
+        <option value="0" selected>Loop forever</option>
+        <option value="1">Loop once</option>
+        <option value="3">Loop 3x</option>
+        <option value="10">Loop 10x</option>
+      </select>
+      <select id="glossy">
+        <option value="0" selected>Lossy 0</option>
+        <option value="20">Lossy 20</option>
+        <option value="50">Lossy 50</option>
+        <option value="80">Lossy 80</option>
+      </select>
+    </div>
+    <button id="ginter">Interlaced: off</button>
+    <h3 class="sub">PNG sequence → GIF</h3>
     <input id="pin" type="file" accept="image/png" multiple>
     <span id="pstat"></span>
   </div>
@@ -2171,14 +2202,24 @@ Hist.prototype.add = function(fr, cut){
     n[k]++; R[k] += r; G[k] += g; B[k] += b;
   }
 };
-/* `favourFlat` is Photoshop's Selective in spirit: rather than giving a box
-   the weighted mean of everything in it, give it the exact colour of the bin
-   that holds the most pixels. A flat area is one bin, so its entry comes out
-   EXACTLY right and the area survives with no shift at all — which is what
-   makes type and line art look sharp. It costs the gradients, whose entry is
-   no longer central to its box, so it goes with the no-dither setting and
-   the mean goes with the dithered one.                                    */
-function paletteOf(H, want, favourFlat){
+/* Three reduction algorithms, the ones Save For Web offers:
+     adaptive    — split the widest box, entry is the box's weighted mean.
+                   The plain median cut; follows wherever the colours are.
+     selective   — same split, but the entry is the exact colour of the bin
+                   holding the most pixels. A flat area is one bin, so its
+                   entry comes out EXACTLY right and the area survives with
+                   no shift, which is what makes type and line art sharp.
+                   Photoshop's default, and the reason it is ours.
+     perceptual  — the box to split is chosen on a channel-weighted extent
+                   rather than a raw one, 3/6/1 for r/g/b, the same weighting
+                   the nearest-colour search uses. Entries land where the eye
+                   can tell them apart rather than where the numbers are
+                   furthest apart.
+   Restrictive (web-safe) is not here: a fixed 216-colour cube solved a
+   problem 8-bit displays had and would only throw colour away now.      */
+function paletteOf(H, want, algo){
+  const favourFlat = algo === "selective";
+  const perceptual = algo === "perceptual";
   const occupied = [];
   for (let k = 0; k < H.n.length; k++) if (H.n[k]) occupied.push(k);
   if (!occupied.length) return [[0, 0, 0]];
@@ -2193,14 +2234,16 @@ function paletteOf(H, want, favourFlat){
       }
     }
     const rng = [mx[0]-mn[0], mx[1]-mn[1], mx[2]-mn[2]];
-    const w = Math.max(rng[0], rng[1], rng[2]);
+    const wt = perceptual ? [3, 6, 1] : [1, 1, 1];
+    const sc = [rng[0]*wt[0], rng[1]*wt[1], rng[2]*wt[2]];
+    const w  = Math.max(sc[0], sc[1], sc[2]);
     /* Split the WIDEST box, not the most populous one. Weighting the choice
        by population is the obvious idea and it is wrong here: this piece is
        mostly one white, so the box holding it wins every round and the
        palette fills up with 256 shades of white. Measured, that put two
        entries in a whole frame and a worst-case error of 255. Population
        still decides WHERE the cut falls, which is where it belongs.    */
-    return { list, pop, ch: rng.indexOf(w), width: w, score: w };
+    return { list, pop, ch: sc.indexOf(w), width: w, score: w };
   };
   let boxes = [box(occupied)];
   while (boxes.length < want){
@@ -2337,67 +2380,132 @@ function lzwInto(sink, idx, minCode){
    cut belongs at "was anything drawn here", and everything above it is
    composited onto a matte before it gets here, which is what Photoshop's own
    GIF export means by a matte colour.                                     */
-/* `dither` is 0..1, the share of the quantiser's error that gets diffused —
-   Photoshop's Dither percentage. At 0 nothing is diffused and flat colour
-   stays flat, which is the sharp result; at 1 it is full Floyd-Steinberg.
-   `cut` is where transparent stops and drawn starts, out of 255.        */
-function GifWriter(W, H, pal, delayCs, trans, dither, cut){
+/* ── the writer ──────────────────────────────────────────────────────────
+   opts, all optional:
+     trans      palette index reserved for transparency, or -1
+     cut        where transparent stops and drawn starts, out of 255
+     dither     "none" | "diffusion" | "pattern" | "noise"
+     amount     0..1, how much of it — Save For Web's Dither percentage
+     interlace  write the rows in GIF's four passes
+     loop       0 forever, or a count
+     lossy      0..100; lets a pixel keep the previous index when that is
+                nearly as good, which lengthens LZW runs and shrinks the file
+   The three dithers are the three Save For Web offers. Diffusion carries the
+   quantiser's error into the neighbours it has not reached yet; pattern adds
+   a fixed 8x8 threshold matrix, which is stable frame to frame and so does
+   not crawl on an animation the way diffusion can; noise adds a random one,
+   which breaks up banding without the directional streaks diffusion leaves.
+   All three are scaled by `amount`, and at 0 nothing happens at all.     */
+const BAYER8 = (() => {
+  const m = new Float32Array(64);
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++){
+    let v = 0, mask = 4, xc = x ^ y, yc = y;
+    for (let bit = 0; bit < 3; bit++, mask >>= 1)
+      v = (v << 2) | (((yc & mask) ? 2 : 0) | ((xc & mask) ? 1 : 0));
+    m[y * 8 + x] = v / 64 - 0.5;                 /* -0.5 .. +0.5 */
+  }
+  return m;
+})();
+function GifWriter(W, H, pal, delayCs, opts){
+  const o = opts || {};
   let bitsN = 1;
+  const trans = o.trans === undefined ? -1 : o.trans;
   while ((1 << bitsN) < pal.length + (trans >= 0 ? 1 : 0)) bitsN++;
   const size = 1 << bitsN;
   this.W = W; this.H = H; this.delay = delayCs; this.pal = pal;
-  this.trans = trans === undefined ? -1 : trans;
-  this.dither = dither === undefined ? 1 : dither;
-  this.cut = cut === undefined ? GIF_ALPHA_CUT : cut;
+  this.trans = trans;
+  this.cut = o.cut === undefined ? GIF_ALPHA_CUT : o.cut;
+  this.dither = o.dither || "none";
+  this.amount = o.amount === undefined ? 1 : o.amount;
+  this.interlace = !!o.interlace;
+  /* Squared-error slack for the run-keeping below, in the 3/6/1-weighted
+     space the nearest search uses. Scaled so the number reads like levels of
+     error: lossy 20 tolerates about 2.5 per channel, 50 about 6, 80 about
+     10. It was nine times the square first, which let a pixel land 47 levels
+     out — 18% of the frame still exact and a mean error of 21.7, for 3% off
+     the file. The trade has to be worth taking or the control is a trap. */
+  this.lossy = (o.lossy || 0) * (o.lossy || 0) / 6.4;
   this.minCode = Math.max(2, bitsN);
   this.idx = new Uint8Array(W * H);
   this.near = nearestIn(pal);
-  /* two rows of carried error, in floats: the diffusion has to survive being
-     added to the next pixel, so rounding it into a byte would defeat it */
   this.e0 = new Float32Array(W * 3);
   this.e1 = new Float32Array(W * 3);
+  /* how far apart the entries are, so pattern and noise can be scaled to the
+     quantiser rather than to a number picked out of the air: half the mean
+     distance from an entry to its nearest neighbour */
+  let sum = 0;
+  for (let i = 0; i < pal.length; i++){
+    let best = 1e9;
+    for (let j = 0; j < pal.length; j++){
+      if (i === j) continue;
+      const dr = pal[i][0]-pal[j][0], dg = pal[i][1]-pal[j][1], db = pal[i][2]-pal[j][2];
+      const d = dr*dr + dg*dg + db*db;
+      if (d < best) best = d;
+    }
+    sum += Math.sqrt(best);
+  }
+  this.step = pal.length > 1 ? sum / pal.length / 2 : 8;
   const sk = this.sk = new Sink(1 << 20);
   sk.u8(0x47,0x49,0x46,0x38,0x39,0x61);                // GIF89a
   sk.u16(W); sk.u16(H);
-  sk.u8(0xF0 | (bitsN - 1), this.trans >= 0 ? this.trans : 0, 0);
+  sk.u8(0xF0 | (bitsN - 1), trans >= 0 ? trans : 0, 0);
   for (let i = 0; i < size; i++){
     const c = pal[i] || [0,0,0]; sk.u8(c[0], c[1], c[2]);
   }
   sk.u8(0x21,0xFF,0x0B);                               // Netscape loop
   for (const ch of "NETSCAPE2.0") sk.u8(ch.charCodeAt(0));
-  sk.u8(3,1,0,0,0);
+  sk.u8(3, 1);
+  sk.u16(o.loop === undefined ? 0 : o.loop);           // 0 = forever
+  sk.u8(0);
 }
-/* Floyd-Steinberg: the quantiser's error goes 7/16 right, then 3/16, 5/16
-   and 1/16 into the row below. On flat colour the error is zero and nothing
-   happens; on a gradient it is what stops the 256 entries banding.       */
 GifWriter.prototype.frame = function(fr){
   const sk = this.sk, W = this.W, H = this.H, idx = this.idx,
-        pal = this.pal, near = this.near, t = this.trans,
-        dz = this.dither, cut = this.cut;
-  /* disposal 2 with a transparent index, or a hole shows the frame before it
-     through rather than nothing */
+        pal = this.pal, near = this.near, t = this.trans, cut = this.cut,
+        mode = this.dither, amt = this.amount, step = this.step,
+        slack = this.lossy;
   sk.u8(0x21, 0xF9, 0x04, t >= 0 ? 0x09 : 0x00);
   sk.u16(this.delay);
   sk.u8(t >= 0 ? t : 0, 0);
-  sk.u8(0x2C); sk.u16(0); sk.u16(0); sk.u16(W); sk.u16(H); sk.u8(0);
+  sk.u8(0x2C); sk.u16(0); sk.u16(0); sk.u16(W); sk.u16(H);
+  sk.u8(this.interlace ? 0x40 : 0);
+  const diffuse = mode === "diffusion" && amt > 0;
   let cur = this.e0, nxt = this.e1;
   cur.fill(0);
+  let prev = -1;
   for (let y = 0; y < H; y++){
-    nxt.fill(0);
+    if (diffuse) nxt.fill(0);
     const row = y * W;
     for (let x = 0; x < W; x++){
       const p = (row + x) * 4, o = x * 3;
-      /* nothing was drawn here: it is a hole, and a hole carries no error */
-      if (t >= 0 && fr[p + 3] < cut){ idx[row + x] = t; continue; }
-      let r = fr[p] + cur[o], g = fr[p+1] + cur[o+1], b = fr[p+2] + cur[o+2];
+      if (t >= 0 && fr[p + 3] < cut){ idx[row + x] = t; prev = -1; continue; }
+      let r = fr[p], g = fr[p+1], b = fr[p+2];
+      if (diffuse){ r += cur[o]; g += cur[o+1]; b += cur[o+2]; }
+      else if (mode === "pattern" && amt > 0){
+        const k = BAYER8[(y & 7) * 8 + (x & 7)] * step * amt;
+        r += k; g += k; b += k;
+      } else if (mode === "noise" && amt > 0){
+        r += (Math.random() - 0.5) * step * amt;
+        g += (Math.random() - 0.5) * step * amt;
+        b += (Math.random() - 0.5) * step * amt;
+      }
       r = r < 0 ? 0 : r > 255 ? 255 : r;
       g = g < 0 ? 0 : g > 255 ? 255 : g;
       b = b < 0 ? 0 : b > 255 ? 255 : b;
-      const i = near(r + 0.5 | 0, g + 0.5 | 0, b + 0.5 | 0);
-      idx[row + x] = i;
+      const ri = r + 0.5 | 0, gi = g + 0.5 | 0, bi = b + 0.5 | 0;
+      let i = near(ri, gi, bi);
+      /* lossy: if the entry the last pixel used is nearly as close, keep it.
+         A run of one index is one LZW code, so this buys size for a bounded
+         amount of error rather than for a blur.                          */
+      if (slack > 0 && prev >= 0 && prev !== i){
+        const c = pal[i], q = pal[prev];
+        const de = (ri-c[0])**2*3 + (gi-c[1])**2*6 + (bi-c[2])**2;
+        const dp = (ri-q[0])**2*3 + (gi-q[1])**2*6 + (bi-q[2])**2;
+        if (dp <= de + slack) i = prev;
+      }
+      idx[row + x] = i; prev = i;
+      if (!diffuse) continue;
       const c = pal[i];
-      if (dz === 0) continue;                 /* sharp: nothing is carried */
-      const er = (r - c[0]) * dz, eg = (g - c[1]) * dz, eb = (b - c[2]) * dz;
+      const er = (r - c[0]) * amt, eg = (g - c[1]) * amt, eb = (b - c[2]) * amt;
       if (x + 1 < W){
         cur[o+3] += er * 0.4375; cur[o+4] += eg * 0.4375; cur[o+5] += eb * 0.4375;
       }
@@ -2411,10 +2519,21 @@ GifWriter.prototype.frame = function(fr){
         }
       }
     }
-    const swap = cur; cur = nxt; nxt = swap;   /* not `t` — that is the hole */
+    if (diffuse){ const swap = cur; cur = nxt; nxt = swap; }
   }
   sk.u8(this.minCode);
-  lzwInto(sk, idx, this.minCode);
+  /* interlaced GIF is four passes over the rows: every 8th from 0, every 8th
+     from 4, every 4th from 2, every 2nd from 1 */
+  if (this.interlace){
+    const out = new Uint8Array(W * H);
+    let d = 0;
+    for (const [start, stepY] of [[0,8],[4,8],[2,4],[1,2]])
+      for (let y = start; y < H; y += stepY, d += W)
+        out.set(idx.subarray(y * W, y * W + W), d);
+    lzwInto(sk, out, this.minCode);
+  } else {
+    lzwInto(sk, idx, this.minCode);
+  }
 };
 GifWriter.prototype.done = function(){ this.sk.u8(0x3B); return this.sk.done(); };
 
@@ -2608,6 +2727,28 @@ function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
   return out;
 }
 
+/* Every GIF this writes goes through the same options, whether the frames
+   come off the stage or out of a folder — one panel, one answer. Laid out
+   the way Save For Web lays it out, because that is what it is copying. */
+let gifInterlace = false;
+document.getElementById("ginter").onclick = e => {
+  gifInterlace = !gifInterlace;
+  e.target.textContent = "Interlaced: " + (gifInterlace ? "on" : "off");
+};
+function gifOpts(){
+  return {
+    colors:    +document.getElementById("pcolors").value,
+    algo:       document.getElementById("galgo").value,
+    dither:     document.getElementById("gdmode").value,
+    amount:    +document.getElementById("pdither").value,
+    cut:       +document.getElementById("palpha").value,
+    matte:     +document.getElementById("pmatte").value,
+    loop:      +document.getElementById("gloop").value,
+    lossy:     +document.getElementById("glossy").value,
+    interlace:  gifInterlace
+  };
+}
+
 const $gs = document.getElementById("gstat");
 let busy = false;
 document.getElementById("gexport").onclick = async () => {
@@ -2657,8 +2798,11 @@ document.getElementById("gexport").onclick = async () => {
     }
     $gs.textContent = "palette…";
     await new Promise(r => setTimeout(r, 16));
-    const pal = paletteOf(hist, 256);
-    const gif = new GifWriter(W, H, pal, delayCs);      /* opaque, by request */
+    const go = gifOpts();
+    const pal = paletteOf(hist, go.colors, go.algo);
+    const gif = new GifWriter(W, H, pal, delayCs, {     /* opaque, by request */
+      trans: -1, dither: go.dither, amount: go.amount,
+      interlace: go.interlace, loop: go.loop, lossy: go.lossy });
     for (let k = 0; k < n; k++){
       hold = (segA + k * step) / FPS;
       render(hold);
@@ -2675,7 +2819,8 @@ document.getElementById("gexport").onclick = async () => {
     a.download = "search-motion.gif";
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    $gs.textContent = `${n} frames · ${(out.length/1048576).toFixed(1)} MB`;
+    $gs.textContent = `${n} frames · ${(out.length/1048576).toFixed(1)} MB · `
+                    + `${pal.length} colours`;
   } catch (e){
     $gs.textContent = "failed: " + (e && e.message ? e.message : e);
   } finally {
@@ -3291,12 +3436,9 @@ $pin.addEventListener("change", async () => {
        in Photoshop's GIF export, and it is why the bar survives.
        `read` composites; the alpha it leaves behind is the ORIGINAL, so the
        writer can still tell a hole from a matted pixel.                  */
-    const want    = +document.getElementById("pcolors").value;
-    const dither  = +document.getElementById("pdither").value;
-    const cut     = +document.getElementById("palpha").value;
-    const matte   = +document.getElementById("pmatte").value;
-    const keepAlpha = cut > 0;
-    const mr = matte, mg = matte, mb = matte;
+    const go = gifOpts();
+    const cut = go.cut, keepAlpha = cut > 0;
+    const mr = go.matte, mg = go.matte, mb = go.matte;
     const read = b => {
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(b, 0, 0);
@@ -3332,13 +3474,14 @@ $pin.addEventListener("change", async () => {
     }
     $ps.textContent = "palette…";
     await new Promise(r => setTimeout(r, 16));
-    /* no dither wants exact flat colour; dithering wants the box's centre */
-    const pal = paletteOf(hist, keepAlpha ? want - 1 : want, dither === 0);
+    const pal = paletteOf(hist, keepAlpha ? go.colors - 1 : go.colors, go.algo);
     /* the rate the GIF can actually hold — its delay is whole centiseconds */
     const fps = +document.getElementById("gfps").value;
     const delayCs = Math.max(2, Math.round(100 / fps));
-    const gif = new GifWriter(W, H, pal, delayCs,
-                              keepAlpha ? pal.length : -1, dither, cut);
+    const gif = new GifWriter(W, H, pal, delayCs, {
+      trans: keepAlpha ? pal.length : -1, cut,
+      dither: go.dither, amount: go.amount,
+      interlace: go.interlace, loop: go.loop, lossy: go.lossy });
     for (let i = 0; i < shots.length; i++){
       gif.frame(read(shots[i]));
       $ps.textContent = `frame ${i + 1}/${shots.length}…`;
@@ -3354,7 +3497,8 @@ $pin.addEventListener("change", async () => {
     $ps.textContent = `${shots.length} frames · ${W}x${H} · `
                     + `${(100 / delayCs).toFixed(1)}fps · `
                     + `${(out.length / 1048576).toFixed(1)} MB · ${pal.length} colours`
-                    + (dither ? ` · dither ${Math.round(dither*100)}%` : " · sharp")
+                    + (go.dither === "none" ? " · sharp"
+                         : ` · ${go.dither} ${Math.round(go.amount*100)}%`)
                     + (keepAlpha ? ` · ${(100*holes/total).toFixed(0)}% clear, `
                                  + `${(100*matted/total).toFixed(0)}% matted` : "")
                     + (odd ? ` · ${odd} were a different size and were cropped` : "");
