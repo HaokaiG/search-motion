@@ -660,9 +660,13 @@
       </select>
     </div>
     <button id="vexport">Export MOV · ProRes 4444</button>
+    <button id="pexport">Export PNG sequence</button>
     <button id="gexport">Export GIF</button>
     <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
+    <h3 class="sub">PNG sequence → GIF</h3>
+    <input id="pin" type="file" accept="image/png" multiple>
+    <span id="pstat"></span>
   </div>
 </div>
 
@@ -2249,6 +2253,58 @@ GifWriter.prototype.frame = function(fr){
 };
 GifWriter.prototype.done = function(){ this.sk.u8(0x3B); return this.sk.done(); };
 
+/* ══════════════════════ a ZIP, written here ══════════════════════════════
+   A PNG sequence is many files and a browser will hand over one, so they go
+   out in a single archive. Stored rather than deflated: a PNG is already
+   deflated and running it through again buys a percent and costs the whole
+   sequence in time. Same as the other containers here, it is written out
+   rather than pulled in.                                                  */
+const CRC_T = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++){
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(u8){
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+/* files: [{name, bytes}] -> one stored archive */
+function zipOf(files){
+  const sk = new Sink(1 << 22);
+  const le16 = v => sk.u8(v & 255, (v >> 8) & 255);
+  const le32 = v => sk.u8(v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255);
+  const dir = [];
+  for (const f of files){
+    const name = [...f.name].map(c => c.charCodeAt(0));
+    const crc = crc32(f.bytes), off = sk.n, len = f.bytes.length;
+    sk.u8(0x50, 0x4B, 0x03, 0x04);
+    le16(20); le16(0); le16(0); le16(0); le16(0);   /* ver, flags, store, time, date */
+    le32(crc); le32(len); le32(len);
+    le16(name.length); le16(0);
+    sk.u8(...name); sk.blob(f.bytes);
+    dir.push({ name, crc, len, off });
+  }
+  const dirAt = sk.n;
+  for (const e of dir){
+    sk.u8(0x50, 0x4B, 0x01, 0x02);
+    le16(20); le16(20); le16(0); le16(0); le16(0); le16(0);
+    le32(e.crc); le32(e.len); le32(e.len);
+    le16(e.name.length); le16(0); le16(0); le16(0); le16(0);
+    le32(0); le32(e.off);
+    sk.u8(...e.name);
+  }
+  const dirSize = sk.n - dirAt;          /* before the record that reports it */
+  sk.u8(0x50, 0x4B, 0x05, 0x06);
+  le16(0); le16(0); le16(dir.length); le16(dir.length);
+  le32(dirSize); le32(dirAt); le16(0);
+  return sk.done();
+}
+
 /* -- DOM → pixels -------------------------------------------------------- */
 const styleTag = document.querySelector("style");
 /* XMLSerializer, not outerHTML: the answer paragraphs contain <br>, and an
@@ -2976,6 +3032,139 @@ document.getElementById("vexport").onclick = async () => {
     if (hold === null) window.play();
   }
 };
+
+/* ══════════════════ PNG sequence, out and back in ═══════════════════════
+   A GIF carries 256 colours and one all-or-nothing transparent index, which
+   is what a transparent GIF of this piece runs into: the bar's scrim and
+   every antialiased edge have to fall one side of a threshold. A PNG has
+   the full channel and 8 bits of alpha per pixel, so the sequence is what
+   the canvas actually drew rather than an approximation of it. Same
+   deterministic render path as every other export.                       */
+document.getElementById("pexport").onclick = async () => {
+  if (busy) return;
+  const W = +document.getElementById("gw").value;
+  const H = Math.round(W * 1080 / 1920);
+  const fps = +document.getElementById("gfps").value;
+  const step = FPS / fps;
+  const segA = segStart();
+  const n = Math.ceil((segEnd() - segA) / step);
+  busy = true;
+  const wasHold = hold;
+  const cvs = document.createElement("canvas");
+  cvs.width = W; cvs.height = H;
+  const ctx = cvs.getContext("2d", { alpha: true });
+  const files = [];
+  let bytes = 0;
+  try {
+    for (let k = 0; k < n; k++){
+      hold = (segA + k * step) / FPS;
+      render(hold);
+      await bgSeek(hold);
+      await drawStage(ctx, W, H, alphaOn);
+      /* the browser's own PNG encoder — lossless, and it keeps the alpha */
+      const blob = await new Promise(r => cvs.toBlob(r, "image/png"));
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      files.push({ name: `search-motion_${String(k + 1).padStart(4, "0")}.png`,
+                   bytes: buf });
+      bytes += buf.length;
+      $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    $gs.textContent = "packing…";
+    await new Promise(r => setTimeout(r, 16));
+    const zip = zipOf(files);
+    const blob = new Blob([zip], { type: "application/zip" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = alphaOn ? "search-motion-png-alpha.zip" : "search-motion-png.zip";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    $gs.textContent = `${n} PNGs · ${(zip.length / 1048576).toFixed(1)} MB`;
+  } catch (e){
+    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+  } finally {
+    hold = wasHold; busy = false;
+    if (hold === null) window.play();
+  }
+};
+
+/* ── and back the other way ──────────────────────────────────────────────
+   Hand it a folder of PNGs — the ones above, or those frames after they
+   have been through something else — and it builds a GIF from them. It is
+   the same writer the piece's own GIF export uses, so the same two passes:
+   the palette has to be sampled across every frame before the first one can
+   be written. Frames are ordered by name, numerically, so frame_2 sorts
+   before frame_10.                                                      */
+const $pin = document.getElementById("pin"), $ps = document.getElementById("pstat");
+$pin.addEventListener("change", async () => {
+  const picked = [...($pin.files || [])]
+    .filter(f => /\.png$/i.test(f.name))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  if (!picked.length){ $ps.textContent = "no PNGs in that selection"; return; }
+  if (busy) return;
+  busy = true;
+  const shots = [];
+  try {
+    $ps.textContent = `reading ${picked.length}…`;
+    for (let i = 0; i < picked.length; i++){
+      shots.push(await createImageBitmap(picked[i]));
+      if (i % 10 === 0){
+        $ps.textContent = `reading ${i + 1}/${picked.length}…`;
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+    const W = shots[0].width, H = shots[0].height;
+    const odd = shots.filter(b => b.width !== W || b.height !== H).length;
+    const cvs = document.createElement("canvas");
+    cvs.width = W; cvs.height = H;
+    const ctx = cvs.getContext("2d", { alpha: true, willReadFrequently: true });
+    const read = b => { ctx.clearRect(0, 0, W, H); ctx.drawImage(b, 0, 0);
+                        return ctx.getImageData(0, 0, W, H).data; };
+    /* pass one: the palette, and whether any of it is see-through */
+    const per = Math.max(1, Math.round(W * H * shots.length / 400000)) * 4;
+    const samp = [];
+    let anyAlpha = false;
+    for (let i = 0; i < shots.length; i++){
+      const fr = read(shots[i]);
+      for (let p = 0; p < fr.length; p += per){
+        if (fr[p + 3] < 250) anyAlpha = true;
+        if (fr[p + 3] >= 128) samp.push([fr[p], fr[p+1], fr[p+2]]);
+      }
+      $ps.textContent = `colours ${i + 1}/${shots.length}…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    $ps.textContent = "palette…";
+    await new Promise(r => setTimeout(r, 16));
+    const pal = palette(samp, anyAlpha ? 255 : 256);
+    /* the rate the GIF can actually hold — its delay is whole centiseconds */
+    const fps = +document.getElementById("gfps").value;
+    const delayCs = Math.max(2, Math.round(100 / fps));
+    const gif = new GifWriter(W, H, pal, delayCs, anyAlpha ? pal.length : -1);
+    for (let i = 0; i < shots.length; i++){
+      gif.frame(read(shots[i]));
+      $ps.textContent = `frame ${i + 1}/${shots.length}…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    const out = gif.done();
+    const blob = new Blob([out], { type: "image/gif" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "from-png-sequence.gif";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    $ps.textContent = `${shots.length} frames · ${W}x${H} · `
+                    + `${(100 / delayCs).toFixed(1)}fps · `
+                    + `${(out.length / 1048576).toFixed(1)} MB`
+                    + (anyAlpha ? " · alpha" : "")
+                    + (odd ? ` · ${odd} were a different size and were cropped` : "");
+  } catch (e){
+    $ps.textContent = "failed: " + (e && e.message ? e.message : e);
+  } finally {
+    for (const b of shots) b.close();
+    busy = false;
+    $pin.value = "";
+  }
+});
 
 document.getElementById("seg").addEventListener("change", e => {
   setSeg(e.target.value);

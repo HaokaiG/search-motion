@@ -102,6 +102,13 @@ Nothing here is judged by eye. Every change goes through the same loop:
   the tag out of the serialised string rather than grepping it for `display:block`: the stylesheet
   travels with it, so `#stage.has-bg.bg-still #bgimg{display:block}` matches a naive regex and
   reads as a failure when the element itself is correctly `display: none`.
+- **The ZIP is stored, not deflated, and the size field is written after the fact.** PNG is
+  already deflated so re-compressing buys about a percent for the cost of the whole sequence in
+  time. The one thing easy to get wrong is the end-of-central-directory record: it reports the
+  directory's size, so that has to be measured BEFORE the record starts being written, or the
+  bytes of the record itself land in the number. `crc32` is worth checking against the standard
+  value rather than eyeballing — "123456789" must come out `cbf43926` — and the archive itself
+  against a real `unzip -t` rather than against the browser, which will open almost anything.
 - **The GIF export is a different document.** It serialises `#stage` into a
   foreignObject inside a plain `<div>`, so any rule hung on `body` — or on
   anything outside `#stage` — silently does not apply. `font-family` lived on

@@ -173,10 +173,26 @@ centred in the space beside it. The panel lets you:
     the two and the one an editor here would use
   - the **GIF** carries transparency too, but GIF has one all-or-nothing index rather than a
     channel, so a pixel has to fall one side of half-covered. That keeps the query, the chip and
-    the gradient and drops the bar's 30% scrim, which is under the line
+    the gradient and drops the bar's scrim, which is under the line
+  - the **PNG sequence** is the answer when that is not good enough, which for a transparent GIF
+    it usually is not: a PNG has the whole channel and 8 bits of alpha a pixel, so the frames are
+    what the canvas actually drew rather than an approximation of it. Measured on a transparent
+    480px export, the PNGs carry 18–21% of the frame at partial alpha — the scrim and every
+    antialiased edge — all of which a GIF has to round to on or off. The browser's own encoder
+    writes them, so they are lossless; they come out in one archive because a browser will hand
+    over one file, and the ZIP is written here like the other containers, stored rather than
+    deflated since a PNG is already deflated
   - the **MP4** is H.264 via WebCodecs, with the container written by hand alongside the others;
     the profile level is asked for at export time rather than hard-coded, since Baseline 3.0
     cannot carry 1080p at all and 4.0 cannot carry it at 60
+- **bring a PNG sequence back and animate it** — the field under the export buttons takes the
+  frames above, or those frames after they have been through something else, and builds a GIF
+  from them. Same writer the piece's own GIF export uses and the same two passes, since the
+  palette is sampled across every frame before the first can be written; frames sort by name
+  numerically, so `frame_2` comes before `frame_10`. Transparency is detected rather than
+  asked for — if any pixel in the sequence is under full alpha, an index is reserved for it.
+  It reports the rate the GIF can actually hold, which is not always the one selected: the delay
+  field is whole centiseconds, so 8fps comes out as 7.7
   The GIF used to hold every frame as raw RGBA — the palette is sampled across the whole
   animation and could not be settled until the end — which is 3.4 GB at 1920 and 60fps, so it
   declined the largest combinations. It now renders the piece twice instead, once for the
