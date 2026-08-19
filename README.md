@@ -215,8 +215,11 @@ centred in the space beside it. The panel lets you:
   3.9% solid, and the GIF comes out 71.5% clear and 28.5% drawn — the partly covered pixels
   matted rather than thrown away. The gradient outline survives as 6.5% of the drawn pixels at
   real saturation, and one frame holds 187 distinct colours.
-  It reports the rate the GIF can actually hold, which is not always the one selected: the delay
-  field is whole centiseconds, so 8fps comes out as 7.7
+  It has **its own frame rate** — 8, 12, 24, 30 or 60 — rather than borrowing the export
+  selector's, since a sequence brought in from somewhere else has no reason to run at the rate
+  the stage is being rendered at. What comes out is the rate a GIF can actually hold, its delay
+  being whole centiseconds: 8 plays at 7.7, 12 at 12.5, 24 at 25, 30 at 33.3 and 60 at 50, and
+  the line underneath says which
   The GIF used to hold every frame as raw RGBA — the palette is sampled across the whole
   animation and could not be settled until the end — which is 3.4 GB at 1920 and 60fps, so it
   declined the largest combinations. It now renders the piece twice instead, once for the

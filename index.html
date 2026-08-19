@@ -662,6 +662,13 @@
     <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
     <h3 class="sub">PNG sequence → GIF</h3>
+    <select id="pfps">
+      <option value="8">8 fps</option>
+      <option value="12" selected>12 fps</option>
+      <option value="24">24 fps</option>
+      <option value="30">30 fps</option>
+      <option value="60">60 fps</option>
+    </select>
     <select id="pmatte">
       <option value="keep" selected>Keep transparency · white matte</option>
       <option value="black">Keep transparency · black matte</option>
@@ -3291,8 +3298,12 @@ $pin.addEventListener("change", async () => {
     $ps.textContent = "palette…";
     await new Promise(r => setTimeout(r, 16));
     const pal = paletteOf(hist, keepAlpha ? 255 : 256);
-    /* the rate the GIF can actually hold — its delay is whole centiseconds */
-    const fps = +document.getElementById("gfps").value;
+    /* Its own rate, not the one the piece's exports use: a sequence brought
+       in from somewhere else has no reason to share the frame rate the stage
+       is being rendered at. What comes out is still the rate a GIF can hold,
+       its delay being whole centiseconds — 8 plays at 7.7, 24 at 25, 30 at
+       33.3 and 60 at 50 — and the line below says which.                */
+    const fps = +document.getElementById("pfps").value;
     const delayCs = Math.max(2, Math.round(100 / fps));
     const gif = new GifWriter(W, H, pal, delayCs, keepAlpha ? pal.length : -1);
     for (let i = 0; i < shots.length; i++){
