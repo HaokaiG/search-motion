@@ -665,6 +665,11 @@
     <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
     <h3 class="sub">PNG sequence → GIF</h3>
+    <select id="pmatte">
+      <option value="keep" selected>Keep transparency · white matte</option>
+      <option value="black">Keep transparency · black matte</option>
+      <option value="flat">Flatten onto white</option>
+    </select>
     <input id="pin" type="file" accept="image/png" multiple>
     <span id="pstat"></span>
   </div>
@@ -2124,6 +2129,11 @@ $q.addEventListener("input", () => {
    error is zero when the colour is already in the palette — so it costs
    noise only where there was banding to fix.                             */
 
+/* Where "transparent" stops and "drawn" starts, out of 255. Deliberately
+   near zero rather than at half: the bar's scrim is alpha 51 and belongs on
+   the drawn side, composited onto the matte, not dropped.               */
+const GIF_ALPHA_CUT = 8;
+
 /* 6 bits a channel: 262144 bins, and the sums are kept exactly so a bin's
    mean is the true mean of the colours in it rather than the bin's centre */
 function Hist(){
@@ -2133,9 +2143,10 @@ function Hist(){
   this.g = new Float64Array(N);
   this.b = new Float64Array(N);
 }
-Hist.prototype.add = function(fr){
+Hist.prototype.add = function(fr, skipClear){
   const n = this.n, R = this.r, G = this.g, B = this.b;
   for (let p = 0; p < fr.length; p += 4){
+    if (skipClear && fr[p + 3] < GIF_ALPHA_CUT) continue;
     const r = fr[p], g = fr[p+1], b = fr[p+2];
     const k = ((r >> 2) << 12) | ((g >> 2) << 6) | (b >> 2);
     n[k]++; R[k] += r; G[k] += g; B[k] += b;
@@ -2287,11 +2298,19 @@ function lzwInto(sink, idx, minCode){
    `trans` is a palette index reserved for transparency, or -1. GIF has only
    the one, all-or-nothing, so a partly covered pixel has to fall one side of
    a threshold; the alpha the MOV carries is the real answer.             */
-function GifWriter(W, H, pal, delayCs){
+/* `trans` is a palette index reserved for transparency, or -1. GIF's alpha is
+   one bit, so a pixel is either fully there or not there at all — but that is
+   only fatal if the cut is put at half covered. At half, this piece's 20%
+   scrim (alpha 51) falls the wrong side and the search bar disappears. The
+   cut belongs at "was anything drawn here", and everything above it is
+   composited onto a matte before it gets here, which is what Photoshop's own
+   GIF export means by a matte colour.                                     */
+function GifWriter(W, H, pal, delayCs, trans){
   let bitsN = 1;
-  while ((1 << bitsN) < pal.length) bitsN++;
+  while ((1 << bitsN) < pal.length + (trans >= 0 ? 1 : 0)) bitsN++;
   const size = 1 << bitsN;
   this.W = W; this.H = H; this.delay = delayCs; this.pal = pal;
+  this.trans = trans === undefined ? -1 : trans;
   this.minCode = Math.max(2, bitsN);
   this.idx = new Uint8Array(W * H);
   this.near = nearestIn(pal);
@@ -2302,7 +2321,7 @@ function GifWriter(W, H, pal, delayCs){
   const sk = this.sk = new Sink(1 << 20);
   sk.u8(0x47,0x49,0x46,0x38,0x39,0x61);                // GIF89a
   sk.u16(W); sk.u16(H);
-  sk.u8(0xF0 | (bitsN - 1), 0, 0);
+  sk.u8(0xF0 | (bitsN - 1), this.trans >= 0 ? this.trans : 0, 0);
   for (let i = 0; i < size; i++){
     const c = pal[i] || [0,0,0]; sk.u8(c[0], c[1], c[2]);
   }
@@ -2315,10 +2334,12 @@ function GifWriter(W, H, pal, delayCs){
    happens; on a gradient it is what stops the 256 entries banding.       */
 GifWriter.prototype.frame = function(fr){
   const sk = this.sk, W = this.W, H = this.H, idx = this.idx,
-        pal = this.pal, near = this.near;
-  sk.u8(0x21, 0xF9, 0x04, 0x00);
+        pal = this.pal, near = this.near, t = this.trans;
+  /* disposal 2 with a transparent index, or a hole shows the frame before it
+     through rather than nothing */
+  sk.u8(0x21, 0xF9, 0x04, t >= 0 ? 0x09 : 0x00);
   sk.u16(this.delay);
-  sk.u8(0, 0);
+  sk.u8(t >= 0 ? t : 0, 0);
   sk.u8(0x2C); sk.u16(0); sk.u16(0); sk.u16(W); sk.u16(H); sk.u8(0);
   let cur = this.e0, nxt = this.e1;
   cur.fill(0);
@@ -2327,6 +2348,8 @@ GifWriter.prototype.frame = function(fr){
     const row = y * W;
     for (let x = 0; x < W; x++){
       const p = (row + x) * 4, o = x * 3;
+      /* nothing was drawn here: it is a hole, and a hole carries no error */
+      if (t >= 0 && fr[p + 3] < GIF_ALPHA_CUT){ idx[row + x] = t; continue; }
       let r = fr[p] + cur[o], g = fr[p+1] + cur[o+1], b = fr[p+2] + cur[o+2];
       r = r < 0 ? 0 : r > 255 ? 255 : r;
       g = g < 0 ? 0 : g > 255 ? 255 : g;
@@ -2347,7 +2370,7 @@ GifWriter.prototype.frame = function(fr){
         }
       }
     }
-    const t = cur; cur = nxt; nxt = t;
+    const swap = cur; cur = nxt; nxt = swap;   /* not `t` — that is the hole */
   }
   sk.u8(this.minCode);
   lzwInto(sk, idx, this.minCode);
@@ -2594,7 +2617,7 @@ document.getElementById("gexport").onclick = async () => {
     $gs.textContent = "palette…";
     await new Promise(r => setTimeout(r, 16));
     const pal = paletteOf(hist, 256);
-    const gif = new GifWriter(W, H, pal, delayCs);
+    const gif = new GifWriter(W, H, pal, delayCs);      /* opaque, by request */
     for (let k = 0; k < n; k++){
       hold = (segA + k * step) / FPS;
       render(hold);
@@ -3219,30 +3242,59 @@ $pin.addEventListener("change", async () => {
     const cvs = document.createElement("canvas");
     cvs.width = W; cvs.height = H;
     const ctx = cvs.getContext("2d", { alpha: true, willReadFrequently: true });
-    /* white under the frame, because the GIF this makes is opaque: a PNG's
-       8 bits of alpha have nowhere to go in one all-or-nothing index, and
-       flattening onto the background is a truer answer than rounding every
-       soft edge to on or off */
+    /* A PNG's 8 bits of alpha have nowhere to go in a GIF's one, but that
+       only costs the picture if the cut is put at half covered — which is
+       what drops a 20% scrim. So: a pixel is a hole only where nothing was
+       drawn, and everything else is composited onto a matte and kept, its
+       own alpha folded into the colour. That is what a matte colour means
+       in Photoshop's GIF export, and it is why the bar survives.
+       `read` composites; the alpha it leaves behind is the ORIGINAL, so the
+       writer can still tell a hole from a matted pixel.                  */
+    const mode = document.getElementById("pmatte").value;
+    const keepAlpha = mode !== "flat";
+    const mr = mode === "black" ? 0 : 255,
+          mg = mode === "black" ? 0 : 255,
+          mb = mode === "black" ? 0 : 255;
     const read = b => {
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
       ctx.drawImage(b, 0, 0);
-      return ctx.getImageData(0, 0, W, H).data;
+      const d = ctx.getImageData(0, 0, W, H).data;
+      for (let p = 0; p < d.length; p += 4){
+        const a = d[p + 3];
+        if (a === 255) continue;
+        if (keepAlpha && a < GIF_ALPHA_CUT) continue;   /* a hole; leave it */
+        const k = a / 255;
+        d[p]     = Math.round(d[p]     * k + mr * (1 - k));
+        d[p + 1] = Math.round(d[p + 1] * k + mg * (1 - k));
+        d[p + 2] = Math.round(d[p + 2] * k + mb * (1 - k));
+      }
+      return d;
     };
-    /* pass one: every pixel of every frame into the histogram */
+    /* pass one: every drawn pixel of every frame into the histogram. The
+       holes stay out of it, or the matte would swamp the palette.       */
     const hist = new Hist();
+    let holes = 0, matted = 0, total = 0;
     for (let i = 0; i < shots.length; i++){
-      hist.add(read(shots[i]));
+      const fr = read(shots[i]);
+      hist.add(fr, keepAlpha);
+      if (i === 0){
+        for (let p = 0; p < fr.length; p += 4){
+          total++;
+          const a = fr[p + 3];
+          if (a < GIF_ALPHA_CUT) holes++;
+          else if (a < 255) matted++;
+        }
+      }
       $ps.textContent = `colours ${i + 1}/${shots.length}…`;
       await new Promise(r => setTimeout(r, 0));
     }
     $ps.textContent = "palette…";
     await new Promise(r => setTimeout(r, 16));
-    const pal = paletteOf(hist, 256);
+    const pal = paletteOf(hist, keepAlpha ? 255 : 256);
     /* the rate the GIF can actually hold — its delay is whole centiseconds */
     const fps = +document.getElementById("gfps").value;
     const delayCs = Math.max(2, Math.round(100 / fps));
-    const gif = new GifWriter(W, H, pal, delayCs);
+    const gif = new GifWriter(W, H, pal, delayCs, keepAlpha ? pal.length : -1);
     for (let i = 0; i < shots.length; i++){
       gif.frame(read(shots[i]));
       $ps.textContent = `frame ${i + 1}/${shots.length}…`;
@@ -3258,6 +3310,8 @@ $pin.addEventListener("change", async () => {
     $ps.textContent = `${shots.length} frames · ${W}x${H} · `
                     + `${(100 / delayCs).toFixed(1)}fps · `
                     + `${(out.length / 1048576).toFixed(1)} MB · ${pal.length} colours`
+                    + (keepAlpha ? ` · ${(100*holes/total).toFixed(0)}% clear, `
+                                 + `${(100*matted/total).toFixed(0)}% matted` : "")
                     + (odd ? ` · ${odd} were a different size and were cropped` : "");
   } catch (e){
     $ps.textContent = "failed: " + (e && e.message ? e.message : e);

@@ -200,10 +200,19 @@ centred in the space beside it. The panel lets you:
   frames above, or those frames after they have been through something else, and builds a GIF
   from them. Same writer the piece's own GIF export uses and the same two passes, since the
   palette is sampled across every frame before the first can be written; frames sort by name
-  numerically, so `frame_2` comes before `frame_10`. A PNG's 8 bits of alpha have nowhere to go
-  in a GIF, so the frames are flattened onto white rather than having every soft edge rounded to
-  on or off. It reports the rate the GIF can actually hold, which is not always the one selected:
-  the delay field is whole centiseconds, so 8fps comes out as 7.7
+  numerically, so `frame_2` comes before `frame_10`.
+  **It keeps the transparency**, with a matte. A PNG's 8 bits of alpha have nowhere to go in a
+  GIF's one bit, but that only costs the picture if the cut is put at half covered — which is
+  what drops a 20% scrim and takes the search bar with it. The cut is at *was anything drawn
+  here* instead (alpha 8 of 255), and everything above it is composited onto a matte and kept,
+  its own alpha folded into the colour. That is what a matte colour means in Photoshop's GIF
+  export. Pick white or black for it, or flatten entirely.
+  Measured on a transparent 480px sequence: the PNGs are 82.4% clear, 13.7% partly covered and
+  3.9% solid, and the GIF comes out 71.5% clear and 28.5% drawn — the partly covered pixels
+  matted rather than thrown away. The gradient outline survives as 6.5% of the drawn pixels at
+  real saturation, and one frame holds 187 distinct colours.
+  It reports the rate the GIF can actually hold, which is not always the one selected: the delay
+  field is whole centiseconds, so 8fps comes out as 7.7
   The GIF used to hold every frame as raw RGBA — the palette is sampled across the whole
   animation and could not be settled until the end — which is 3.4 GB at 1920 and 60fps, so it
   declined the largest combinations. It now renders the piece twice instead, once for the

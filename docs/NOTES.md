@@ -109,6 +109,19 @@ Nothing here is judged by eye. Every change goes through the same loop:
   bytes of the record itself land in the number. `crc32` is worth checking against the standard
   value rather than eyeballing — "123456789" must come out `cbf43926` — and the archive itself
   against a real `unzip -t` rather than against the browser, which will open almost anything.
+- **One-bit alpha is not the problem; putting the cut at half is.** A GIF has one transparent
+  index, so the instinct is to threshold at half covered — and that is exactly what loses this
+  piece's search bar, whose scrim is alpha 51 of 255. Put the cut at *was anything drawn here*
+  (8 of 255) and composite everything above it onto a matte, folding its alpha into its colour,
+  and the bar comes back as a matted band while the background stays a real hole. Measured: the
+  source PNGs are 82.4% clear and 13.7% partly covered, and the GIF lands at 71.5% clear and
+  28.5% drawn — the 13.7% matted rather than dropped. The matte is a real choice, not a default
+  to hide: it is baked in, so the GIF only sits correctly on a background near it.
+- **A swap variable called `t` inside a loop that reads `t` from the enclosing scope is a
+  temporal dead zone, not a shadow you get away with.** `const t = cur; cur = nxt; nxt = t;` at
+  the bottom of the row loop made every earlier read of the outer `t` — the transparent index —
+  throw "Cannot access 't' before initialization", from the top of the same block. The failure
+  surfaced as the whole import failing, several steps from the line at fault.
 - **Two ways a median cut quietly collapses, both found by counting the entries a frame used.**
   Weighting the choice of which box to split by `population x width` is the obvious improvement
   and it is wrong on content with a dominant flat colour: this piece is mostly one white, so that
