@@ -218,8 +218,9 @@ centred in the space beside it. The panel lets you:
   declined the largest combinations. It now renders the piece twice instead, once for the
   colours and once for the frames, and has no ceiling
 
-The query field reports what it costs — the bar's width and the pan's distance, both derived
-from it — and the answer field warns when the copy passes the bottom of its measured column.
+The answer field warns when the copy passes the bottom of its measured column. The query field
+used to report the bar's width and the pan's distance beneath it; both are still derived from
+what is typed, they are simply no longer printed.
 
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and

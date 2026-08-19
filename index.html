@@ -390,7 +390,6 @@
   #hud h3.sub{margin:2px 0 0}
   #hud .warn{text-transform:none;letter-spacing:0;min-height:14px;
        line-height:1.25;font-size:11px}
-  #hud #qwarn{color:#8a8a92;font-variant-numeric:tabular-nums}
   #hud #awarn{color:#e0a33a}
   #hud #gstat{color:#7ac0a0;text-transform:none;letter-spacing:0;min-height:14px;
        font-size:11px}
@@ -597,7 +596,6 @@
     <h3>Query</h3>
     <textarea id="qin" rows="1" spellcheck="false"
       >what is the most popular sport in the world</textarea>
-    <span class="warn" id="qwarn"></span>
   </div>
 
   <div class="grp">
@@ -1926,15 +1924,14 @@ function render(t){
 }
 
 /* ══════════════════════════ editing the query ═══════════════════════════ */
-const $q = document.getElementById("qin"), $qw = document.getElementById("qwarn");
+const $q = document.getElementById("qin");
 const $ts = document.getElementById("tspd"), $tsn = document.getElementById("tspdn"),
       $tw = document.getElementById("twarn");
 function applyQuery(){
-  const geo = setQuery($q.value);
+  setQuery($q.value);
   /* the field hugs what was typed, so the rows it holds are the rows you see */
   $q.style.height = "auto";
   $q.style.height = $q.scrollHeight + "px";
-  $qw.textContent = `bar ${Math.round(geo.barRight - 328)}px · pan ${Math.round(geo.pan)}px`;
   /* the run, and the piece it implies. The old note about typing through the
      button cannot happen any more: the outline is quoted against the text's
      landing through TAIL, so it always lights the same seven frames after
