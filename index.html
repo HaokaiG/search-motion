@@ -670,8 +670,8 @@
       <option value="60">60 fps</option>
     </select>
     <select id="pmatte">
-      <option value="keep" selected>Keep transparency · white matte</option>
-      <option value="black">Keep transparency · black matte</option>
+      <option value="keep" selected>Transparent · white matte</option>
+      <option value="black">Transparent · black matte</option>
       <option value="flat">Flatten onto white</option>
     </select>
     <input id="pin" type="file" accept="image/png" multiple>
@@ -2136,10 +2136,16 @@ $q.addEventListener("input", () => {
    error is zero when the colour is already in the palette — so it costs
    noise only where there was banding to fix.                             */
 
-/* Where "transparent" stops and "drawn" starts, out of 255. Deliberately
-   near zero rather than at half: the bar's scrim is alpha 51 and belongs on
-   the drawn side, composited onto the matte, not dropped.               */
-const GIF_ALPHA_CUT = 8;
+/* Where "transparent" stops and "drawn" starts, out of 255.
+   At half. A GIF has one transparent index and no way to be partly there,
+   so anything genuinely see-through — the bar's 20% scrim at alpha 51, the
+   gradient's glow, the soft half of every antialiased edge — cannot be
+   rendered as see-through and can only be faked by painting it solid onto
+   a matte. Painting it solid is what read as wrong: a grey slab where the
+   bar should be a wash, a halo where the glow should fade. So they go to
+   the hole instead, and what stays is what was actually opaque — the
+   query, the mark, the chip's face, the outline's core.                 */
+const GIF_ALPHA_CUT = 128;
 
 /* 6 bits a channel: 262144 bins, and the sums are kept exactly so a bin's
    mean is the true mean of the colours in it rather than the bin's centre */
@@ -3033,8 +3039,18 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
 /* -- RGBA -> the four planes ---------------------------------------------
    BT.709, video range, which is what ProRes means everywhere it is opened.
    Alpha goes 8 -> 16 bit as v * 257, so opaque is exactly 65535 rather than
-   the 65343 a trip through a 10-bit plane leaves behind. Straight, not
-   premultiplied: canvas hands back straight RGBA and 4444 wants straight. */
+   the 65343 a trip through a 10-bit plane leaves behind.
+   PREMULTIPLIED, which it did not used to be. Canvas hands back straight
+   RGBA and the file was written that way, and it is wrong twice over. A
+   compositor that reads 4444 as premultiplied — many do — adds the whole
+   un-multiplied colour instead of its share of it, which is exactly the
+   bright halo that turned up around the gradient. And the straight values
+   are not even trustworthy: canvas stores premultiplied internally and
+   divides on the way out, so at alpha 20 the division multiplies the
+   rounding by 12 and the colour comes back as noise. Measured on the beam,
+   the pixels at alpha 1-31 spanned the FULL 0-255 range in every channel.
+   Multiplying it back through fixes the halo and throws the noise away with
+   it, since noise x a small alpha is a small number.                     */
 function prPlanes(rgba, W, H){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   const stride = mbW * 16, rows = mbH * 16, n = stride * rows;
@@ -3043,7 +3059,8 @@ function prPlanes(rgba, W, H){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
+      const k = rgba[p + 3] / 255;
+      const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
       U[q] = (512 + 896 * (b - l) / (255 * 1.8556) + 0.5) | 0;
@@ -3250,11 +3267,12 @@ $pin.addEventListener("change", async () => {
     cvs.width = W; cvs.height = H;
     const ctx = cvs.getContext("2d", { alpha: true, willReadFrequently: true });
     /* A PNG's 8 bits of alpha have nowhere to go in a GIF's one, but that
-       only costs the picture if the cut is put at half covered — which is
-       what drops a 20% scrim. So: a pixel is a hole only where nothing was
-       drawn, and everything else is composited onto a matte and kept, its
-       own alpha folded into the colour. That is what a matte colour means
-       in Photoshop's GIF export, and it is why the bar survives.
+       only comes to a choice about where the see-through half goes. It goes
+       to the hole: anything under half covered is transparent, which is the
+       scrim, the glow and the soft edges — the things that read as wrong
+       when painted solid. What is left is composited onto a matte, which is
+       what a matte colour means in Photoshop's GIF export and is what keeps
+       the remaining edges from fringing.
        `read` composites; the alpha it leaves behind is the ORIGINAL, so the
        writer can still tell a hole from a matted pixel.                  */
     const mode = document.getElementById("pmatte").value;

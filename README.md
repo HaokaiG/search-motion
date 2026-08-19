@@ -174,7 +174,14 @@ centred in the space beside it. The panel lets you:
     6.8s piece at 1920 and 24fps. Verified by decoding the export back with ffmpeg — RGB matches
     the canvas to within the 1 code the sRGB → BT.709 video-range round trip costs, and the alpha
     exactly — and then again through macOS's own AVFoundation, which is the stricter reader of
-    the two and the one an editor here would use
+    the two and the one an editor here would use.
+    Its alpha is **premultiplied**. Straight was the first guess and it was wrong twice: a
+    compositor reading 4444 as premultiplied adds the whole un-multiplied colour rather than its
+    share, which is the bright halo that appeared around the gradient, and canvas's straight
+    values are not trustworthy at low alpha anyway — it stores premultiplied and divides on the
+    way out, so at alpha 20 the division multiplies the rounding by 12. Measured on the beam, the
+    pixels at alpha 1–31 spanned the full 0–255 range in every channel; premultiplied they span
+    31 and mean 5
   - the **GIF** is opaque whatever the stage is set to, and spends all 256 entries on colour.
     It used to reserve one for transparency when the transparent mode was on; one all-or-nothing
     index is a poor matte and the PNG sequence is the answer for that instead.
@@ -205,16 +212,16 @@ centred in the space beside it. The panel lets you:
   from them. Same writer the piece's own GIF export uses and the same two passes, since the
   palette is sampled across every frame before the first can be written; frames sort by name
   numerically, so `frame_2` comes before `frame_10`.
-  **It keeps the transparency**, with a matte. A PNG's 8 bits of alpha have nowhere to go in a
-  GIF's one bit, but that only costs the picture if the cut is put at half covered — which is
-  what drops a 20% scrim and takes the search bar with it. The cut is at *was anything drawn
-  here* instead (alpha 8 of 255), and everything above it is composited onto a matte and kept,
-  its own alpha folded into the colour. That is what a matte colour means in Photoshop's GIF
-  export. Pick white or black for it, or flatten entirely.
-  Measured on a transparent 480px sequence: the PNGs are 82.4% clear, 13.7% partly covered and
-  3.9% solid, and the GIF comes out 71.5% clear and 28.5% drawn — the partly covered pixels
-  matted rather than thrown away. The gradient outline survives as 6.5% of the drawn pixels at
-  real saturation, and one frame holds 187 distinct colours.
+  **It keeps the transparency.** A PNG's 8 bits of alpha have nowhere to go in a GIF's one bit,
+  so the only question is where the see-through half goes, and it goes to the hole: anything
+  under half covered is transparent. That is the bar's 20% scrim, the gradient's glow and the
+  soft half of every antialiased edge — the things that look wrong painted solid, a grey slab
+  where the bar should be a wash and a halo where the glow should fade. What is left is composited
+  onto a matte, white or black, which is what a matte colour means in Photoshop's GIF export and
+  is what keeps the remaining edges from fringing. Or flatten the lot onto white.
+  Measured on a transparent 480px sequence, a frame comes out 94% clear and 6% drawn — the query,
+  the mark, the chip's face and the outline's core — with the gradient surviving as 5.5% of the
+  frame at real saturation.
   It has **its own frame rate** — 8, 12, 24, 30 or 60 — rather than borrowing the export
   selector's, since a sequence brought in from somewhere else has no reason to run at the rate
   the stage is being rendered at. What comes out is the rate a GIF can actually hold, its delay
