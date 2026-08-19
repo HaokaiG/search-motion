@@ -662,6 +662,14 @@
     <button id="gexport">Export GIF</button>
     <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
+    <h3 class="sub">PNG sequence → GIF</h3>
+    <select id="pmatte">
+      <option value="keep" selected>Keep transparency · white matte</option>
+      <option value="black">Keep transparency · black matte</option>
+      <option value="flat">Flatten onto white</option>
+    </select>
+    <input id="pin" type="file" accept="image/png" multiple>
+    <span id="pstat"></span>
   </div>
 </div>
 
@@ -3200,6 +3208,116 @@ document.getElementById("pexport").onclick = async () => {
     if (hold === null) window.play();
   }
 };
+
+/* ── and back the other way ──────────────────────────────────────────────
+   Hand it a folder of PNGs — the ones above, or those frames after they
+   have been through something else — and it builds a GIF from them. It is
+   the same writer the piece's own GIF export uses, so the same two passes:
+   the palette has to be sampled across every frame before the first one can
+   be written. Frames are ordered by name, numerically, so frame_2 sorts
+   before frame_10.                                                      */
+const $pin = document.getElementById("pin"), $ps = document.getElementById("pstat");
+$pin.addEventListener("change", async () => {
+  const picked = [...($pin.files || [])]
+    .filter(f => /\.png$/i.test(f.name))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  if (!picked.length){ $ps.textContent = "no PNGs in that selection"; return; }
+  if (busy) return;
+  busy = true;
+  const shots = [];
+  try {
+    $ps.textContent = `reading ${picked.length}…`;
+    for (let i = 0; i < picked.length; i++){
+      shots.push(await createImageBitmap(picked[i]));
+      if (i % 10 === 0){
+        $ps.textContent = `reading ${i + 1}/${picked.length}…`;
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+    const W = shots[0].width, H = shots[0].height;
+    const odd = shots.filter(b => b.width !== W || b.height !== H).length;
+    const cvs = document.createElement("canvas");
+    cvs.width = W; cvs.height = H;
+    const ctx = cvs.getContext("2d", { alpha: true, willReadFrequently: true });
+    /* A PNG's 8 bits of alpha have nowhere to go in a GIF's one, but that
+       only costs the picture if the cut is put at half covered — which is
+       what drops a 20% scrim. So: a pixel is a hole only where nothing was
+       drawn, and everything else is composited onto a matte and kept, its
+       own alpha folded into the colour. That is what a matte colour means
+       in Photoshop's GIF export, and it is why the bar survives.
+       `read` composites; the alpha it leaves behind is the ORIGINAL, so the
+       writer can still tell a hole from a matted pixel.                  */
+    const mode = document.getElementById("pmatte").value;
+    const keepAlpha = mode !== "flat";
+    const mr = mode === "black" ? 0 : 255,
+          mg = mode === "black" ? 0 : 255,
+          mb = mode === "black" ? 0 : 255;
+    const read = b => {
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(b, 0, 0);
+      const d = ctx.getImageData(0, 0, W, H).data;
+      for (let p = 0; p < d.length; p += 4){
+        const a = d[p + 3];
+        if (a === 255) continue;
+        if (keepAlpha && a < GIF_ALPHA_CUT) continue;   /* a hole; leave it */
+        const k = a / 255;
+        d[p]     = Math.round(d[p]     * k + mr * (1 - k));
+        d[p + 1] = Math.round(d[p + 1] * k + mg * (1 - k));
+        d[p + 2] = Math.round(d[p + 2] * k + mb * (1 - k));
+      }
+      return d;
+    };
+    /* pass one: every drawn pixel of every frame into the histogram. The
+       holes stay out of it, or the matte would swamp the palette.       */
+    const hist = new Hist();
+    let holes = 0, matted = 0, total = 0;
+    for (let i = 0; i < shots.length; i++){
+      const fr = read(shots[i]);
+      hist.add(fr, keepAlpha);
+      if (i === 0){
+        for (let p = 0; p < fr.length; p += 4){
+          total++;
+          const a = fr[p + 3];
+          if (a < GIF_ALPHA_CUT) holes++;
+          else if (a < 255) matted++;
+        }
+      }
+      $ps.textContent = `colours ${i + 1}/${shots.length}…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    $ps.textContent = "palette…";
+    await new Promise(r => setTimeout(r, 16));
+    const pal = paletteOf(hist, keepAlpha ? 255 : 256);
+    /* the rate the GIF can actually hold — its delay is whole centiseconds */
+    const fps = +document.getElementById("gfps").value;
+    const delayCs = Math.max(2, Math.round(100 / fps));
+    const gif = new GifWriter(W, H, pal, delayCs, keepAlpha ? pal.length : -1);
+    for (let i = 0; i < shots.length; i++){
+      gif.frame(read(shots[i]));
+      $ps.textContent = `frame ${i + 1}/${shots.length}…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    const out = gif.done();
+    const blob = new Blob([out], { type: "image/gif" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "from-png-sequence.gif";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    $ps.textContent = `${shots.length} frames · ${W}x${H} · `
+                    + `${(100 / delayCs).toFixed(1)}fps · `
+                    + `${(out.length / 1048576).toFixed(1)} MB · ${pal.length} colours`
+                    + (keepAlpha ? ` · ${(100*holes/total).toFixed(0)}% clear, `
+                                 + `${(100*matted/total).toFixed(0)}% matted` : "")
+                    + (odd ? ` · ${odd} were a different size and were cropped` : "");
+  } catch (e){
+    $ps.textContent = "failed: " + (e && e.message ? e.message : e);
+  } finally {
+    for (const b of shots) b.close();
+    busy = false;
+    $pin.value = "";
+  }
+});
 
 document.getElementById("seg").addEventListener("change", e => {
   setSeg(e.target.value);
