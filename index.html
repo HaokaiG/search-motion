@@ -60,7 +60,14 @@
          object-fit:cover;display:none}
   /* transparent, not black: the export composites the footage UNDER the
      serialised stage, so anything painted here would hide it */
-  #stage.has-bg{background:transparent}
+  /* White, not transparent, because the plate now FADES at the click and what
+     it fades to has to be the background rather than the page behind the
+     stage. The export still needs it transparent — it composites the footage
+     UNDER the serialised stage — so stageSVG() forces that for the length of
+     the serialise, the same way it hides the video and the still.
+     `.has-alpha` below overrides this and stays transparent; it is later in
+     the sheet at the same specificity, so alpha wins when both are on.   */
+  #stage.has-bg{background:#fff}
   /* Alpha mode wears exactly what footage mode wears — the scrim bar, the
      white Medium query, the 75% chip — but with nothing behind it. Act 2
      keeps its own white card, the same as over footage, where it covers the
@@ -1436,9 +1443,20 @@ function bgSeek(t){
     check();
   });
 }
+/* How much of the plate is left. It goes at the click and is gone as act 1
+   is: the press opens on PRESS_F0 and act 1's opacity reaches zero at 135.8,
+   so the plate crosses to the background over exactly the frames the button
+   spends being pressed and blowing up. Both ends are constants the piece
+   already had — nothing new to keep in step.
+   render() sets it, and bgDrawInto reads it, so the exported frame fades with
+   the preview instead of the element's own opacity being a preview-only
+   thing.                                                                  */
+let BG_OP = 1;
+const bgOpAt = fp => 1 - sat((fp - PRESS_F0) / (SPLIT_FP - PRESS_F0));
+
 /* cover-fit the footage into a W x H frame, matching object-fit:cover */
 function bgDrawInto(ctx, W, H){
-  if (!bgOn) return false;
+  if (!bgOn || BG_OP <= 0) return false;
   let src, sw, sh;
   if (bgStill){
     if (!bgimg.naturalWidth) return false;
@@ -1451,7 +1469,10 @@ function bgDrawInto(ctx, W, H){
   let dw = W, dh = H, dx = 0, dy = 0;
   if (vr > sr){ dw = H * vr; dx = (W - dw) / 2; }
   else        { dh = W / vr; dy = (H - dh) / 2; }
+  const was = ctx.globalAlpha;
+  ctx.globalAlpha = was * BG_OP;
   ctx.drawImage(src, dx, dy, dw, dh);
+  ctx.globalAlpha = was;
   return true;
 }
 $bgin.addEventListener("change", () => {
@@ -1478,6 +1499,10 @@ $bgin.addEventListener("change", () => {
     bgimg.src = bgURL;
   } else {
     bgimg.removeAttribute("src");
+  /* the fade's leftover opacity would otherwise ride on the next plate for
+     one paint, before render() gets to set it */
+  bgvid.style.opacity = bgimg.style.opacity = "";
+  BG_OP = 1;
     bgvid.src = bgURL;
     bgvid.addEventListener("loadedmetadata", ready, { once: true });
   }
@@ -1713,6 +1738,12 @@ function render(t){
   const fp = f - TAIL, Tp = T - TAIL * FRAME;
 
   bgSync(T);                       // footage follows the timeline, if loaded
+  /* the plate crosses to the background at the click — see bgOpAt */
+  BG_OP = bgOn ? bgOpAt(fp) : 1;
+  if (bgOn){
+    const o = BG_OP.toFixed(3);
+    bgvid.style.opacity = o; bgimg.style.opacity = o;
+  }
 
   /* ── camera ───────────────────────────────────────────────────────── */
   const x = panAt(T);
@@ -2231,7 +2262,11 @@ function stageSVG(){
      footage drawn underneath it (measured: a flat #333 over the whole frame).
      Hiding it for the length of the serialise leaves a transparent hole for
      the composite in drawStage to show through.                           */
-  const prev = bgvid.style.display, prevImg = bgimg.style.display;
+  const prev = bgvid.style.display, prevImg = bgimg.style.display,
+        prevBg = stage.style.background;
+  /* transparent for the serialise: drawStage paints white, then the footage,
+     then this on top, so a background here would bury the plate */
+  stage.style.background = "transparent";
   bgvid.style.display = "none";
   /* the still goes out with it: an <img>-loaded SVG will not fetch a blob:
      URL either, and whatever it paints instead would sit on the footage that
@@ -2247,6 +2282,7 @@ function stageSVG(){
          XS.serializeToString(document.getElementById("stage")) +
          '</div></foreignObject></svg>';
   bgvid.style.display = prev; bgimg.style.display = prevImg;
+  stage.style.background = prevBg;
   return svg;
 }
 function drawStage(ctx, W, H, keepAlpha){

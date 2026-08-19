@@ -123,12 +123,15 @@ centred in the space beside it. The panel lets you:
   reads the footage's own colour
 - **drop footage behind act 1, and through the cut** — pick a video **or a still image** and it
   sits under the search bar instead of the white card, with the bar, the beam and the AI Mode
-  button compositing over it. **It stays there while the button opens**: act 2's white card no
-  longer arrives with the cut on frame 132, it comes up on the answer body's own ramp, so the
-  plate is still behind the frame as the button blows out. The chat itself is on a fully white
-  card as it always was — measured over a plate, the card is at 0 through 133, 0.181 on 136,
-  0.598 on 140 and a flat 255,255,255 from 144 to the end. Over footage the furniture changes
-  with it: the bar
+  button compositing over it. **The plate crosses to the background at the click**: it holds at
+  full strength to frame 127, where the press opens, then fades out over exactly the frames the
+  button spends being pressed and blowing up, reaching the background on 136 as act 1 does. Both
+  ends are constants the piece already had, so there is nothing new to keep in step. Measured in
+  exported pixels, a plate reading 38 in its red channel goes 38, 86, 133, 182, 222, 255 across
+  frames 127 to 136 — a straight ramp to white. Act 2's white card is behind that: it no longer
+  arrives with the cut on frame 132 but comes up on the answer body's own ramp, 0 through 133,
+  0.181 on 136, 0.598 on 140, flat white from 144, so the handover is plate → background → card
+  with no step anywhere in it. Over footage the furniture changes with it: the bar
   swaps its white fill for a black scrim at `--bar-scrim` (0.20), the AI Mode chip's fill drops
   to 75% so the plate reads through it while its label and gradient outline stay fully opaque,
   and the query steps up to Medium and goes white — the plate's 356 is too light to hold against
