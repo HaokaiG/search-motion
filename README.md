@@ -171,9 +171,20 @@ centred in the space beside it. The panel lets you:
     the canvas to within the 1 code the sRGB → BT.709 video-range round trip costs, and the alpha
     exactly — and then again through macOS's own AVFoundation, which is the stricter reader of
     the two and the one an editor here would use
-  - the **GIF** carries transparency too, but GIF has one all-or-nothing index rather than a
-    channel, so a pixel has to fall one side of half-covered. That keeps the query, the chip and
-    the gradient and drops the bar's scrim, which is under the line
+  - the **GIF** is opaque whatever the stage is set to, and spends all 256 entries on colour.
+    It used to reserve one for transparency when the transparent mode was on; one all-or-nothing
+    index is a poor matte and the PNG sequence is the answer for that instead.
+    Its palette is built from a histogram of **every pixel of every frame** rather than a sparse
+    sample, split classic-median-cut style — widest box first, cut at the population median — and
+    each entry is the exact weighted mean of the colours behind it. Frames are then mapped by
+    exact nearest-neighbour with **Floyd–Steinberg** error diffusion, which is what turns 256
+    entries into a gradient that reads as continuous. Flat colour dithers to nothing, since the
+    error is zero when the colour is already in the palette, so it costs noise only where there
+    was banding to fix.
+    Measured as error integrated over 4x4 blocks — which is how the eye sees a dither — this goes
+    from 0.131 to **0.047** on the piece and from 2.368 to **0.312** on a gradient. Per *pixel*
+    the error rises slightly, 0.62 to 0.85, and that is the dither working rather than failing:
+    it trades pixel accuracy for local accuracy
   - the **PNG sequence** is the answer when that is not good enough, which for a transparent GIF
     it usually is not: a PNG has the whole channel and 8 bits of alpha a pixel, so the frames are
     what the canvas actually drew rather than an approximation of it. Measured on a transparent
@@ -189,10 +200,10 @@ centred in the space beside it. The panel lets you:
   frames above, or those frames after they have been through something else, and builds a GIF
   from them. Same writer the piece's own GIF export uses and the same two passes, since the
   palette is sampled across every frame before the first can be written; frames sort by name
-  numerically, so `frame_2` comes before `frame_10`. Transparency is detected rather than
-  asked for — if any pixel in the sequence is under full alpha, an index is reserved for it.
-  It reports the rate the GIF can actually hold, which is not always the one selected: the delay
-  field is whole centiseconds, so 8fps comes out as 7.7
+  numerically, so `frame_2` comes before `frame_10`. A PNG's 8 bits of alpha have nowhere to go
+  in a GIF, so the frames are flattened onto white rather than having every soft edge rounded to
+  on or off. It reports the rate the GIF can actually hold, which is not always the one selected:
+  the delay field is whole centiseconds, so 8fps comes out as 7.7
   The GIF used to hold every frame as raw RGBA — the palette is sampled across the whole
   animation and could not be settled until the end — which is 3.4 GB at 1920 and 60fps, so it
   declined the largest combinations. It now renders the piece twice instead, once for the

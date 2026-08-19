@@ -109,6 +109,22 @@ Nothing here is judged by eye. Every change goes through the same loop:
   bytes of the record itself land in the number. `crc32` is worth checking against the standard
   value rather than eyeballing — "123456789" must come out `cbf43926` — and the archive itself
   against a real `unzip -t` rather than against the browser, which will open almost anything.
+- **Two ways a median cut quietly collapses, both found by counting the entries a frame used.**
+  Weighting the choice of which box to split by `population x width` is the obvious improvement
+  and it is wrong on content with a dominant flat colour: this piece is mostly one white, so that
+  box wins every round and the palette fills with 256 shades of it — measured, TWO entries in a
+  whole frame and a worst-case error of 255. Split the widest box instead and let population
+  decide only where the cut falls. Then the cut itself: when one bin holds more than half the
+  pixels the median lands on it, and if it also sorts last the right-hand box comes out EMPTY,
+  can never split again, and every later round produces another empty — one real entry and 255 of
+  `[0,0,0]`, which looks identical to the first bug from the outside. Clamp the cut so both sides
+  keep something. The tell for both is `new Set(idx).size` on one frame: it should be in the
+  hundreds, and it was 2.
+- **Mean per-pixel error is the wrong way to judge a dither, and it will talk you out of one.**
+  Floyd-Steinberg made the piece's per-pixel error WORSE, 0.62 to 0.85, because it is deliberately
+  putting the wrong colour next to the wrong colour so the average comes out right. Integrated
+  over 4x4 blocks — the same reasoning as scoring after a blur — it goes 0.131 to 0.047 on the
+  piece and 2.368 to 0.312 on a gradient. Measure what the eye does, not what the pixel does.
 - **The GIF export is a different document.** It serialises `#stage` into a
   foreignObject inside a plain `<div>`, so any rule hung on `body` — or on
   anything outside `#stage` — silently does not apply. `font-family` lived on
