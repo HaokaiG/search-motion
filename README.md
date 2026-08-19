@@ -1,7 +1,14 @@
 # Search Motion
 
-A 6.8-second Google Search "AI Mode" spot, rebuilt from the footage in plain HTML, CSS and
+Two Google Search "AI Mode" spots, rebuilt from their footage in plain HTML, CSS and
 JavaScript. No build step, no libraries, no framework — `index.html` is one self-contained file.
+The **Piece** selector at the top of the panel switches between them; they share the frame, the
+clock and every export path, and share no markup and no constants.
+
+| | |
+|---|---|
+| **AI Mode search** | 6.8s. The query types itself into the search bar, the camera pans, the AI Mode button lights and the answer page arrives. 162 frames. |
+| **Prompt / response** | 8.0s. A prompt is typed into a dark box, sent, flashes to the answer page, and the answer's own words come back at 5× with one phrase lit. 192 frames. |
 
 **[▶ Live demo](https://HaokaiG.github.io/search-motion/)** ·
 [recreation.mp4](docs/recreation.mp4)
@@ -265,6 +272,60 @@ Two first readings the measurements overturned:
 And one detail that is easy to miss at speed: the gradient beam's colour is a function of
 **arc length around the outline**, not of screen x. At any given x the top edge and the bottom
 edge are different colours — green underneath while it is already red on top.
+
+---
+
+## The second piece: prompt / response
+
+The reference is 1920×1080, **192 frames**, and its background measures pure `(0,0,0)` — which
+is a transparent plate composited onto black rather than a black one, so the recreation treats
+it as transparent and paints black underneath only when an export asks for opaque pixels.
+
+It runs in three acts: the prompt typing into a dark rounded box (frames 3–47), a white flash
+into the answer page (48–52), the page held (52–87), then the answer's own words returning at
+5× with one phrase lit (88–192), the lit phrase swapping once across 116–138.
+
+| Quantity | Method | Result |
+|---|---|---|
+| The box | Threshold and take runs on the ring | **1066×297** centred on (959.2, 539.8), radius **60** |
+| Typing | Caret's right edge, frame to frame | Frames **3→34** |
+| Send button | Fill colour sampled on the button | Lights **40–42**, `(231,231,231)` → `(81,108,215)`; pressed **43–46** |
+| Flash | Frame means, inverted through this build's own opacity-to-mean response | Plate reads 5.3, 25.9, 102.2, 175.5, 250.3 over f48–52, so the card has to sit at .094, .430, .716, .984. A straight ramp over **48.75…51.75** reproduces them to 5.4 rms — a ramp running the full four frames to 52 gives 7.1 |
+| Act-2 page | Edge/run detection on f70 | Mark **72px** at (66,65); nav ink band y 87–121 with items at 242, 483, 585, 761, 933, 1150 and carets at 401, 1253; rule at **207**; chip **711×99** at (969,291), text inset 45; body from x=241 on a **51px** pitch; rail glyphs at y 293–324 and 403–441 |
+| Act-2 weights | Stem widths on the x-height | 3px through the first paragraph's opening, **4px** from the claim to the end of that paragraph, and 4px on the two quoted names — so the emphasis is a real weight change, not a colour one |
+| Act-2 trailing line | Darkest pixels per paragraph | The last line is `(154,154,154)` where the paragraphs above it read `0` — it is greyed and still arriving |
+| Act-3 type | x-height and ascender-to-baseline on the lit line | x-height **82px**, ascender-to-baseline **120px** → **156px** type; the four visible rows sit **207px** apart → 1.33 leading |
+| Act-3 weight | Stem widths across the lit line's x-height | **17px** at 156px type — the 500 the page sets the phrase in, not the 400 around it. At 400 the phrase's ink came out a fifth short |
+| Act-3 wall | Edge rise on a stem, and banded coverage | The body is thrown out of focus — a stem rises over **55px** there against the lit line's 13. 24.1% of the frame carries wall at a mean of 24.1 |
+| Act-3 swap | The lit core's centre, frame by frame | 14, 48, 120, 297 … 1498, 1617, 1681, 1718, 1739, **1749** — nearly flat for six frames, then almost the whole travel inside four. A **tanh centred on f124** fits it to 36px rms, 2% of the travel; an ease-in-out is out by ten times as much |
+| Act-3 handover | Lit pixels and frame mean through the swap | The plate never fades the phrase out: on f124 it still carries 5.4% of the frame at a mean of 119, peaking 192. It **smears** — the camera is doing 350px in that frame |
+| Act-3 wall grid | Row bands across the whole act | Identical on every frame — 37–152, 219–385, 418–598, 667–797. **Zero vertical movement**, so the swap has to be a purely horizontal move |
+| Glow | Halo hue at the phrase's near end on eight frames | 29° at f94, 2 at f104, 227 at f114, 188 at f140, 149 at f150, 65 at f160, 44 at f170, 271 at f190 — a constant **4.70°/frame decreasing through 75° at f160**, to 29° rms. The far end runs **83°** ahead of the near end. The letters themselves are white all along `(251,254,253)`; only the halo turns |
+
+**How closely it lands.** Comparing frame means against the plate on 21 frames spanning all 192:
+**2.54 rms**, with every held frame inside ±1. What is left is the four-frame flash (worst +8.5)
+and the single frame the phrase swaps on (−3.7). The same check run on the *decoded 1920×1080
+MP4* rather than the preview gives −1.1, −0.7 and +0.4 on frames 70, 95 and 160.
+
+### How act 3 is drawn
+
+The lit phrase sits **inline in the wall's own paragraph** — the plate lights it in place rather
+than pulling it onto a caption line — which means the page has to be drawn four times over at
+identical metrics under one shared transform:
+
+1. `.n3wall` — the copy, dim and blurred, the whole wall
+2. `.n3tip` — the glow at the near hue, masked to fade out across the phrase
+3. `.n3lit` — the glow at the far hue, masked complementarily to fade in
+4. `.n3ink` — the white letters, unmasked
+
+The two glow layers carry no ink at all, because a transparent glyph still casts its shadow.
+That separation is the whole trick: masking a layer that also held the letters faded the letters
+with it, and the phrase's bright core came out a fifth short of the plate's.
+
+The camera is aimed by asking the layout where each phrase ended up (`n3Aim`), so editing the
+copy, the phrase or the wall's size re-aims it instead of desynchronising a baked translate. The
+wall's width is what decides whether the two phrases share a row — they must, or the swap tilts —
+and the panel says so when they do not.
 
 ---
 

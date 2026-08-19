@@ -39,6 +39,21 @@ Nothing here is judged by eye. Every change goes through the same loop:
 - **A metric that does not move is not proof.** The 4px text jump when typing
   ended never showed up in the score — one frame cannot shift a 132-frame mean.
   It took someone watching it.
+- **A transparent glyph still casts its text-shadow.** Setting the act-3 glow on the *page*
+  element rather than on each phrase lit the entire wall — every one of its transparent
+  letters cast the coloured shadow. Frame means went from 16 to 59. The shadow belongs on the
+  span that is meant to glow, never on a transparent container above it.
+- **Masking a layer masks its ink as well as its glow.** The act-3 phrase's two hues are
+  crossfaded with complementary masks; while the letters lived on those same layers, they were
+  faded too, and the phrase's bright core measured 2.29% of the frame against the plate's 2.90%.
+  The letters need an unmasked layer of their own.
+- **A threshold can hide a whole mechanism.** Scoring the act-3 swap on pixels above 200 said
+  the plate went completely dark on f124 — so the first build faded the phrase out and back. It
+  does not: on that frame it still carries 5.4% of the frame at a mean of 119, peaking 192. It is
+  *smeared*, not faded. The frame mean, which cannot be thresholded away, said 14.5 where the
+  fade gave 4.2, and that gap is what exposed it.
+- **A `filter: url(#id)` only resolves if its `<defs>` travel with the serialised stage.** The
+  swap's smear filter lives inside `#stage2` for exactly that reason.
 - **Only `#stage` and the `<style>` tag are serialised, so a runtime override on `<html>` never
   reaches the export.** Setting `--bar-scrim` on the root changed the preview and left exported
   frames on the stylesheet's value — an A/B that read a ratio of exactly 1.000 and looked, for a
@@ -235,7 +250,20 @@ at 5.5% of the frame. Both were asked for, a month apart in the same afternoon.
 
 ## Open decisions
 
-Departures from the plate that were deliberate, and the one-line way back:
+Departures from the plate that were deliberate, and the one-line way back.
+
+**Prompt / response:**
+
+| | |
+|---|---|
+| Wall width `4900px` | Not measurable from the plate — only its consequences are. This is the width that puts both lit phrases on one row 1693px apart (the plate's own rest positions measure ~1722), lands 25.5% of the frame carrying wall against its 24.1%, and leaves ~950px of copy to the right of the second phrase so the block's edge never walks into frame. Changing the copy or the type size re-wraps it; the panel warns when the two phrases stop sharing a row. |
+| Wall `#252525`, `blur(15px)` | Fitted to the banded coverage rather than sampled — the plate's wall is blurred past the point where a stem has a colour to read. Back: nothing to restore, but the pair is what sets act 3's floor. |
+| Glow radii and alphas | Fitted so the frame mean lands on the plate's. The band split does not match: the plate has 2.9% of the frame above 150 and only **0.2%** between 90 and 150, where this has ~1.1% in that middle band. Its halo falls off faster than three stacked shadows can. Suspect the plate's own compression crushed the skirt; not resolved. |
+| Emphasis derived from the lit phrase | Act 2 bolds from the first lit phrase to the end of its paragraph, so the plate's "because **it is** nearly unstoppable" starts one word earlier here — the quote is `it is nearly unstoppable`. Back: set the quote to `nearly unstoppable`. |
+| Act-2 rail glyphs | Drawn to the measured boxes (x 84–119 / y 293–324 and x 84–122 / y 403–441), but the shapes are by eye — the plate's second glyph is a pencil in a square and this is a pencil over a rule. |
+| Flash worst frame +8.5 | The ramp is linear over 48.75…51.75, fitted to 5.4 rms. The plate's own ramp decelerates slightly (steps of .336, .286, .268) and no linear fit catches all four frames; f51 is the one that pays. Back: an eased ramp would fix f51 and cost f49. |
+
+**AI Mode search:**
 
 | | |
 |---|---|

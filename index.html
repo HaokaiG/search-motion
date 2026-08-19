@@ -336,6 +336,153 @@
   .w{color:#000}                       /* answer word, post-reveal */
 
 
+
+  /* ══════════════ PIECE 2 — the prompt/response spot ═══════════════════
+     A second, separate piece: a prompt box types a question over nothing,
+     the page flashes white into an answer, and the answer's own words come
+     back huge with a phrase lit inside them. 192 frames at the same 23.976,
+     8.008s, measured off its own clip.
+     Its opening is black in the reference, but black there means NOTHING —
+     the plate is transparent and the compositor put it on black. So the
+     stage is transparent and every export that can carry a matte gets one.
+     Geometry, all measured: the box is 1066 x 297 centred on the frame at
+     960,540 — its measured centre came out 959.2, 539.8 — with a 60px
+     corner, which fits five points on the arc to within 0.4px.          */
+  #stage2{position:absolute;inset:0;overflow:hidden;contain:strict;
+          font-family:var(--font);background:transparent;
+          opacity:0;visibility:hidden}
+  #stage2.live{opacity:1;visibility:visible}
+  /* the white card act 2 rises on; it is act 2's, not the stage's, so the
+     transparency belongs to act 1 the same way it does in the other piece */
+  #n2page{position:absolute;inset:0;background:#fff;opacity:0}
+
+  /* ── act 1 furniture ── */
+  #n1{position:absolute;inset:0}
+  .n-g{position:absolute;left:64px;top:56px;width:52px;height:52px;
+       background:var(--gmark) center/contain no-repeat}
+  .n-ctx{position:absolute;left:150px;top:60px;width:1500px;
+         font-size:26px;line-height:38px;font-weight:400;color:#9aa0a6}
+  .n-acts{position:absolute;left:64px;top:132px;display:flex;gap:44px}
+  .n-acts svg{width:34px;height:34px;fill:#9aa0a6}
+  .n-side{position:absolute;left:74px;top:250px;display:flex;
+          flex-direction:column;gap:46px}
+  .n-side svg{width:36px;height:36px;fill:#9aa0a6}
+
+  /* ── the prompt box ── */
+  #nbox{position:absolute;left:427px;top:391px;width:1066px;height:297px}
+  /* The ring is a conic gradient with a black face laid over the middle of
+     it, which leaves a stroke of exactly the inset. A conic is the honest
+     shape here: the reference runs a full rainbow AROUND the perimeter —
+     blue along the top, magenta at the bottom left, orange under the
+     middle, green at the bottom right — which a linear gradient cannot do
+     however you rotate it, since it only ever shows two hues at once.  */
+  .nring{position:absolute;inset:0;border-radius:60px;
+         background:conic-gradient(from 0deg,
+           #4285F4,#9B72CB,#D96570,#F2A60C,#34A853,#4285F4)}
+  .nglow{position:absolute;inset:-10px;border-radius:70px;filter:blur(22px);
+         opacity:.85;background:conic-gradient(from 0deg,
+           #4285F4,#9B72CB,#D96570,#F2A60C,#34A853,#4285F4)}
+  .nface{position:absolute;inset:3px;border-radius:57px;background:#000}
+  #nq{position:absolute;left:47px;top:34px;width:960px;
+      font-size:58px;line-height:1.18;font-weight:400;color:#fafafa;
+      white-space:pre-wrap}
+  #ncaret{display:inline-block;width:3px;height:52px;background:#fafafa;
+          vertical-align:-9px;margin-left:4px}
+  #ncaret.off{opacity:0}
+  .nplus{position:absolute;left:31px;top:201px;width:98px;height:62px;
+         border-radius:31px;background:#3c4043}
+  .nplus::before,.nplus::after{content:"";position:absolute;background:#e8eaed;
+         border-radius:2px}
+  .nplus::before{left:33px;top:29px;width:32px;height:4px}
+  .nplus::after{left:47px;top:15px;width:4px;height:32px}
+  .nmic{position:absolute;left:882px;top:215px;width:27px;height:36px;
+        fill:#e8eaed}
+  /* pale until the query lands, then Google blue — measured 231,231,231
+     going to 81,108,215 across frames 40 to 42 */
+  .nsend{position:absolute;left:942px;top:198px;width:94px;height:70px;
+         border-radius:35px;background:#e7e7e7;
+         display:grid;place-items:center}
+  .nsend svg{width:34px;height:34px;fill:#1f1f1f}
+
+  /* ── act 2, the answer page ─────────────────────────────────────────
+     Every number here is off the plate's f70. The mark is 72px square at
+     (66,65); the nav's ink band runs y 87..121 and its items start at 242,
+     483, 585, 761, 933 and 1150 with carets at 401 and 1253; the rule is at
+     207; the chip is 711x99 at (969,291) with its text inset 45; the body
+     starts at x=241 on a 51px pitch, and its last paragraph is grey rather
+     than black — 154,154,154 against the others' 0. */
+  #n2{position:absolute;inset:0;opacity:0}
+  .n2logo{position:absolute;left:66px;top:65px;width:72px;height:73px;
+          background:var(--gmark) center/contain no-repeat}
+  .n2nav{position:absolute;left:0;top:87px;width:1920px;height:44px;
+         font-size:36px;line-height:36px;color:#54585c}
+  .n2nav span{position:absolute;top:0}
+  .n2nav .on{color:#1e1f22}
+  .n2nav i{position:absolute;top:14px;width:0;height:0;border:9px solid transparent;
+           border-top:9px solid #1e1f22;border-bottom:0}
+  .n2rule{position:absolute;left:240px;top:207px;width:1500px;height:2px;
+          background:#d5d5d8}
+  /* the rail: a summary glyph and a compose glyph, measured at
+     x 84..119 / y 293..324 and x 84..122 / y 403..441 */
+  .n2rail{position:absolute;left:84px;top:293px;width:40px;height:150px;
+          stroke:#54585c;fill:none;stroke-width:3;stroke-linecap:round}
+  .n2chip{position:absolute;left:969px;top:291px;max-width:1500px;height:99px;
+          padding:0 45px;border-radius:45px;background:#f0f1f4;
+          font-size:36px;color:#1f1f1f;white-space:pre-wrap;
+          display:grid;place-items:center start;box-sizing:border-box}
+  .n2body{position:absolute;left:241px;top:452px;width:1300px;
+          font-size:36px;line-height:51px;color:#000}
+  .n2body p{margin:0}
+  .n2body p + p{margin-top:42px}
+  .n2body b{font-weight:500}          /* 4px stems against the text's 3 */
+  .n2body .tail{color:#9a9a9a}
+
+  /* ── act 3, the words come back huge ───────────────────────
+     Measured on the plate's settled frame: the lit line's x-height is 82px and
+     its ascender-to-baseline 120px, so the type is 156px; the four visible rows
+     sit 207px apart, so 1.33 leading. The body is thrown out of focus — a stem
+     there rises over 55px against the lit line's 13 — and the lit phrase sits
+     *inline in that same paragraph*, not on a caption line under it.
+
+     So the page is drawn three times over at identical metrics and one shared
+     transform: a blurred dim copy, a sharp copy carrying the live phrase, and a
+     third carrying the far end of the glow's gradient. The plate's letters are
+     white all along (251,254,253 at both ends) — only the halo runs through the
+     wheel, so the colour lives entirely in text-shadow. */
+  #n3{position:absolute;inset:0;opacity:0}
+  /* 4900px is the width that reproduces the plate. It puts both lit phrases on
+     one row 1693px apart — the plate's two rest positions measure ~1722 apart,
+     and its wall grid does not shift vertically by a single pixel across the
+     whole of act 3, so the swap has to be a purely horizontal move. It also
+     leaves ~950px of copy to the right of the second phrase, so the block's
+     own edge never walks into frame the way a narrower wall's does. */
+  .n3page{position:absolute;left:0;top:0;width:4900px;
+          font-size:156px;line-height:207px;font-weight:400;white-space:pre-wrap}
+  /* padding gives the mask and the glow room; the negative margin gives the
+     width back, so all three copies wrap to exactly the same lines */
+  /* The phrase keeps the weight the page gave it: its stems measure 17px on
+     the plate against the 156px type, which is the 500 act 2 sets it in, not
+     the 400 of the copy around it. At 400 the phrase's ink came out a fifth
+     short of the plate's. */
+  .n3page .lit{display:inline-block;padding:0 70px;margin:0 -70px;font-weight:500}
+  .n3wall{color:#252525;filter:blur(15px)}
+  /* The two glow layers carry no ink at all — a transparent glyph still casts
+     its shadow, which is exactly what is wanted here: masking a layer that also
+     held the letters faded the letters with it, and the phrase's bright core
+     came out a fifth short of the plate's. The letters get their own layer on
+     top, unmasked, so they stay at full strength across the crossover. */
+  .n3lit,.n3tip,.n3ink{color:transparent}
+  .n3ink .lit.on{color:#fff}
+  /* The two hues have to hand over across the phrase, so the masks are
+     complementary — the near hue fades out where the far one fades in. Masking
+     only the near layer leaves the far one painting at full strength over the
+     whole phrase, which reads as one colour rather than a gradient. Both ride
+     the phrase's own box, so the ends are the phrase's ends however long it is. */
+  .n3tip .lit{-webkit-mask-image:linear-gradient(90deg,#000 0 8%,transparent 46%);
+              mask-image:linear-gradient(90deg,#000 0 8%,transparent 46%)}
+  .n3lit .lit{-webkit-mask-image:linear-gradient(90deg,transparent 6%,#000 44%);
+              mask-image:linear-gradient(90deg,transparent 6%,#000 44%)}
+
   /* ============ chrome ============ */
   /* ── the side panel ──────────────────────────────────────────────────
      One column down the right, grouped by what the control does, every
@@ -348,6 +495,11 @@
        font:500 11px/1 var(--font);color:#8a8a92;letter-spacing:.06em;
        text-transform:uppercase;user-select:none;padding:4px 18px 22px}
   #hud .grp{display:flex;flex-direction:column;gap:9px;padding:15px 0}
+  /* a class with display:flex outranks the UA's [hidden] rule, so hiding a
+     group by attribute alone leaves it on screen with its property set — the
+     kind of bug that reads as "the switch does nothing" */
+  #hud .grp[hidden]{display:none}
+  #hud [hidden]{display:none}
   #hud .grp + .grp{border-top:1px solid #202027}
   #hud h3{font:600 10px/1 var(--font);letter-spacing:.15em;color:#56565f;
        margin:0 0 1px}
@@ -571,6 +723,78 @@
 
 
   </div>
+
+  <!-- ═══════════════════ PIECE 2 — prompt / response ═══════════════════
+       Kept a sibling of #stage rather than inside it: the two pieces share
+       nothing but the frame and the export path, and nesting would have
+       every rule in one leaking into the other.                        -->
+  <div id="stage2">
+    <div id="n2page"></div>
+
+    <div id="n1">
+      <div class="n-g"></div>
+      <div class="n-ctx" id="nctx"></div>
+      <div class="n-acts">
+        <svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 1 0-3-3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 1 0 0 6c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65a2.92 2.92 0 1 0 2.92-2.92z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11a2 2 0 0 0-2-2h-6.31l.95-4.57.03-.32a1.5 1.5 0 0 0-.44-1.06L14.17 1 7.59 7.59A1.98 1.98 0 0 0 7 9v10a2 2 0 0 0 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2a2 2 0 0 0 2 2h6.31l-.95 4.57-.3.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59A1.98 1.98 0 0 0 17 15V5a2 2 0 0 0-2-2zm4 0v12h4V3h-4z"/></svg>
+      </div>
+      <div class="n-side">
+        <svg viewBox="0 0 24 24"><path d="M3 18h13v-2H3v2zm0-5h10v-2H3v2zm0-7v2h13V6H3zm18 9.59L17.42 12 21 8.41 19.59 7l-5 5 5 5L21 15.59z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      </div>
+
+      <div id="nbox">
+        <div class="nglow" id="nglow"></div>
+        <div class="nring" id="nring"></div>
+        <div class="nface"></div>
+        <div id="nq"><span id="nqt"></span><span id="ncaret"></span></div>
+        <div class="nplus"></div>
+        <svg class="nmic" viewBox="0 0 24 32"><path d="M12 19a5 5 0 0 0 5-5V6a5 5 0 0 0-10 0v8a5 5 0 0 0 5 5zm8-5a8 8 0 0 1-7 7.94V28h-2v-6.06A8 8 0 0 1 4 14h2a6 6 0 0 0 12 0h2z"/></svg>
+        <div class="nsend" id="nsend">
+          <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div id="n2">
+      <div class="n2logo"></div>
+      <div class="n2nav">
+        <span class="on" style="left:242px">AI Mode</span>
+        <i style="left:401px"></i>
+        <span style="left:483px">All</span>
+        <span style="left:585px">Images</span>
+        <span style="left:761px">Videos</span>
+        <span style="left:933px">Shopping</span>
+        <span style="left:1150px">More</span>
+        <i style="left:1253px"></i>
+      </div>
+      <svg class="n2rail" viewBox="0 0 40 150" aria-hidden="true">
+        <path d="M2 4h30M2 14h22M2 24h26"/>
+        <path d="M33 20l2.2 5 5 2.2-5 2.2-2.2 5-2.2-5-5-2.2 5-2.2z" fill="#54585c" stroke="none"/>
+        <path d="M4 118v-8l22-22 8 8-22 22z"/><path d="M2 146h36"/>
+      </svg>
+      <div class="n2rule"></div>
+      <div class="n2chip" id="n2chip"></div>
+      <div class="n2body" id="n2body"></div>
+    </div>
+
+    <!-- the swap's smear. A filter referenced by url() only resolves if its
+         defs travel with the serialised stage, so it lives inside it. -->
+    <svg id="nfx" width="0" height="0" aria-hidden="true"><defs>
+      <filter id="nsmear" x="-60%" y="-20%" width="220%" height="140%">
+        <feGaussianBlur id="nsmearB" stdDeviation="0 0"/>
+      </filter>
+    </defs></svg>
+    <div id="n3">
+      <div class="n3page n3wall" id="n3wall"></div>
+      <div class="n3page n3tip"  id="n3tip"></div>
+      <div class="n3page n3lit"  id="n3lit"></div>
+      <div class="n3page n3ink"  id="n3ink"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- directional (horizontal) blur — the 240° shutter the footage was shot on -->
@@ -583,6 +807,14 @@
 
 <div id="hud">
   <div class="grp">
+    <h3>Piece</h3>
+    <select id="piece">
+      <option value="1" selected>AI Mode search</option>
+      <option value="2">Prompt / response</option>
+    </select>
+  </div>
+
+  <div class="grp">
     <h3>Playback</h3>
     <button id="replay">Replay</button>
     <div class="readout">
@@ -592,26 +824,55 @@
     </div>
   </div>
 
-  <div class="grp">
+  <div class="grp p2only" hidden>
+    <h3>Prompt</h3>
+    <textarea id="n2q" rows="1" spellcheck="false">why is the tush push so controversial</textarea>
+    <span class="warn" id="n2warn"></span>
+    <h3 class="sub">Context line</h3>
+    <textarea id="n2ctx" rows="2" spellcheck="false">The player must touch the ground inbounds with both feet, or with any other body part besides the hands (such as a knee, shin, hip, or elbow).</textarea>
+    <h3 class="sub">Answer</h3>
+    <textarea id="n2a" rows="6" spellcheck="false"></textarea>
+    <h3 class="sub">Trailing line</h3>
+    <textarea id="n2tail" rows="2" spellcheck="false">The primary reasons the play remains highly controversial include:</textarea>
+    <h3 class="sub">Lit phrases</h3>
+    <input id="n2q1" type="text" spellcheck="false" value="it is nearly unstoppable">
+    <input id="n2q2" type="text" spellcheck="false" value="difficult to officiate">
+    <span class="warn" id="n2qwarn"></span>
+    <h3 class="sub">Look</h3>
+    <div class="row">
+      <select id="n2spin">
+        <option value="2.5">Wheel slow</option>
+        <option value="5" selected>Wheel measured</option>
+        <option value="10">Wheel fast</option>
+      </select>
+      <select id="n2size">
+        <option value="120">Wall 120px</option>
+        <option value="156" selected>Wall 156px</option>
+        <option value="192">Wall 192px</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grp p1only">
     <h3>Query</h3>
     <textarea id="qin" rows="1" spellcheck="false"
       >what is the most popular sport in the world</textarea>
   </div>
 
-  <div class="grp">
+  <div class="grp p1only">
     <h3>Answer</h3>
     <textarea id="ain" rows="5" spellcheck="false"></textarea>
     <span class="warn" id="awarn"></span>
   </div>
 
-  <div class="grp">
+  <div class="grp p1only">
     <h3>Look</h3>
     <button id="mb">Motion blur: on</button>
     <button id="lg">Logo: on</button>
     <button id="pg">Bar icon: +</button>
   </div>
 
-  <div class="grp">
+  <div class="grp p1only">
     <h3>Motion</h3>
     <div class="lbl"><label for="tspd">Typing speed</label>
       <input id="tspdn" type="number" min="0.2" max="20" step="0.05" value="1.00">
@@ -636,7 +897,10 @@
 
   <div class="grp">
     <h3>Export</h3>
-    <select id="seg">
+    <!-- the split is the search bar's, so it is offered only while that piece
+         is live: segStart/segEnd already ignore it on the other one, and a
+         control that silently does nothing is worse than no control -->
+    <select id="seg" class="p1only">
       <option value="all" selected>Whole piece</option>
       <option value="query">Search Query Only</option>
       <option value="chat">AI Mode Chat Only</option>
@@ -1709,10 +1973,18 @@ function setSeg(v){
   SEG = v;
   stage.classList.toggle("seg-query", v === "query");
 }
-const segStart = () => SEG === "chat"  ? SPLIT_FP + TAIL : 0;
-const segEnd   = () => SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
+const segStart = () => (PIECE === 2 || SEG !== "chat")  ? 0 : SPLIT_FP + TAIL;
+const segEnd   = () => PIECE === 2 ? N2_NF
+                     : SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
 
 function frame(now){
+  if (PIECE === 2){
+    let t = hold !== null ? hold : (now - t0) / 1000;
+    if (hold === null && t > N2_DUR){ t0 = now; t = 0; }
+    render(t);
+    requestAnimationFrame(frame);
+    return;
+  }
   const a = segStart() / FPS, b = segEnd() / FPS;
   /* Straight back to the start, no pause. There used to be a hold on the
      last frame before looping — 0.9s on the whole piece, scaled down on a
@@ -1727,6 +1999,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 function render(t){
+  if (PIECE === 2) return render2(t);
   const T = Math.min(Math.max(t, 0), DUR);
   /* epsilon: t*FPS lands a hair under the integer at exact frame times, which
      would drop a character on every even frame of the typing schedule.     */
@@ -2441,6 +2714,7 @@ function stageSVG(){
      URL either, and whatever it paints instead would sit on the footage that
      drawStage composites underneath */
   bgimg.style.display = "none";
+  const liveStage = PIECE === 2 ? stage2 : stage;
   const svg =
          '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">' +
          '<foreignObject width="1920" height="1080">' +
@@ -2448,7 +2722,7 @@ function stageSVG(){
               'style="position:relative;width:1920px;height:1080px">' +
          XS.serializeToString(styleTag) +
          XS.serializeToString(document.getElementById("mblurdefs")) +
-         XS.serializeToString(document.getElementById("stage")) +
+         XS.serializeToString(liveStage) +
          '</div></foreignObject></svg>';
   bgvid.style.display = prev; bgimg.style.display = prevImg;
   stage.style.background = prevBg;
@@ -2466,8 +2740,16 @@ function drawStage(ctx, W, H, keepAlpha){
          keepAlpha skips the base entirely, which is the whole of what makes
          an alpha export transparent: the stage is already see-through in
          that mode, so anything painted underneath would fill it back in. */
+      /* The ground under a transparent stage is not always white. Piece 2's
+         plate is transparent and was composited onto black — "it isn't
+         black, it just appears black" — so an opaque export of it has to
+         land on black or the whole piece washes out. Measured before this:
+         act 1 exported at a mean of 216 against the reference's 5.       */
       if (keepAlpha) ctx.clearRect(0, 0, W, H);
-      else { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H); }
+      else {
+        ctx.fillStyle = PIECE === 2 ? "#000" : "#fff";
+        ctx.fillRect(0, 0, W, H);
+      }
       if (!keepAlpha) bgDrawInto(ctx, W, H);
       ctx.drawImage(img, 0, 0, W, H); res();
     };
@@ -3207,6 +3489,338 @@ document.getElementById("seg").addEventListener("change", e => {
   window.play();                   // and playback restarts inside it
 });
 
+/* ══════════════════ PIECE 2 — prompt / response ══════════════════════════
+   192 frames on the same 23.976, 8.008s, and every beat below was read off
+   its own clip rather than guessed:
+
+     3 - 34    the query types in            (ink extent per frame)
+     40 - 42   the send button lights        (231,231,231 -> 81,108,215)
+     43 - 46   it is pressed and released    (dips to 69,91,183 and back)
+     49 - 52   the frame flashes to white    (mean 5 -> 26 -> 102 -> 176 -> 250)
+     52 - 87   the answer page holds
+     88        act 3 opens, dark again       (mean back to 15)
+     118 - 137 the lit phrase changes        (the only frames that move)
+
+   Act 3 is not a scroll — cross-correlating the body band frame to frame
+   gives 0 px of drift everywhere except across that phrase change, so it is
+   two held scenes with a move between them, not a crawl.               */
+const N2_NF = 192;
+const N2_DUR = N2_NF * FRAME;
+const N2_TYPE0 = 3, N2_TYPE1 = 34;
+const N2_SEND = 40, N2_PRESS = 43, N2_REL = 47;
+/* The flash is fitted rather than eased by eye. The plate's frame means run
+   5.3, 25.9, 102.2, 175.5, 250.3 over f48..f52; inverting this build's own
+   opacity-to-mean response says the card has to be at .094, .430, .716 and
+   .984 on those frames. A straight ramp over 48.75..51.75 reproduces them to
+   5.4 rms, against 7.1 for a ramp that runs the full four frames to 52. */
+const N2_FLASH0 = 48.75, N2_FLASH1 = 51.75;
+const N2_A2 = 52, N2_A3 = 88;
+/* The swap is one continuous camera move, not a cut. Tracking the lit core:
+   it holds at x=152 through f114, eases off left (138, 104, 33), goes dark at
+   f124, and the next phrase enters from the right at x=527 and eases to rest
+   at 276 by f138. So the move runs 116→138 with the handover at 124. */
+const N2_SWAP0 = 116, N2_SWAP1 = 138, N2_MID = 124;
+/* The move is not linear and it is not an ordinary ease. Recovering the camera
+   from the lit phrase's centre frame by frame gives 14, 48, 120, 297 … 1498,
+   1617, 1681, 1718, 1739, 1749 — nearly flat for six frames, then almost the
+   whole 1749 inside four. A tanh centred on f124 fits that to 36px rms, 2% of
+   the travel, where an ease-in-out is out by ten times as much. */
+const N2_SWAP_K = 0.4;
+/* The glow's wheel turns backwards. Reading the halo's hue at the phrase's near
+   end on eight frames across act 3 — 29 deg at f94, 2 at f104, 227 at f114, 188
+   at f140, 149 at f150, 65 at f160, 44 at f170, 271 at f190 — and fitting a
+   constant rate gives 4.70 deg a frame decreasing through 75 deg at f160, to
+   29 deg rms. The phrase's far end runs 83 deg ahead of its near end. */
+const N2_HUE_SPREAD = 83, N2_HUE_AT160 = 75, N2_HUE_RATE = 0.94;   // x spin
+/* the ring's hues turn; measured on the clip the whole wheel drifts round
+   rather than pulsing, so this is one angle advancing per frame */
+const N2_SPIN = 5;
+
+const stage2 = document.getElementById("stage2");
+const nqt = document.getElementById("nqt"), ncaret = document.getElementById("ncaret");
+const nring = document.getElementById("nring"), nglow = document.getElementById("nglow");
+const nsend = document.getElementById("nsend");
+const n1El = document.getElementById("n1"), n2El = document.getElementById("n2"),
+      n3El = document.getElementById("n3"), n2page = document.getElementById("n2page");
+const n2chip = document.getElementById("n2chip"), n2body = document.getElementById("n2body");
+const n3wall = document.getElementById("n3wall"), n3lit = document.getElementById("n3lit"),
+      n3tip = document.getElementById("n3tip"), n3ink = document.getElementById("n3ink"),
+      n3fx = document.getElementById("n3");
+const nsmearB = document.getElementById("nsmearB");
+const n3pages = [n3wall, n3tip, n3lit, n3ink];
+const nctx = document.getElementById("nctx");
+
+let N2_Q = "why is the tush push so controversial";
+let N2_CTX = "The player must touch the ground inbounds with both feet, or with any other body part besides the hands (such as a knee, shin, hip, or elbow).";
+let N2_BODY = "The \u201Ctush push\u201D (also known as the \u201CBrotherly Shove\u201D), popularized by quarterback Jalen Hurts and the Philadelphia Eagles, is controversial because it is nearly unstoppable, difficult to officiate, and critics argue it resembles a rugby scrum rather than traditional American football.\n\nWhile pushing a ball carrier from behind has been legal in the NFL since 2005, the play\u2019s explosive rise in popularity has sparked fierce debate across the league. A proposal led by the Green Bay Packers to ban the play fell just two votes short of the required 24 owner votes needed to outlaw it.";
+let N2_QUOTES = ["it is nearly unstoppable", "difficult to officiate"];
+/* the plate's page carries one more line under the answer, greyed and still
+   arriving — 154,154,154 where the paragraphs above it read 0 */
+let N2_TAIL = "The primary reasons the play remains highly controversial include:";
+
+/* The typing keeps the plate's own uneven cadence rather than an even
+   spread: the reference lands its 37 characters on 32 frames with the gaps
+   bunched, and an even spread reads mechanically next to it. */
+let N2_FRAMES = [];
+function n2Schedule(){
+  const n = Math.max(1, N2_Q.length);
+  N2_FRAMES = Array.from({length: n}, (_, k) =>
+    Math.round(N2_TYPE0 + (N2_TYPE1 - N2_TYPE0) * k / Math.max(1, n - 1)));
+}
+function n2Build(){
+  n2Schedule();
+  nctx.textContent = N2_CTX;
+  n2chip.textContent = N2_Q;
+  /* The plate's answer is not one weight. Measuring stem widths on the
+     x-height, its first paragraph runs 3px until the claim starts and 4px from
+     there to the end of the paragraph, and the two quoted names are 4px too.
+     Both are derived rather than marked up by hand: the emphasis begins at the
+     first lit phrase — the same string act 3 will pull out — and runs to the
+     end of its paragraph, so re-pointing the quote re-points the bold. */
+  n2body.innerHTML = "";
+  const esc = x => x.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const paras = N2_BODY.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+  const lead = N2_QUOTES.find(q => q && paras.some(x => x.includes(q))) || "";
+  for (const para of paras){
+    const el = document.createElement("p");
+    const at = lead ? para.indexOf(lead) : -1;
+    let html = at >= 0 ? esc(para.slice(0, at)) + "<b>" + esc(para.slice(at)) + "</b>"
+                       : esc(para);
+    html = html.replace(/\u201C[^\u201D]*\u201D/g, m => "<b>" + m + "</b>");
+    el.innerHTML = html;
+    n2body.appendChild(el);
+  }
+  if (N2_TAIL.trim()){
+    const el = document.createElement("p");
+    el.className = "tail";
+    el.textContent = N2_TAIL.trim();
+    n2body.appendChild(el);
+  }
+  /* Act 3's wall is the same copy at ~5x — the answer's own words coming back
+     at the size of the claim — with each lit phrase marked where it already
+     falls in that sentence, because the plate lights the phrase in place
+     rather than pulling it out onto a line of its own. */
+  n3wall.innerHTML = n3Markup();
+  n3tip.innerHTML  = n3wall.innerHTML;
+  n3lit.innerHTML  = n3wall.innerHTML;
+  n3ink.innerHTML  = n3wall.innerHTML;
+}
+
+/* Wrap each quote where it occurs in the body. A quote that is not in the body
+   is simply not marked — the wall still renders, nothing lights, and the
+   Prompt panel's own warning is what says so. */
+function n3Markup(){
+  /* Collapse space inside a paragraph but keep the break between them — the
+     plate's wall has a clear empty band at y 797..1010 where the answer's
+     second paragraph starts, and losing it packs the frame with ink. */
+  const body = N2_BODY.split(/\n\s*\n/).map(x => x.replace(/\s+/g, " ").trim())
+                      .filter(Boolean).join("\n\n");
+  const esc = x => x.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const marks = [];
+  N2_QUOTES.forEach((q, i) => {
+    const at = q ? body.indexOf(q) : -1;
+    if (at >= 0) marks.push({ at, q, i });
+  });
+  marks.sort((a, b) => a.at - b.at);
+  let html = "", p = 0;
+  for (const m of marks){
+    if (m.at < p) continue;                       // overlapping quotes: first wins
+    html += esc(body.slice(p, m.at))
+          + '<span class="lit" data-i="' + m.i + '">' + esc(m.q) + '</span>';
+    p = m.at + m.q.length;
+  }
+  return html + esc(body.slice(p));
+}
+
+/* Aim the camera at a phrase by asking the layout where that phrase ended up,
+   so editing the copy, the phrase or the wall's size re-aims it on its own
+   instead of desynchronising a baked translate. The plate centres the lit line
+   at x=960 and puts its box centre at y=512. */
+function n3Aim(i){
+  const sp = n3wall.querySelector('.lit[data-i="' + i + '"]');
+  if (!sp) return { x: 0, y: 0 };
+  return { x: 960 - (sp.offsetLeft + sp.offsetWidth / 2),
+           y: 512 - (sp.offsetTop + sp.offsetHeight / 2) };
+}
+
+function render2(t){
+  const T = Math.min(Math.max(t, 0), N2_DUR);
+  const f = T * FPS + 1e-6;
+
+  /* ── the ring turns throughout act 1 ── */
+  const spin = $n2spin ? +$n2spin.value : N2_SPIN;
+  const ang = (f * spin) % 360;
+  const wheel = `conic-gradient(from ${ang.toFixed(1)}deg,` +
+                "#4285F4,#9B72CB,#D96570,#F2A60C,#34A853,#4285F4)";
+  nring.style.background = wheel;
+  nglow.style.background = wheel;
+
+  /* ── typing ── */
+  let n = 0;
+  while (n < N2_FRAMES.length && N2_FRAMES[n] <= f) n++;
+  if (nqt.dataset.n !== String(n)){
+    nqt.dataset.n = n;
+    nqt.textContent = N2_Q.slice(0, n);
+  }
+  /* the caret blinks until the first character and is gone once the last
+     one lands, the same rule the other piece uses */
+  if (f >= N2_TYPE1 + 1)      ncaret.className = "off";
+  else if (f >= N2_TYPE0)     ncaret.className = "";
+  else ncaret.className = (Math.floor(f / 8) % 2) ? "off" : "";
+
+  /* ── the send button lights, then is pressed ── */
+  let sendCol = "#e7e7e7", sendInk = "#1f1f1f", press = 1;
+  if (f >= N2_SEND){
+    const u = sat((f - N2_SEND) / (42 - N2_SEND));
+    const r = Math.round(231 + (81 - 231) * u),
+          g = Math.round(231 + (108 - 231) * u),
+          b = Math.round(231 + (215 - 231) * u);
+    sendCol = `rgb(${r},${g},${b})`;
+    sendInk = u > 0.5 ? "#fff" : "#1f1f1f";
+  }
+  if (f >= N2_PRESS && f < N2_REL) press = 0.93;
+  nsend.style.background = sendCol;
+  nsend.style.transform = `scale(${press})`;
+  nsend.querySelector("svg").style.fill = sendInk;
+
+  /* ── the flash, and the handover ── */
+  const flash = sat((f - N2_FLASH0) / (N2_FLASH1 - N2_FLASH0));
+  n2page.style.opacity = (f >= N2_A3 ? 0 : flash).toFixed(3);
+  n1El.style.opacity = (1 - flash).toFixed(3);
+  n1El.style.visibility = flash >= 1 ? "hidden" : "visible";
+
+  /* ── act 2 ── */
+  const inA2 = f >= N2_A2 && f < N2_A3;
+  n2El.style.opacity = inA2 ? sat((f - N2_A2) / 6).toFixed(3) : "0";
+  n2El.style.visibility = inA2 ? "visible" : "hidden";
+
+  /* ── act 3 ── */
+  const inA3 = f >= N2_A3;
+  n3El.style.opacity = inA3 ? sat((f - N2_A3) / 4).toFixed(3) : "0";
+  n3El.style.visibility = inA3 ? "visible" : "hidden";
+  if (inA3){
+    /* One move from where the layout put the first phrase to where it put the
+       second. Because both ends are read back off the spans, the distance is
+       whatever the copy makes it — the plate's own travel falls out rather
+       than being typed in. Both phrases stay lit throughout: they are 1722px
+       apart against a 1920px frame, so the one that is not being looked at is
+       simply outside it, and nothing has to be switched on or off. */
+    const swapE = g => {
+      const lo = Math.tanh(N2_SWAP_K * (N2_SWAP0 - N2_MID));
+      const hi = Math.tanh(N2_SWAP_K * (N2_SWAP1 - N2_MID));
+      const c = Math.min(Math.max(g, N2_SWAP0), N2_SWAP1);
+      return (Math.tanh(N2_SWAP_K * (c - N2_MID)) - lo) / (hi - lo);
+    };
+    const a0 = n3Aim(0), a1 = n3Aim(1), e = swapE(f);
+    const tx = a0.x + (a1.x - a0.x) * e, ty = a0.y + (a1.y - a0.y) * e;
+    for (const el of n3pages) el.style.transform =
+        `translate3d(${tx.toFixed(1)}px,${ty.toFixed(1)}px,0)`;
+
+    /* Only the phrase being looked at is lit. The two are 1693px apart against
+       a 1920px frame, so at rest the other one's tail still reaches about 150px
+       into the far side — the plate has no lit pixel there. The handover is a
+       hard cut on the middle frame rather than a fade, because that is the
+       frame the smear is widest on and the plate has nothing above 200 there
+       either: it changes under cover rather than dipping to black. */
+    const which = f >= N2_MID ? 1 : 0;
+    for (const el of [n3tip, n3lit, n3ink])
+      for (const sp of el.querySelectorAll(".lit"))
+        sp.classList.toggle("on", +sp.dataset.i === which);
+
+    /* The plate never fades the phrase out — on f124 it still carries 5.4% of
+       the frame at a mean of 119. What it does is smear: the camera is doing
+       350px in that one frame, so the type spreads and its peak drops from 255
+       to 192. Drive the smear off the frame's own velocity, so re-timing the
+       swap re-blurs it instead of leaving a stale streak behind. */
+    const vel = Math.abs(a1.x - a0.x) * (swapE(f + 0.5) - swapE(f - 0.5));
+    nsmearB.setAttribute("stdDeviation", (vel / 2.5).toFixed(1) + " 0");
+    n3fx.style.filter = vel > 6 ? "url(#nsmear)" : "";
+
+    /* the wheel the ring carried, still turning, now spread along the phrase:
+       the near end at one hue and the far end N2_HUE_SPREAD ahead of it */
+    const h = (N2_HUE_AT160 - (f - 160) * spin * N2_HUE_RATE % 360 + 720) % 360;
+    const far = (h + N2_HUE_SPREAD) % 360;
+    /* Tight and bright, then straight down: banding the plate's settled frame
+       puts 2.9% of it above 150 but only 0.2% between 90 and 150, so its halo
+       has almost no broad mid-level skirt. Three flat shadows gave that band
+       2.9% and ran the frame 3.5 hot; dropping the outer two to low alpha
+       lands the frame at 13.8 against the plate's 14.0, with the lit core
+       itself matched at 7.12 against 7.19. */
+    const glow = c => `0 0 12px hsl(${c},92%,78%), 0 0 30px hsla(${c},95%,58%,.70),`
+                    + ` 0 0 88px hsla(${c},95%,50%,.34)`;
+    /* the shadow goes on the phrase, never on the page: transparent text still
+       casts one, so a shadow set on the page lights the whole wall */
+    for (const sp of n3lit.querySelectorAll(".lit"))
+      sp.style.textShadow = sp.classList.contains("on") ? glow(far) : "none";
+    for (const sp of n3tip.querySelectorAll(".lit"))
+      sp.style.textShadow = sp.classList.contains("on") ? glow(h) : "none";
+  }
+}
+
+/* ── which piece is live ──────────────────────────────────────────────────
+   The two share the frame, the clock and every export path; they share no
+   markup and no constants. PIECE decides which stage renders, which panel
+   groups show, and which duration the loop and the exports run to.     */
+let PIECE = 1;
+const $piece = document.getElementById("piece");
+function pieceDur(){ return PIECE === 2 ? N2_DUR : DUR; }
+function pieceFrames(){ return PIECE === 2 ? N2_NF : NF_EFF; }
+function applyPiece(){
+  stage.style.display  = PIECE === 2 ? "none" : "";
+  stage2.classList.toggle("live", PIECE === 2);
+  for (const el of document.querySelectorAll(".p1only")) el.hidden = PIECE === 2;
+  for (const el of document.querySelectorAll(".p2only")) el.hidden = PIECE !== 2;
+  if (PIECE === 2) n2Build();
+  render(hold !== null ? hold : 0);
+  if (hold === null) window.play();
+}
+$piece.addEventListener("change", e => { PIECE = +e.target.value; applyPiece(); });
+
+/* ── piece 2's own controls ── */
+const $n2q = document.getElementById("n2q"), $n2ctx = document.getElementById("n2ctx"),
+      $n2a = document.getElementById("n2a"), $n2q1 = document.getElementById("n2q1"),
+      $n2q2 = document.getElementById("n2q2"), $n2warn = document.getElementById("n2warn"),
+      $n2spin = document.getElementById("n2spin"), $n2size = document.getElementById("n2size"),
+      $n2tail = document.getElementById("n2tail"), $n2qwarn = document.getElementById("n2qwarn");
+$n2a.value = N2_BODY;
+function applyN2(){
+  N2_Q = $n2q.value;
+  N2_CTX = $n2ctx.value;
+  N2_BODY = $n2a.value;
+  N2_QUOTES = [$n2q1.value, $n2q2.value];
+  N2_TAIL = $n2tail.value;
+  n2Build();
+  /* Say what act 3 will actually do with these. A phrase that is not in the
+     answer is never marked, so it neither bolds on the page nor lights in the
+     wall — and the only visible symptom would be a camera that does not move.
+     The other half is the wall's line breaks: the swap is a horizontal move,
+     so the two phrases have to end up on the same row of it. */
+  const body = N2_BODY.replace(/\s+/g, " ");
+  const missing = N2_QUOTES.filter(q => q.trim() && !body.includes(q));
+  const sp = [0, 1].map(i => n3wall.querySelector('.lit[data-i="' + i + '"]'));
+  const split = sp[0] && sp[1] && sp[0].offsetTop !== sp[1].offsetTop;
+  $n2qwarn.textContent =
+      missing.length ? missing.length + " not in the answer — nothing to light"
+    : split          ? "on different rows of the wall — the swap will tilt"
+    :                  "";
+  $n2q.style.height = "auto"; $n2q.style.height = $n2q.scrollHeight + "px";
+  /* the box does not grow, so say when the prompt has outrun it rather than
+     letting it silently wrap out of the frame */
+  const over = Math.max(0, nqt.scrollWidth - 960);
+  $n2warn.textContent = `${N2_Q.length} chars`
+                      + (over ? ` · ${Math.round(over)}px past the box` : "");
+  render(hold !== null ? hold : 0);
+}
+for (const el of [$n2q, $n2ctx, $n2a, $n2q1, $n2q2, $n2tail]) el.addEventListener("input", applyN2);
+$n2spin.addEventListener("change", () => { render(hold !== null ? hold : 0); });
+$n2size.addEventListener("change", e => {
+  for (const el of n3pages){
+    el.style.fontSize = e.target.value + "px";
+    el.style.lineHeight = (+e.target.value * 1.33) + "px";   // the plate's leading
+  }
+  render(hold !== null ? hold : 0);
+});
+
 document.getElementById("replay").onclick = window.play;
 
 function boot(){
@@ -3233,6 +3847,8 @@ function boot(){
   }
   setBez(CAM_BEZ);                           // draws the curve, builds the camera
   applyQuery();                              // always: it sizes the bar
+  n2Build();                                 // the other piece, ready to switch to
+  applyN2();
   render(hold !== null ? hold : 0);
 }
 boot();
