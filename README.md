@@ -70,10 +70,14 @@ centred in the space beside it. The panel lets you:
   leaves the bar on 2491px and the pan on 1583 exactly where they were, and only act 2 changes.
   The panel reports the rows the bubble actually draws rather than the newlines counted — a
   trailing break makes no row of its own, and a long line makes one without any break at all
-- **turn the wordmark off** — Act 1's Google logo drops out and the bar sits alone in the white.
-  Nothing measures back off the logo, so the bar width, the pan and the beam are untouched; the
-  small G in the Act 2 header is a separate mark and stays
-- **switch the bar's icon** — the plus at the left of the search bar becomes the G mark, measured
+- **switch the mark** — one control, two looks, because they were only ever used in two
+  combinations. **Wordmark** is the plate's own: the Google logo above the bar and the plus
+  inside it. **G in the bar** is the other: the wordmark drops out and the G carries the mark
+  itself, which is the point — a wordmark over a G is saying the same thing twice. Nothing
+  measures back off the wordmark, so dropping it leaves the bar width, the pan and the beam
+  untouched; the small G in the Act 2 header is a separate mark and stays either way.
+  What the G does move is below.
+- **the bar's G mark** — the plus at the left of the search bar becomes the G mark, measured
   off the ad's own wide shot: there the bar is 165 tall and the mark 88 square, inset 38.5
   vertically and 41 on the left, so at our 234 the mark is 124.8 tall and inset 54.6 / 58.1.
   It then carries **+8.72% by request**, taken about its own centre so it grows in place —
@@ -225,7 +229,9 @@ what is typed, they are simply no longer printed.
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
 answer — `%0A` in `#q=` is a row break, so a broken query survives a reload and a headless
-render — `#logo=0` drops the wordmark, `#icon=g` puts the G in the search bar, `#speed=` sets
+render — `#logo=0` and `#icon=g` both name the G look and are both written when it is on, so
+older URLs and headless stills still resolve; note that `#logo=0` alone now brings the G with it
+rather than leaving the plus, the two being one choice. `#speed=` sets
 the typing rate, `#cam=` the camera's and `#bez=` its easing, so an edit survives a reload and works in headless renders.
 
 ---

@@ -607,8 +607,7 @@
   <div class="grp">
     <h3>Look</h3>
     <button id="mb">Motion blur: on</button>
-    <button id="lg">Logo: on</button>
-    <button id="pg">Bar icon: +</button>
+    <button id="mark">Mark: wordmark</button>
   </div>
 
   <div class="grp">
@@ -1363,20 +1362,18 @@ document.getElementById("mb").onclick = e => {
    Carried in the hash as #logo=0 so it survives a reload and rides along
    into the headless stills and the GIF export, same as #q= and #a=.       */
 const logoEl = document.querySelector(".logo");
-const $lg    = document.getElementById("lg");
-let showLogo = Q.get("logo") !== "0";
+/* ── the two marks are one choice ──────────────────────────────────────
+   The wordmark above the bar and the plus inside it are the plate's own
+   look. The G in the bar is the other one, and it carries the mark itself,
+   so a wordmark over it would be saying the same thing twice — which is
+   why these were only ever used in those two combinations. One control.
+   Both hash names still work and are still both written, so a URL or a
+   headless still made before this reads the same.                      */
+const MARK_G = Q.get("icon") === "g" || Q.get("logo") === "0";
+let showLogo = !MARK_G;
 function applyLogo(){
   logoEl.style.display = showLogo ? "" : "none";
-  $lg.textContent = "Logo: " + (showLogo ? "on" : "off");
 }
-$lg.onclick = () => {
-  showLogo = !showLogo;
-  applyLogo();
-  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-  showLogo ? h.delete("logo") : h.set("logo", "0");
-  const s = h.toString();                    // no bare "#" when nothing is left
-  history.replaceState(null, "", s ? "#" + s : location.pathname);
-};
 applyLogo();
 
 /* ── uploaded footage behind act 1 ─────────────────────────────────────────
@@ -1536,8 +1533,8 @@ $bgclr.onclick = () => {
    Carried as #icon=g, same as #logo=0.                                    */
 const plusEl  = document.querySelector(".plus");
 const queryEl = document.querySelector(".query");
-const $pg     = document.getElementById("pg");
-let plusAsG   = Q.get("icon") === "g";
+const $mark   = document.getElementById("mark");
+let plusAsG   = MARK_G;
 /* Sets the icon and, with it, where the query starts. It does NOT re-lay-out
    the bar: at boot it runs before applyQuery exists, and boot calls that
    anyway. The click handler below does the re-layout itself.             */
@@ -1545,20 +1542,26 @@ function applyPlus(){
   plusEl.classList.toggle("as-g", plusAsG);
   stage.classList.toggle("icon-g", plusAsG);   // the bar and button scale on it
   iconGeom(plusAsG);
-  $pg.textContent = "Bar icon: " + (plusAsG ? "G" : "+");
   TEXT_LEFT = plusAsG ? TEXT_LEFT_G : TEXT_LEFT_REF;
   queryEl.style.left = TEXT_LEFT + "px";
 }
-$pg.onclick = () => {
-  plusAsG = !plusAsG;
+function applyMark(){
+  applyLogo();
   applyPlus();
+  $mark.textContent = "Mark: " + (plusAsG ? "G in the bar" : "wordmark");
+}
+$mark.onclick = () => {
+  plusAsG  = !plusAsG;
+  showLogo = !plusAsG;               // the G stands in for the wordmark
+  applyMark();
   applyQuery();                      // the bar re-derives from the text's end
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-  plusAsG ? h.set("icon", "g") : h.delete("icon");
-  const s = h.toString();
+  if (plusAsG){ h.set("icon", "g"); h.set("logo", "0"); }
+  else        { h.delete("icon");   h.delete("logo"); }
+  const s = h.toString();            // no bare "#" when nothing is left
   history.replaceState(null, "", s ? "#" + s : location.pathname);
 };
-applyPlus();
+applyMark();
 
 const lerp  = (a, b, u) => a + (b - a) * u;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
