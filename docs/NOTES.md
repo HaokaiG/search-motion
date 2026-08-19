@@ -146,6 +146,48 @@ Nothing here is judged by eye. Every change goes through the same loop:
   needs on `#stage` or below. Worth checking against the live DOM rather than
   by eye: rasterise a frame and compare an ink extent.
 
+## Removed: the PNG sequence → GIF importer
+
+Taken out by request. It is not lost — the code is reachable in the history and
+the machinery it leaned on is all still here — so this is what it was and how to
+put it back.
+
+**Where it lives.** `cb127c8` added it alongside the PNG sequence export;
+`3bb9215` gave it the matte. Two later commits, `d6d8c05` (its own frame rate)
+and `447913a` (the 50% alpha cut), were reverted before it was removed, so they
+are reachable too but were not part of the state it was in. `git show cb127c8`
+and `git show 3bb9215` are the whole of it.
+
+**What it was.** A `<select id="pmatte">` and an `<input id="pin" type="file"
+accept="image/png" multiple>` under the export buttons, with a `#pstat` line, and
+one `change` handler. The handler:
+
+1. filtered to `.png` and sorted by name with `localeCompare(..., {numeric:true})`,
+   so `frame_2` precedes `frame_10`;
+2. decoded each with `createImageBitmap`, took the first bitmap's size as the
+   GIF's and counted any that differed;
+3. composited each frame onto the matte in a `read(bitmap)` helper — clear the
+   canvas, draw, then walk the RGBA blending anything under 255 alpha toward the
+   matte colour while LEAVING the original alpha in place, so the writer could
+   still tell a hole from a matted pixel;
+4. ran the two passes the piece's own GIF export runs: every frame into a `Hist`,
+   then `paletteOf`, then a `GifWriter` frame per bitmap;
+5. reported frames, size, the rate the GIF could actually hold, the palette size
+   and the clear/matted split, then cleared `$pin.value` in a `finally`.
+
+**What it needed that is still here.** `Hist` / `paletteOf` / `nearestIn`, the
+`GifWriter` with its Floyd-Steinberg dither, `lzwInto`, `Sink`, and
+`GIF_ALPHA_CUT`. `GifWriter` still takes a `trans` index and still writes the
+transparent GCE — nothing calls it with one now, and that is the only dead
+capability the removal left. Rebuilding the importer needs no new machinery,
+only the handler and its two controls.
+
+**The one thing to decide again on the way back.** Where the see-through half
+goes. `GIF_ALPHA_CUT` at 8 keeps the bar's scrim by painting it onto the matte —
+71.5% clear, 28.5% drawn, the bar a solid slab. At 128 it goes to the hole and
+only what was opaque survives — 94% clear, 6% drawn, the gradient still reading
+at 5.5% of the frame. Both were asked for, a month apart in the same afternoon.
+
 ## Open decisions
 
 Departures from the plate that were deliberate, and the one-line way back:
