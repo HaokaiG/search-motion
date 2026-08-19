@@ -146,6 +146,93 @@ Nothing here is judged by eye. Every change goes through the same loop:
   needs on `#stage` or below. Worth checking against the live DOM rather than
   by eye: rasterise a frame and compare an ink extent.
 
+## Removed: the GIF option panel, and the PNG sequence → GIF importer
+
+Two features, taken out by request, neither lost. What follows is enough to put
+either back without rediscovering anything.
+
+### The GIF option panel
+
+Never landed on `main`. It lives on the branch **`gif-photoshop-controls`**, two
+commits: `5b3e3e2` put the first controls on the importer, `b4b90e9` built them
+out to what Photoshop's Save For Web offers and made ONE panel group that both
+the piece's GIF export and the importer read through a `gifOpts()` reader.
+
+    Colour reduction  Selective / Perceptual / Adaptive
+    Colours           256 / 128 / 64 / 32 / 16
+    Dither            None / Diffusion / Pattern / Noise, with a percentage
+    Transparency      a threshold, with a white or black matte
+    Looping           forever / once / 3x / 10x
+    Lossy             0 / 20 / 50 / 80
+    Interlaced        on / off
+
+The parts worth not re-deriving:
+
+- **Selective** gives a box the exact colour of its most populous bin rather
+  than the box's weighted mean. A flat area is one bin, so its entry is exactly
+  right and the area does not shift — which is the whole of why type and line
+  art look sharp. Measured, pixels reproduced exactly: 96.1% at 256 colours,
+  94.8% at 64, 93.7% at 16, against 92.8% and 88.9% for the mean at the lower
+  two. **Perceptual** picks the box to split on a 3/6/1-weighted extent rather
+  than a raw one. **Restrictive** was deliberately not built: a fixed 216-colour
+  cube would only throw colour away now.
+- **Pattern** dither uses a fixed 8x8 Bayer matrix, which is stable frame to
+  frame and so does not crawl on an animation the way diffusion can. Pattern and
+  noise perturb flat colour too, which is why None was the default.
+- **Lossy** lets a pixel keep the previous index when that is nearly as good,
+  lengthening the LZW runs. It was calibrated wrong first: nine times the
+  squared error let a pixel land 47 levels out — 18% of the frame still exact,
+  mean error 21.7 — to take 3% off the file. Rescaled to `l*l/6.4`, so the
+  number reads as levels of error, it does almost nothing on flat art (0.9% at
+  lossy 80) and a great deal on dithered gradients (13.3% at lossy 20 with **no**
+  measurable error change, 41.6% at 80). Both numbers matter: without the second
+  the control looks pointless, without the first it looks free.
+- Interlacing is four passes over the rows — every 8th from 0, every 8th from 4,
+  every 4th from 2, every 2nd from 1 — plus 0x40 in the image descriptor.
+- The loop count is the two bytes after `NETSCAPE2.0`, 0 being forever.
+
+### The PNG sequence → GIF importer
+
+Taken out by request. It is not lost — the code is reachable in the history and
+the machinery it leaned on is all still here — so this is what it was and how to
+put it back.
+
+**Where it lives.** `cb127c8` added it alongside the PNG sequence export;
+`3bb9215` gave it the matte. Two later commits, `d6d8c05` (its own frame rate)
+and `447913a` (the 50% alpha cut), were reverted before it was removed, so they
+are reachable too but were not part of the state it was in. `git show cb127c8`
+and `git show 3bb9215` are the whole of it.
+
+**What it was.** A `<select id="pmatte">` and an `<input id="pin" type="file"
+accept="image/png" multiple>` under the export buttons, with a `#pstat` line, and
+one `change` handler. The handler:
+
+1. filtered to `.png` and sorted by name with `localeCompare(..., {numeric:true})`,
+   so `frame_2` precedes `frame_10`;
+2. decoded each with `createImageBitmap`, took the first bitmap's size as the
+   GIF's and counted any that differed;
+3. composited each frame onto the matte in a `read(bitmap)` helper — clear the
+   canvas, draw, then walk the RGBA blending anything under 255 alpha toward the
+   matte colour while LEAVING the original alpha in place, so the writer could
+   still tell a hole from a matted pixel;
+4. ran the two passes the piece's own GIF export runs: every frame into a `Hist`,
+   then `paletteOf`, then a `GifWriter` frame per bitmap;
+5. reported frames, size, the rate the GIF could actually hold, the palette size
+   and the clear/matted split, then cleared `$pin.value` in a `finally`.
+
+**What it needed that is still here.** `Hist` / `paletteOf` / `nearestIn`, the
+`GifWriter` with its Floyd-Steinberg dither, `lzwInto`, `Sink`, and
+`GIF_ALPHA_CUT`. `GifWriter` still takes a `trans` index and still writes the
+transparent GCE — nothing calls it with one now, and that is the only dead
+capability the removal left. Rebuilding the importer needs no new machinery,
+only the handler and its two controls.
+
+**The one thing to decide again on the way back.** Where the see-through half
+goes. `GIF_ALPHA_CUT` at 8 keeps the bar's scrim by painting it onto the matte —
+71.5% clear, 28.5% drawn, the bar a solid slab. At 128 it goes to the hole and
+only what was opaque survives — 94% clear, 6% drawn, the gradient still reading
+at 5.5% of the frame. Both were asked for, a month apart in the same afternoon.
+
 ## Open decisions
 
 Departures from the plate that were deliberate, and the one-line way back:
