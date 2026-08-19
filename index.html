@@ -607,7 +607,8 @@
   <div class="grp">
     <h3>Look</h3>
     <button id="mb">Motion blur: on</button>
-    <button id="mark">Mark: wordmark</button>
+    <button id="lg">Logo: on</button>
+    <button id="pg">Bar icon: +</button>
   </div>
 
   <div class="grp">
@@ -662,16 +663,9 @@
     <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
     <h3 class="sub">PNG sequence → GIF</h3>
-    <select id="pfps">
-      <option value="8">8 fps</option>
-      <option value="12" selected>12 fps</option>
-      <option value="24">24 fps</option>
-      <option value="30">30 fps</option>
-      <option value="60">60 fps</option>
-    </select>
     <select id="pmatte">
-      <option value="keep" selected>Transparent · white matte</option>
-      <option value="black">Transparent · black matte</option>
+      <option value="keep" selected>Keep transparency · white matte</option>
+      <option value="black">Keep transparency · black matte</option>
       <option value="flat">Flatten onto white</option>
     </select>
     <input id="pin" type="file" accept="image/png" multiple>
@@ -1369,18 +1363,20 @@ document.getElementById("mb").onclick = e => {
    Carried in the hash as #logo=0 so it survives a reload and rides along
    into the headless stills and the GIF export, same as #q= and #a=.       */
 const logoEl = document.querySelector(".logo");
-/* ── the two marks are one choice ──────────────────────────────────────
-   The wordmark above the bar and the plus inside it are the plate's own
-   look. The G in the bar is the other one, and it carries the mark itself,
-   so a wordmark over it would be saying the same thing twice — which is
-   why these were only ever used in those two combinations. One control.
-   Both hash names still work and are still both written, so a URL or a
-   headless still made before this reads the same.                      */
-const MARK_G = Q.get("icon") === "g" || Q.get("logo") === "0";
-let showLogo = !MARK_G;
+const $lg    = document.getElementById("lg");
+let showLogo = Q.get("logo") !== "0";
 function applyLogo(){
   logoEl.style.display = showLogo ? "" : "none";
+  $lg.textContent = "Logo: " + (showLogo ? "on" : "off");
 }
+$lg.onclick = () => {
+  showLogo = !showLogo;
+  applyLogo();
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  showLogo ? h.delete("logo") : h.set("logo", "0");
+  const s = h.toString();                    // no bare "#" when nothing is left
+  history.replaceState(null, "", s ? "#" + s : location.pathname);
+};
 applyLogo();
 
 /* ── uploaded footage behind act 1 ─────────────────────────────────────────
@@ -1540,8 +1536,8 @@ $bgclr.onclick = () => {
    Carried as #icon=g, same as #logo=0.                                    */
 const plusEl  = document.querySelector(".plus");
 const queryEl = document.querySelector(".query");
-const $mark   = document.getElementById("mark");
-let plusAsG   = MARK_G;
+const $pg     = document.getElementById("pg");
+let plusAsG   = Q.get("icon") === "g";
 /* Sets the icon and, with it, where the query starts. It does NOT re-lay-out
    the bar: at boot it runs before applyQuery exists, and boot calls that
    anyway. The click handler below does the re-layout itself.             */
@@ -1549,26 +1545,20 @@ function applyPlus(){
   plusEl.classList.toggle("as-g", plusAsG);
   stage.classList.toggle("icon-g", plusAsG);   // the bar and button scale on it
   iconGeom(plusAsG);
+  $pg.textContent = "Bar icon: " + (plusAsG ? "G" : "+");
   TEXT_LEFT = plusAsG ? TEXT_LEFT_G : TEXT_LEFT_REF;
   queryEl.style.left = TEXT_LEFT + "px";
 }
-function applyMark(){
-  applyLogo();
+$pg.onclick = () => {
+  plusAsG = !plusAsG;
   applyPlus();
-  $mark.textContent = "Mark: " + (plusAsG ? "G in the bar" : "wordmark");
-}
-$mark.onclick = () => {
-  plusAsG  = !plusAsG;
-  showLogo = !plusAsG;               // the G stands in for the wordmark
-  applyMark();
   applyQuery();                      // the bar re-derives from the text's end
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-  if (plusAsG){ h.set("icon", "g"); h.set("logo", "0"); }
-  else        { h.delete("icon");   h.delete("logo"); }
-  const s = h.toString();            // no bare "#" when nothing is left
+  plusAsG ? h.set("icon", "g") : h.delete("icon");
+  const s = h.toString();
   history.replaceState(null, "", s ? "#" + s : location.pathname);
 };
-applyMark();
+applyPlus();
 
 const lerp  = (a, b, u) => a + (b - a) * u;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -2136,16 +2126,10 @@ $q.addEventListener("input", () => {
    error is zero when the colour is already in the palette — so it costs
    noise only where there was banding to fix.                             */
 
-/* Where "transparent" stops and "drawn" starts, out of 255.
-   At half. A GIF has one transparent index and no way to be partly there,
-   so anything genuinely see-through — the bar's 20% scrim at alpha 51, the
-   gradient's glow, the soft half of every antialiased edge — cannot be
-   rendered as see-through and can only be faked by painting it solid onto
-   a matte. Painting it solid is what read as wrong: a grey slab where the
-   bar should be a wash, a halo where the glow should fade. So they go to
-   the hole instead, and what stays is what was actually opaque — the
-   query, the mark, the chip's face, the outline's core.                 */
-const GIF_ALPHA_CUT = 128;
+/* Where "transparent" stops and "drawn" starts, out of 255. Deliberately
+   near zero rather than at half: the bar's scrim is alpha 51 and belongs on
+   the drawn side, composited onto the matte, not dropped.               */
+const GIF_ALPHA_CUT = 8;
 
 /* 6 bits a channel: 262144 bins, and the sums are kept exactly so a bin's
    mean is the true mean of the colours in it rather than the bin's centre */
@@ -3039,18 +3023,8 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
 /* -- RGBA -> the four planes ---------------------------------------------
    BT.709, video range, which is what ProRes means everywhere it is opened.
    Alpha goes 8 -> 16 bit as v * 257, so opaque is exactly 65535 rather than
-   the 65343 a trip through a 10-bit plane leaves behind.
-   PREMULTIPLIED, which it did not used to be. Canvas hands back straight
-   RGBA and the file was written that way, and it is wrong twice over. A
-   compositor that reads 4444 as premultiplied — many do — adds the whole
-   un-multiplied colour instead of its share of it, which is exactly the
-   bright halo that turned up around the gradient. And the straight values
-   are not even trustworthy: canvas stores premultiplied internally and
-   divides on the way out, so at alpha 20 the division multiplies the
-   rounding by 12 and the colour comes back as noise. Measured on the beam,
-   the pixels at alpha 1-31 spanned the FULL 0-255 range in every channel.
-   Multiplying it back through fixes the halo and throws the noise away with
-   it, since noise x a small alpha is a small number.                     */
+   the 65343 a trip through a 10-bit plane leaves behind. Straight, not
+   premultiplied: canvas hands back straight RGBA and 4444 wants straight. */
 function prPlanes(rgba, W, H){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   const stride = mbW * 16, rows = mbH * 16, n = stride * rows;
@@ -3059,8 +3033,7 @@ function prPlanes(rgba, W, H){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      const k = rgba[p + 3] / 255;
-      const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
+      const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
       U[q] = (512 + 896 * (b - l) / (255 * 1.8556) + 0.5) | 0;
@@ -3267,12 +3240,11 @@ $pin.addEventListener("change", async () => {
     cvs.width = W; cvs.height = H;
     const ctx = cvs.getContext("2d", { alpha: true, willReadFrequently: true });
     /* A PNG's 8 bits of alpha have nowhere to go in a GIF's one, but that
-       only comes to a choice about where the see-through half goes. It goes
-       to the hole: anything under half covered is transparent, which is the
-       scrim, the glow and the soft edges — the things that read as wrong
-       when painted solid. What is left is composited onto a matte, which is
-       what a matte colour means in Photoshop's GIF export and is what keeps
-       the remaining edges from fringing.
+       only costs the picture if the cut is put at half covered — which is
+       what drops a 20% scrim. So: a pixel is a hole only where nothing was
+       drawn, and everything else is composited onto a matte and kept, its
+       own alpha folded into the colour. That is what a matte colour means
+       in Photoshop's GIF export, and it is why the bar survives.
        `read` composites; the alpha it leaves behind is the ORIGINAL, so the
        writer can still tell a hole from a matted pixel.                  */
     const mode = document.getElementById("pmatte").value;
@@ -3316,12 +3288,8 @@ $pin.addEventListener("change", async () => {
     $ps.textContent = "palette…";
     await new Promise(r => setTimeout(r, 16));
     const pal = paletteOf(hist, keepAlpha ? 255 : 256);
-    /* Its own rate, not the one the piece's exports use: a sequence brought
-       in from somewhere else has no reason to share the frame rate the stage
-       is being rendered at. What comes out is still the rate a GIF can hold,
-       its delay being whole centiseconds — 8 plays at 7.7, 24 at 25, 30 at
-       33.3 and 60 at 50 — and the line below says which.                */
-    const fps = +document.getElementById("pfps").value;
+    /* the rate the GIF can actually hold — its delay is whole centiseconds */
+    const fps = +document.getElementById("gfps").value;
     const delayCs = Math.max(2, Math.round(100 / fps));
     const gif = new GifWriter(W, H, pal, delayCs, keepAlpha ? pal.length : -1);
     for (let i = 0; i < shots.length; i++){

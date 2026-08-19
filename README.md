@@ -70,14 +70,10 @@ centred in the space beside it. The panel lets you:
   leaves the bar on 2491px and the pan on 1583 exactly where they were, and only act 2 changes.
   The panel reports the rows the bubble actually draws rather than the newlines counted — a
   trailing break makes no row of its own, and a long line makes one without any break at all
-- **switch the mark** — one control, two looks, because they were only ever used in two
-  combinations. **Wordmark** is the plate's own: the Google logo above the bar and the plus
-  inside it. **G in the bar** is the other: the wordmark drops out and the G carries the mark
-  itself, which is the point — a wordmark over a G is saying the same thing twice. Nothing
-  measures back off the wordmark, so dropping it leaves the bar width, the pan and the beam
-  untouched; the small G in the Act 2 header is a separate mark and stays either way.
-  What the G does move is below.
-- **the bar's G mark** — the plus at the left of the search bar becomes the G mark, measured
+- **turn the wordmark off** — Act 1's Google logo drops out and the bar sits alone in the white.
+  Nothing measures back off the logo, so the bar width, the pan and the beam are untouched; the
+  small G in the Act 2 header is a separate mark and stays
+- **switch the bar's icon** — the plus at the left of the search bar becomes the G mark, measured
   off the ad's own wide shot: there the bar is 165 tall and the mark 88 square, inset 38.5
   vertically and 41 on the left, so at our 234 the mark is 124.8 tall and inset 54.6 / 58.1.
   It then carries **+8.72% by request**, taken about its own centre so it grows in place —
@@ -174,14 +170,7 @@ centred in the space beside it. The panel lets you:
     6.8s piece at 1920 and 24fps. Verified by decoding the export back with ffmpeg — RGB matches
     the canvas to within the 1 code the sRGB → BT.709 video-range round trip costs, and the alpha
     exactly — and then again through macOS's own AVFoundation, which is the stricter reader of
-    the two and the one an editor here would use.
-    Its alpha is **premultiplied**. Straight was the first guess and it was wrong twice: a
-    compositor reading 4444 as premultiplied adds the whole un-multiplied colour rather than its
-    share, which is the bright halo that appeared around the gradient, and canvas's straight
-    values are not trustworthy at low alpha anyway — it stores premultiplied and divides on the
-    way out, so at alpha 20 the division multiplies the rounding by 12. Measured on the beam, the
-    pixels at alpha 1–31 spanned the full 0–255 range in every channel; premultiplied they span
-    31 and mean 5
+    the two and the one an editor here would use
   - the **GIF** is opaque whatever the stage is set to, and spends all 256 entries on colour.
     It used to reserve one for transparency when the transparent mode was on; one all-or-nothing
     index is a poor matte and the PNG sequence is the answer for that instead.
@@ -212,21 +201,18 @@ centred in the space beside it. The panel lets you:
   from them. Same writer the piece's own GIF export uses and the same two passes, since the
   palette is sampled across every frame before the first can be written; frames sort by name
   numerically, so `frame_2` comes before `frame_10`.
-  **It keeps the transparency.** A PNG's 8 bits of alpha have nowhere to go in a GIF's one bit,
-  so the only question is where the see-through half goes, and it goes to the hole: anything
-  under half covered is transparent. That is the bar's 20% scrim, the gradient's glow and the
-  soft half of every antialiased edge — the things that look wrong painted solid, a grey slab
-  where the bar should be a wash and a halo where the glow should fade. What is left is composited
-  onto a matte, white or black, which is what a matte colour means in Photoshop's GIF export and
-  is what keeps the remaining edges from fringing. Or flatten the lot onto white.
-  Measured on a transparent 480px sequence, a frame comes out 94% clear and 6% drawn — the query,
-  the mark, the chip's face and the outline's core — with the gradient surviving as 5.5% of the
-  frame at real saturation.
-  It has **its own frame rate** — 8, 12, 24, 30 or 60 — rather than borrowing the export
-  selector's, since a sequence brought in from somewhere else has no reason to run at the rate
-  the stage is being rendered at. What comes out is the rate a GIF can actually hold, its delay
-  being whole centiseconds: 8 plays at 7.7, 12 at 12.5, 24 at 25, 30 at 33.3 and 60 at 50, and
-  the line underneath says which
+  **It keeps the transparency**, with a matte. A PNG's 8 bits of alpha have nowhere to go in a
+  GIF's one bit, but that only costs the picture if the cut is put at half covered — which is
+  what drops a 20% scrim and takes the search bar with it. The cut is at *was anything drawn
+  here* instead (alpha 8 of 255), and everything above it is composited onto a matte and kept,
+  its own alpha folded into the colour. That is what a matte colour means in Photoshop's GIF
+  export. Pick white or black for it, or flatten entirely.
+  Measured on a transparent 480px sequence: the PNGs are 82.4% clear, 13.7% partly covered and
+  3.9% solid, and the GIF comes out 71.5% clear and 28.5% drawn — the partly covered pixels
+  matted rather than thrown away. The gradient outline survives as 6.5% of the drawn pixels at
+  real saturation, and one frame holds 187 distinct colours.
+  It reports the rate the GIF can actually hold, which is not always the one selected: the delay
+  field is whole centiseconds, so 8fps comes out as 7.7
   The GIF used to hold every frame as raw RGBA — the palette is sampled across the whole
   animation and could not be settled until the end — which is 3.4 GB at 1920 and 60fps, so it
   declined the largest combinations. It now renders the piece twice instead, once for the
@@ -239,9 +225,7 @@ what is typed, they are simply no longer printed.
 `#t=<seconds>` freezes a single instant and `#bare` hides the controls — that pair is how the
 stills for the frame-by-frame diff were rendered. `#q=` and `#a=` carry an edited query and
 answer — `%0A` in `#q=` is a row break, so a broken query survives a reload and a headless
-render — `#logo=0` and `#icon=g` both name the G look and are both written when it is on, so
-older URLs and headless stills still resolve; note that `#logo=0` alone now brings the G with it
-rather than leaving the plus, the two being one choice. `#speed=` sets
+render — `#logo=0` drops the wordmark, `#icon=g` puts the G in the search bar, `#speed=` sets
 the typing rate, `#cam=` the camera's and `#bez=` its easing, so an edit survives a reload and works in headless renders.
 
 ---
