@@ -484,10 +484,7 @@
            border-top:9px solid #1e1f22;border-bottom:0}
   .n2rule{position:absolute;left:240px;top:207px;width:1500px;height:2px;
           background:#d5d5d8}
-  /* the rail: a summary glyph and a compose glyph, measured at
-     x 84..119 / y 293..324 and x 84..122 / y 403..441 */
-  .n2rail{position:absolute;left:84px;top:293px;width:40px;height:150px;
-          stroke:#54585c;fill:none;stroke-width:3;stroke-linecap:round}
+  .n2rail{position:absolute;fill:#56595E}
   .n2chip{position:absolute;left:969px;top:291px;max-width:1500px;height:99px;
           padding:0 45px;border-radius:45px;background:#f0f1f4;
           font-size:36px;color:#1f1f1f;white-space:pre-wrap;
@@ -821,10 +818,12 @@
         <svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11a2 2 0 0 0-2-2h-6.31l.95-4.57.03-.32a1.5 1.5 0 0 0-.44-1.06L14.17 1 7.59 7.59A1.98 1.98 0 0 0 7 9v10a2 2 0 0 0 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
         <svg viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2a2 2 0 0 0 2 2h6.31l-.95 4.57-.3.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59A1.98 1.98 0 0 0 17 15V5a2 2 0 0 0-2-2zm4 0v12h4V3h-4z"/></svg>
       </div>
+      <!-- the supplied icon.svg and edit_square.svg, at the boxes the plate
+           measures: 36x32 at (84,292) and 39x39 at (84,402) -->
       <svg class="n-rail" style="left:84px;top:292px;width:36px;height:32px"
-           viewBox="84 292 36 32"><path d="M111.9 324C111.87 324 111.75 323.911 111.54 323.733C111.06 321.926 110.145 320.37 108.795 319.067C107.475 317.733 105.9 316.83 104.07 316.356C104.01 316.326 103.92 316.207 103.8 316C103.8 315.941 103.89 315.822 104.07 315.644C105.9 315.17 107.475 314.281 108.795 312.978C110.145 311.644 111.06 310.074 111.54 308.267C111.57 308.207 111.69 308.119 111.9 308C111.96 308 112.08 308.089 112.26 308.267C112.77 310.074 113.685 311.644 115.005 312.978C116.325 314.281 117.9 315.17 119.73 315.644C119.79 315.644 119.88 315.763 120 316C120 316.03 119.91 316.148 119.73 316.356C117.9 316.83 116.31 317.733 114.96 319.067C113.64 320.37 112.74 321.926 112.26 323.733C112.26 323.793 112.14 323.881 111.9 324ZM84 313.333V309.778H100.2V313.333H84ZM84 304.444V300.889H116.4V304.444H84ZM84 295.556V292H116.4V295.556H84Z"/></svg>
+           viewBox="0 0 36 32"><path d="M27.9 32C27.87 32 27.75 31.9111 27.54 31.7333C27.06 29.9259 26.145 28.3704 24.795 27.0667C23.475 25.7333 21.9 24.8296 20.07 24.3556C20.01 24.3259 19.92 24.2074 19.8 24C19.8 23.9407 19.89 23.8222 20.07 23.6444C21.9 23.1704 23.475 22.2815 24.795 20.9778C26.145 19.6444 27.06 18.0741 27.54 16.2667C27.57 16.2074 27.69 16.1185 27.9 16C27.96 16 28.08 16.0889 28.26 16.2667C28.77 18.0741 29.685 19.6444 31.005 20.9778C32.325 22.2815 33.9 23.1704 35.73 23.6444C35.79 23.6444 35.88 23.763 36 24C36 24.0296 35.91 24.1481 35.73 24.3556C33.9 24.8296 32.31 25.7333 30.96 27.0667C29.64 28.3704 28.74 29.9259 28.26 31.7333C28.26 31.7926 28.14 31.8815 27.9 32ZM0 21.3333V17.7778H16.2V21.3333H0ZM0 12.4444V8.88889H32.4V12.4444H0ZM0 3.55555V0H32.4V3.55555H0Z"/></svg>
       <svg class="n-rail" style="left:84px;top:402px;width:39px;height:39px"
-           viewBox="84 402 39 39"><path d="M87.9 441C86.8275 441 85.9094 440.619 85.1456 439.856C84.3819 439.093 84 438.176 84 437.105V409.839C84 408.768 84.3819 407.851 85.1456 407.088C85.9094 406.325 86.8275 405.944 87.9 405.944H105.304L101.404 409.839H87.9V437.105H115.2V423.569L119.1 419.674V437.105C119.1 438.176 118.718 439.093 117.954 439.856C117.191 440.619 116.272 441 115.2 441H87.9ZM95.7 429.315V421.037L113.591 403.169C113.981 402.779 114.42 402.487 114.908 402.292C115.395 402.097 115.883 402 116.37 402C116.89 402 117.386 402.097 117.857 402.292C118.328 402.487 118.759 402.779 119.149 403.169L121.879 405.944C122.236 406.333 122.513 406.763 122.708 407.234C122.903 407.705 123 408.184 123 408.67C123 409.157 122.911 409.636 122.732 410.107C122.553 410.577 122.269 411.007 121.879 411.397L103.988 429.315H95.7ZM99.6 425.419H102.33L113.64 414.124L112.275 412.76L110.861 411.397L99.6 422.644V425.419Z"/></svg>
+           viewBox="0 0 39 39"><path d="M3.9 39C2.8275 39 1.90938 38.6186 1.14563 37.8558C0.381875 37.093 0 36.176 0 35.1049V7.83895C0 6.76779 0.381875 5.85081 1.14563 5.08802C1.90938 4.32522 2.8275 3.94382 3.9 3.94382H21.3038L17.4038 7.83895H3.9V35.1049H31.2V21.5693L35.1 17.6742V35.1049C35.1 36.176 34.7181 37.093 33.9544 37.8558C33.1906 38.6186 32.2725 39 31.2 39H3.9ZM11.7 27.3146V19.0375L29.5913 1.16854C29.9813 0.779026 30.42 0.486891 30.9075 0.292135C31.395 0.0973783 31.8825 0 32.37 0C32.89 0 33.3856 0.0973783 33.8569 0.292135C34.3281 0.486891 34.7588 0.779026 35.1488 1.16854L37.8788 3.94382C38.2363 4.33333 38.5125 4.76342 38.7075 5.23408C38.9025 5.70474 39 6.18352 39 6.67041C39 7.1573 38.9106 7.63608 38.7319 8.10674C38.5531 8.5774 38.2688 9.00749 37.8788 9.397L19.9875 27.3146H11.7ZM15.6 23.4195H18.33L29.64 12.1236L28.275 10.7603L26.8613 9.397L15.6 20.6442V23.4195Z"/></svg>
 
     </div>
 
@@ -845,11 +844,13 @@
           <span style="left:1150px">More</span>
           <i style="left:1253px"></i>
         </div>
-        <svg class="n2rail" viewBox="0 0 40 150" aria-hidden="true">
-          <path d="M2 4h30M2 14h22M2 24h26"/>
-          <path d="M33 20l2.2 5 5 2.2-5 2.2-2.2 5-2.2-5-5-2.2 5-2.2z" fill="#54585c" stroke="none"/>
-          <path d="M4 118v-8l22-22 8 8-22 22z"/><path d="M2 146h36"/>
-        </svg>
+        <!-- the same two files on the answer page, where the plate measures
+             them at (84,293) and (84,403) and reads (85,88,91) — which is the
+             #56595E they are drawn in, so their own fill is what is used -->
+        <svg class="n2rail" style="left:84px;top:293px;width:36px;height:32px"
+             viewBox="0 0 36 32"><path d="M27.9 32C27.87 32 27.75 31.9111 27.54 31.7333C27.06 29.9259 26.145 28.3704 24.795 27.0667C23.475 25.7333 21.9 24.8296 20.07 24.3556C20.01 24.3259 19.92 24.2074 19.8 24C19.8 23.9407 19.89 23.8222 20.07 23.6444C21.9 23.1704 23.475 22.2815 24.795 20.9778C26.145 19.6444 27.06 18.0741 27.54 16.2667C27.57 16.2074 27.69 16.1185 27.9 16C27.96 16 28.08 16.0889 28.26 16.2667C28.77 18.0741 29.685 19.6444 31.005 20.9778C32.325 22.2815 33.9 23.1704 35.73 23.6444C35.79 23.6444 35.88 23.763 36 24C36 24.0296 35.91 24.1481 35.73 24.3556C33.9 24.8296 32.31 25.7333 30.96 27.0667C29.64 28.3704 28.74 29.9259 28.26 31.7333C28.26 31.7926 28.14 31.8815 27.9 32ZM0 21.3333V17.7778H16.2V21.3333H0ZM0 12.4444V8.88889H32.4V12.4444H0ZM0 3.55555V0H32.4V3.55555H0Z"/></svg>
+        <svg class="n2rail" style="left:84px;top:403px;width:39px;height:39px"
+             viewBox="0 0 39 39"><path d="M3.9 39C2.8275 39 1.90938 38.6186 1.14563 37.8558C0.381875 37.093 0 36.176 0 35.1049V7.83895C0 6.76779 0.381875 5.85081 1.14563 5.08802C1.90938 4.32522 2.8275 3.94382 3.9 3.94382H21.3038L17.4038 7.83895H3.9V35.1049H31.2V21.5693L35.1 17.6742V35.1049C35.1 36.176 34.7181 37.093 33.9544 37.8558C33.1906 38.6186 32.2725 39 31.2 39H3.9ZM11.7 27.3146V19.0375L29.5913 1.16854C29.9813 0.779026 30.42 0.486891 30.9075 0.292135C31.395 0.0973783 31.8825 0 32.37 0C32.89 0 33.3856 0.0973783 33.8569 0.292135C34.3281 0.486891 34.7588 0.779026 35.1488 1.16854L37.8788 3.94382C38.2363 4.33333 38.5125 4.76342 38.7075 5.23408C38.9025 5.70474 39 6.18352 39 6.67041C39 7.1573 38.9106 7.63608 38.7319 8.10674C38.5531 8.5774 38.2688 9.00749 37.8788 9.397L19.9875 27.3146H11.7ZM15.6 23.4195H18.33L29.64 12.1236L28.275 10.7603L26.8613 9.397L15.6 20.6442V23.4195Z"/></svg>
         <div class="n2rule"></div>
         <div class="n2chip" id="n2chip"></div>
       </div>
@@ -3670,15 +3671,22 @@ const N2_SPIN = 1;                      // the panel's multiplier on both rates
    residual. Restricted to the purple-to-teal arc the same fit lands at 0.869
    with 0.63, and the two disagree by 40 deg by the middle of the act. */
 const N2_RING_F0 = 43.99, N2_RING_RATE = 1.149;
-/* The design file's angular gradient, verbatim — seventeen stops from 90deg.
-   Blue holds the whole top, breaks through purple and pink into red under the
-   left, orange and yellow along the bottom, green up the right, and teal back
-   into blue. Six evenly-spread brand hues cannot make that shape. */
+/* The wheel, read back off the video rather than taken from the design file.
+   Sampling the ring at 17672 points around the perimeter across all 47 frames
+   of the act, mapping each through the fitted squash and phase to a position
+   on the gradient, and taking the median per degree covers all 360 — and it is
+   not quite what the file says. The blue reads about (63,131,229) over most of
+   the wheel where the file has a saturated (49,134,255); the teal at 260..270
+   is wider and runs to (14,169,167) where the file crosses straight back to
+   blue. Reduced to 25 stops, that curve is reproduced to 6.8 per channel. */
 const N2_WHEEL =
-  "#3186FF 0deg,#3186FF 122.4deg,#9378FF 133.2deg,#F96BD6 140.4deg," +
-  "#FC413D 147.6deg,#FC413D 172.8deg,#FF6A2B 180deg,#FEC700 187.2deg," +
-  "#FFDB0F 201.6deg,#87DD41 208.8deg,#0EBC5F 219.6deg,#0EBC5F 252deg," +
-  "#00A8BB 259.2deg,#3C90FF 262.8deg,#3186FF 298.8deg,#3186FF 360deg";
+  "#3F83E5 0deg,#3B82EA 52deg,#2C82FF 59deg,#3284FC 120deg," +
+  "#4482FC 124deg,#A474F3 134deg,#D36DE1 138deg,#F15FAE 142deg," +
+  "#F74E71 145deg,#F94140 149deg,#F9453A 169deg,#FB5A30 175deg," +
+  "#FC7C22 180deg,#FDC406 188deg,#F3D814 201deg,#B2DA30 207deg," +
+  "#32C356 215deg,#11BA5E 219deg,#10B55A 240deg,#0FB25D 251deg," +
+  "#0FAF6C 254deg,#10A8AE 261deg,#1CA2BB 268deg,#3F8DEA 277deg," +
+  "#3E84E9 300deg,#3F83E5 360deg";
 
 const stage2 = document.getElementById("stage2");
 const nqt = document.getElementById("nqt"), ncaret = document.getElementById("ncaret");
@@ -3894,7 +3902,9 @@ function render2(t){
        instead puts it within 19 of the face on that first frame, which reads
        as the text briefly disappearing. */
     nq.style.color = face > 0.25 ? "#000" : "#fff";   // flip when the face can carry it
-    ncaret.style.opacity = (1 - sat(mt * 3)).toFixed(3);
+    /* the caret is not the morph's business — it has been off since the typing
+       landed on f35, and an inline opacity here outranks the .off class that
+       put it there, which showed it again for a frame */
   }
   nbox.style.visibility = f >= N2_A2 ? "hidden" : "visible";
 

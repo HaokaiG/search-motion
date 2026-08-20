@@ -39,6 +39,12 @@ Nothing here is judged by eye. Every change goes through the same loop:
 - **A metric that does not move is not proof.** The 4px text jump when typing
   ended never showed up in the score — one frame cannot shift a 132-frame mean.
   It took someone watching it.
+- **An inline style outranks the class that was managing the property.** The
+  morph faded the caret out with `ncaret.style.opacity`, and that inline value
+  then beat the `.off` class that takes the caret away when the typing lands —
+  so the caret came back for every frame from f35 to the morph, and again for a
+  frame inside it. Two things writing one property, one of them louder. The
+  caret is not the morph's business at all; the line is gone.
 - **A global set in one code path is stale in the other.** `BG_OP` — the plate's
   opacity, which the search piece fades at the click — was written only inside
   that piece's `render`. The prompt piece returns before it, so scrubbing the
@@ -306,7 +312,6 @@ Departures from the plate that were deliberate, and the one-line way back.
 | Wall `#252525`, `blur(15px)` | Fitted to the banded coverage rather than sampled — the plate's wall is blurred past the point where a stem has a colour to read. Back: nothing to restore, but the pair is what sets act 3's floor. |
 | Glow radii and alphas | Fitted so the frame mean lands on the plate's. The band split does not match: the plate has 2.9% of the frame above 150 and only **0.2%** between 90 and 150, where this has ~1.1% in that middle band. Its halo falls off faster than three stacked shadows can. Suspect the plate's own compression crushed the skirt; not resolved. |
 | Emphasis derived from the lit phrase | Act 2 bolds from the first lit phrase to the end of its paragraph, so the plate's "because **it is** nearly unstoppable" starts one word earlier here — the quote is `it is nearly unstoppable`. Back: set the quote to `nearly unstoppable`. |
-| Act-2 rail glyphs | Drawn to the measured boxes (x 84–119 / y 293–324 and x 84–122 / y 403–441), but the shapes are by eye — the plate's second glyph is a pencil in a square and this is a pencil over a rule. |
 | Flash worst frame +8.5 | The ramp is linear over 48.75…51.75, fitted to 5.4 rms. The plate's own ramp decelerates slightly (steps of .336, .286, .268) and no linear fit catches all four frames; f51 is the one that pays. Back: an eased ramp would fix f51 and cost f49. |
 
 **AI Mode search:**
