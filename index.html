@@ -3672,10 +3672,30 @@ const N2_NF = 192;
 const N2_DUR = (N2_NF - 1) * FRAME;
 const N2_TYPE0 = 3, N2_TYPE1 = 34;
 /* The send button's fill is a straight three-frame ramp: the plate reads pure
-   white through f39 and then .33, .67, 1.00 on f40, f41, f42. The press that
-   follows shows as the pill's left edge coming in 2, 6, 7 then 4px over f43..46
-   — on a 124px pill that is a scale easing to 0.887 on f45 and back. */
-const N2_SEND = 39, N2_PRESS = 43, N2_REL = 47, N2_PRESS_MID = 45;
+   white through f39 and then .33, .67, 1.00 on f40, f41, f42.
+
+   The press is a horizontal STRETCH, measured off SendButton_20260819.mp4 — a
+   300x200 close-up of the button alone. Its pill goes 189, 201, 217, 223, 224,
+   225, 224, 220, 208, 189 px wide across ten frames while its height stays at
+   142 and its centre does not move at all, so it elongates to 1.190 and comes
+   back. The caps keep their radius rather than being scaled with it: the left
+   edge's inset by height reads 63/33/16/4/0 at rest and 58/30/14/3/0 at the
+   peak, where a scaleX of 1.19 would have grown those to 75/41/20/6/0. So this
+   animates width, not transform, and leaves the radius alone.
+
+   The NFL plate disagrees — its pill's left edge moves RIGHT by up to 7px over
+   f43..46, which is a shrink to about 0.87, not a stretch. The close-up is the
+   later reference and the one asked for, so it wins; the plate's own reading is
+   in the departures table. */
+const N2_SEND = 39, N2_PRESS = 43;
+const N2_PRESS_W = [1, 1.063, 1.148, 1.180, 1.185, 1.190, 1.185, 1.164, 1.101, 1];
+/* The close-up takes nine frames over the arc. This piece has five between the
+   press and the box beginning to morph, and the buttons have faded out by the
+   time the ninth would land — played at its own rate the pill freezes mid-
+   stretch and vanishes rather than coming back. So the measured curve is kept
+   whole and run 1.8x faster, which also puts it back at rest on f48, where the
+   plate's own press ends. Back: set this to 1 for the clip's own timing. */
+const N2_PRESS_RATE = 9 / 5;
 /* ── the two act joins ──────────────────────────────────────────────────
    Neither is a cut. Both were measured off the plate frame by frame.
 
@@ -3791,6 +3811,7 @@ const nbox = document.getElementById("nbox"), nface = document.querySelector("#n
       nmicEl = document.querySelector("#nbox .nmic");
 /* where the box starts, kept so the morph has something to leave from */
 const NB_L = 426.01, NB_T = 389.58, NB_W = 1067.86, NB_H = 300.24;
+const NSEND_L = 943.8, NSEND_W = 94.29;      // the send pill's resting rect
 
 let N2_Q = "why is the tush push so controversial";
 let N2_CTX = "The player must touch the ground inbounds with both feet, or with any other body part besides the hands (such as a knee, shin, hip, or elbow).";
@@ -3935,10 +3956,16 @@ function render2(t){
     sendCol = `rgb(${r},${g},${b})`;
     sendInk = u > 0.5 ? "#fff" : "#1f1f1f";
   }
-  if (f > N2_PRESS && f < N2_REL)
-    press = 1 - 0.113 * (1 - Math.abs(f - N2_PRESS_MID) / (N2_PRESS_MID - N2_PRESS));
+  const k = (f - N2_PRESS) * N2_PRESS_RATE;
+  if (k > 0 && k < N2_PRESS_W.length - 1){
+    const i = Math.floor(k), t = k - i;
+    press = N2_PRESS_W[i] + (N2_PRESS_W[i + 1] - N2_PRESS_W[i]) * t;
+  }
   nsend.style.background = sendCol;
-  nsend.style.transform = `scale(${press})`;
+  /* width, held on its own centre — the caps keep their radius */
+  const sw = NSEND_W * press;
+  nsend.style.width = sw.toFixed(2) + "px";
+  nsend.style.left = (NSEND_L - (sw - NSEND_W) / 2).toFixed(2) + "px";
   nsend.querySelector("svg").style.fill = sendInk;
 
   /* ── act 1 into act 2: the box becomes the chip ── */
