@@ -463,8 +463,13 @@
   #nq{position:absolute;left:45.58px;top:32px;width:960px;
       font-size:44px;line-height:1.2;font-weight:400;color:#fff;
       white-space:pre-wrap}
-  #ncaret{display:inline-block;width:3.4px;height:32px;background:#fff;
-          vertical-align:-4px;margin-left:6px}
+  /* 40.128 is the design file's own caret — it draws it from y 434.73 to
+     474.858, which is about 2px above the text's ascender and 5px below its
+     baseline. The plate renders it at 32, only ascender-to-baseline, and that
+     is what this used to be; longer by request, and the file is where the
+     longer number comes from. */
+  #ncaret{display:inline-block;width:3.4px;height:40.13px;background:#fff;
+          vertical-align:-8px;margin-left:6px}
   #ncaret.off{opacity:0}
   .nplus{position:absolute;left:30px;top:199.18px;
          width:94.2px;height:70.65px;border-radius:35.33px;
@@ -3693,7 +3698,10 @@ const N2_TYPE0 = 3, N2_TYPE1 = 34;
    f43..46, which is a shrink to about 0.87, not a stretch. The close-up is the
    later reference and the one asked for, so it wins; the plate's own reading is
    in the departures table. */
-const N2_SEND = 39, N2_PRESS = 43;
+/* the press starts a tenth of a second earlier than the plate's f43, by
+   request — which puts its first frames under the tail of the fill ramp, where
+   the button is still turning blue */
+const N2_SEND = 39, N2_PRESS = 43 - 0.1 * FPS;
 
 /* ── the two act joins ──────────────────────────────────────────────────
    Neither is a cut. Both were measured off the plate frame by frame.
