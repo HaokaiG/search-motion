@@ -3424,7 +3424,23 @@ function prPlanes(rgba, W, H){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
+      /* Premultiplied, and for two separate reasons.
+         The convention: the same bytes are two different pictures depending on
+         which one the reader assumes. A reader expecting premultiplied and
+         handed straight data ADDS the stored colour instead of scaling it, so
+         everything semi-transparent blooms — a glow at 14% alpha carrying a
+         253 green comes back as though it were opaque. That is what "the
+         gradient is too thick" looks like, and it has been reported twice now
+         against this export.
+
+         The noise: a canvas stores premultiplied internally and divides on the
+         way out, so at low alpha it hands back the division's rounding error.
+         At alpha 20 that multiplies the error by about 12; measured on this
+         piece's own glow, every pixel between alpha 1 and 31 spanned the full
+         0-255 range in each channel. Multiplying it back discards that for
+         free, because noise times a small alpha is a small number. */
+      const k = rgba[p + 3] / 255;
+      const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
       U[q] = (512 + 896 * (b - l) / (255 * 1.8556) + 0.5) | 0;

@@ -409,6 +409,25 @@ redistribution question if the file leaves this machine.
   red at the top, blue right, green bottom, yellow left, all four hues matching.
 - Everything is driven by one `render(t)` function off `requestAnimationFrame`.
 
+## The MOV's alpha is premultiplied
+
+`prPlanes` multiplies each channel by its alpha before packing the planes, and
+that is deliberate. Straight and premultiplied hold the same bytes and mean two
+different pictures: a reader expecting premultiplied and handed straight data
+*adds* the stored colour where it should scale it, so everything semi-transparent
+blooms. Measured on this piece's glow at f160 — stored straight, its partial
+pixels average RGB (212,253,226) at alpha 0.143 and 99.9% break the invariant
+`RGB <= alpha*255`; premultiplied they average (16,22,18) and none do.
+
+It also removes the canvas's own noise. A canvas stores premultiplied and divides
+on the way out, so at low alpha it hands back the division's rounding error —
+which the encoder was faithfully spending bits on. One slice of frame 1 used to
+overrun its declared size on that garbage (`ac tex damaged 2050, 2048`); the same
+export now decodes without a warning.
+
+Composited over black — which for premultiplied data is just the stored RGB —
+the file reads **1.41 rms** against the plate.
+
 ## Verifying it
 
 `#t=<seconds>` freezes on an instant and `#bare` hides the HUD, which is how the stills for the

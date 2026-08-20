@@ -45,6 +45,27 @@ Nothing here is judged by eye. Every change goes through the same loop:
   so the caret came back for every frame from f35 to the morph, and again for a
   frame inside it. Two things writing one property, one of them louder. The
   caret is not the morph's business at all; the line is gone.
+- **A revert can undo a fix in a file nobody was looking at.** The premultiply
+  in `prPlanes` was put there to cure a blooming glow in the ProRes export, and
+  a later full reset — asked for, and about something else entirely — took it
+  back out. Nothing in the piece looked different, because over black the two
+  conventions composite identically; it only showed up months later as "the
+  gradient is too thick" in someone else's compositor. After a reset that moves
+  more than the thing being undone, re-check the fixes that live far from it.
+- **The same bytes are two pictures.** Straight and premultiplied alpha differ
+  only in what the reader does with them. Measured on this piece's own glow at
+  f160: stored straight, the partial-alpha pixels averaged RGB (212,253,226) at
+  alpha 0.143, and 99.9% of them broke the premultiplied invariant RGB <=
+  alpha*255. A reader assuming premultiplied adds that 253 green instead of
+  scaling it to 36 — the glow comes back looking nearly opaque. Premultiplied,
+  the same pixels average (16,22,18) and 0% break it.
+- **The noise is real, and premultiplying eats it.** A canvas stores
+  premultiplied and divides on the way out, so at low alpha it returns the
+  division's rounding error. That noise was also what corrupted a ProRes slice:
+  the encoder wrote high-magnitude AC coefficients for garbage that would never
+  be seen, one slice overran its declared size, and ffmpeg reported `ac tex
+  damaged 2050, 2048`. Premultiplying fixed the convention and the corruption in
+  one go — the same export now decodes clean.
 - **Scan every frame for events before believing a section is static.** A
   frame-to-frame mean-difference pass over all 192 found two stretches carrying
   real change that had been built as holds: f53–67, where the answer was on a
@@ -389,16 +410,6 @@ footage it reads as dark type that darkens the plate behind it rather than as
 faint light type sitting on it. Expressing it as white at 14.5% is identical over
 black — the frame means agree to 0.1 — and different over footage. That was built
 and then reverted by request; it is `836728e` on `main` if it is wanted back.
-
-## Known defect
-
-**ProRes 4444 writes one damaged slice on frame 1.** Decoding a 480px alpha
-export of the prompt piece, ffmpeg reports `ac tex damaged 2050, 2048` — one
-slice's AC data overran its declared size by two bits — once across all 192
-frames, on the first. The decoder recovers, all 192 frames come out and the
-alpha is correct throughout, so the file is usable, but a slice size is being
-written short somewhere in `proresFrame`. Only the one export was checked, so it
-is not isolated to alpha or to that size.
 
 ## Not done
 
