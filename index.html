@@ -437,11 +437,6 @@
          -webkit-mask-composite:xor;mask-composite:exclude}
   .nglow b{position:absolute;inset:70px;border-radius:57px;overflow:hidden;
            filter:blur(34px)}
-  .nring{position:absolute;inset:0;border-radius:inherit;padding:2px;
-         box-sizing:border-box;overflow:hidden;
-         -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-         mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-         -webkit-mask-composite:xor;mask-composite:exclude}
   /* The wheel is not a screen-space sweep. It is drawn on a SQUARE and then
      squashed — which is why the whole top edge comes out one blue while the
      entire spectrum crowds along the bottom — and it runs anticlockwise, hence
@@ -453,8 +448,16 @@
      land about 120px left of the plate's along the bottom edge: matching
      colours at 124 points around the perimeter over a grid of squash and
      phase picks 0.436, and the per-frame phase then fits a line to 1.15 deg
-     against 3.4 at 0.2812. Back: 0.281159 for the design file's value. */
-  .nring i,.nglow i{position:absolute;left:50%;top:50%;
+     against 3.4 at 0.2812. Back: 0.281159 for the design file's value.
+
+     There is no crisp outline on the box, only this bloom. Measured across the
+     edge in PromptBox_20260819.mp4, the profile steps from the glow at 23-29
+     straight to the face at 255 with nothing but a 1-2px antialias between —
+     the colour lives entirely outside the box. Correlating the whole perimeter
+     between its frames puts the bloom's own rotation at 1.178 samples a frame
+     with 0.32 rms, about 1.24 deg, which is the 1.149 already fitted off the
+     other clip. */
+  .nglow i{position:absolute;left:50%;top:50%;
            width:1067.86px;height:1067.86px;margin:-533.93px 0 0 -533.93px;
            transform:scale(-1,0.436)}
   #nq{position:absolute;left:45.58px;top:32px;width:960px;
@@ -812,7 +815,6 @@
     <div id="nbox">
       <div class="nface"></div>
       <div class="nglow" id="nglow"><b><i></i></b></div>
-      <div class="nring" id="nring"><i></i></div>
       <div id="nq"><span id="nqt"></span><span id="ncaret"></span></div>
       <div class="nplus"></div>
       <svg class="nmic" viewBox="1308.92 606.29 27.5 36.32"><path d="M1322.67 627.781C1321.26 627.781 1320.06 627.273 1319.08 626.258C1318.13 625.243 1317.66 623.999 1317.66 622.526V611.249C1317.66 609.874 1318.15 608.712 1319.13 607.762C1320.11 606.78 1321.29 606.289 1322.67 606.289C1324.04 606.289 1325.22 606.78 1326.2 607.762C1327.18 608.712 1327.68 609.874 1327.68 611.249V622.526C1327.68 623.999 1327.18 625.243 1326.2 626.258C1325.25 627.273 1324.07 627.781 1322.67 627.781ZM1321.19 642.611V635.933C1317.72 635.572 1314.81 634.116 1312.45 631.562C1310.1 629.008 1308.92 625.996 1308.92 622.526H1311.91C1311.91 625.505 1312.96 628.01 1315.06 630.04C1317.15 632.069 1319.69 633.084 1322.67 633.084C1325.65 633.084 1328.18 632.069 1330.28 630.04C1332.37 628.01 1333.42 625.505 1333.42 622.526H1336.42C1336.42 625.996 1335.24 629.008 1332.88 631.562C1330.52 634.116 1327.61 635.572 1324.14 635.933V642.611H1321.19Z"/></svg>
@@ -3755,7 +3757,7 @@ const N2_WHEEL =
 
 const stage2 = document.getElementById("stage2");
 const nqt = document.getElementById("nqt"), ncaret = document.getElementById("ncaret");
-const nring = document.getElementById("nring"), nglow = document.getElementById("nglow");
+const nglow = document.getElementById("nglow");
 const nsend = document.getElementById("nsend");
 const n1El = document.getElementById("n1"), n2El = document.getElementById("n2"),
       n3El = document.getElementById("n3"), n2page = document.getElementById("n2page");
@@ -3902,7 +3904,6 @@ function render2(t){
   const spin = $n2spin ? +$n2spin.value : N2_SPIN;
   const ang = (N2_RING_F0 - f * N2_RING_RATE * spin % 360 + 720) % 360;
   const wheel = `conic-gradient(from ${ang.toFixed(2)}deg,${N2_WHEEL})`;
-  nring.firstElementChild.style.background = wheel;
   nglow.querySelector("i").style.background = wheel;
 
   /* ── typing ── */
@@ -3979,8 +3980,7 @@ function render2(t){
     const fc = i => (F0[i] + ([240, 241, 244][i] - F0[i]) * face).toFixed(0);
     nface.style.background = `rgb(${fc(0)},${fc(1)},${fc(2)})`;
     nface.style.opacity = (FA0 + (1 - FA0) * sat(mt * 4)).toFixed(3);
-    const ring = sat(1 - (f - 48.3) / 1.9);
-    nring.style.opacity = ring.toFixed(3);
+    const ring = sat(1 - (f - 48.3) / 1.9);   /* the halo leaves with the box */
     nglow.style.opacity = (0.65 * ring).toFixed(3);
     for (const el of [nplus, nmicEl, nsend]) el.style.opacity = (1 - sat(mt * 2)).toFixed(3);
 

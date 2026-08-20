@@ -341,6 +341,7 @@ Departures from the plate that were deliberate, and the one-line way back.
 
 | | |
 |---|---|
+| No outline on the query box | Removed by request, referencing `PromptBox_20260819.mp4`, where the profile across the box edge steps from the glow at 23-29 straight to the face at 255 with only a 1-2px antialias. The NFL plate *does* carry a crisp 2px conic ring, so this is a departure from it and costs 0.25 rms on that piece (1.57 to 1.82). Back: restore the `.nring` element, its mask rule and the three lines that drove it — commit `de0ceaf` is the last one that had it. |
 | Wheel squash `0.436` | Fitted against the plate, not taken from the design file, which implies 0.281. Back: `scale(-1,0.281159)` on `.nring i,.nglow i`. |
 | The scrim rides the footage | The design has a flat 30% `#0A0A0A` wash over the whole frame. It is only drawn when footage is loaded, because over nothing it lifts every pixel by 3 and the plate's empty background is (0,0,0). Back: drop the `bgOn` test on `nscrim`. |
 | Halo opacity `.65`, blur 34 | The design says a 22px blur at full strength. That reached only 38px against the plate's 57 and ran the near field 16 over. These two reproduce the measured profile instead. Back: opacity 1, blur 22. |
