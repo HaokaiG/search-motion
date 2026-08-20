@@ -39,6 +39,24 @@ Nothing here is judged by eye. Every change goes through the same loop:
 - **A metric that does not move is not proof.** The 4px text jump when typing
   ended never showed up in the score — one frame cannot shift a 132-frame mean.
   It took someone watching it.
+- **A child cannot outrank its parent's stacking context.** The prompt box has to
+  sit above the white wash while the rest of act 1 sits below it. Giving `#n1` a
+  z-index so it could go under, and the box inside it a higher one so it could go
+  over, does nothing: the z-index on `#n1` makes it a stacking context, and every
+  descendant is then confined to it. The symptom was subtle — the box rendered,
+  but its black text came out at exactly 85, which is the wash's own value over
+  black, and it took reading a serialised frame that was *correct* to notice the
+  compositing was not. The box had to become a sibling.
+- **A whole-frame mean cannot separate two things happening at once.** Fitting the
+  act-1 flash against frame means gave a ramp over 48.72..52.06. Measured on the
+  background alone it is exactly 49..52 — the mean was also carrying the box's
+  face lifting on f49, and the box is 15.5% of the frame, which is the whole of
+  that frame's rise. Measure the thing, not the frame it is in.
+- **An epsilon is not zero.** `f = T * FPS + 1e-6` makes the first frame test
+  `f > 48` true at f=48, which flipped the query's ink to black a frame early —
+  against a face that was still black. Gate on the quantity that matters (here,
+  whether the face is light enough to carry dark text) rather than on a raw
+  frame comparison that an epsilon can tip.
 - **A nearest-colour lookup cannot locate a flat.** Fitting act 1's wheel by
   inverting ring pixels back to a position on the gradient gave 1.773 deg/frame
   with a 3.6 deg residual — because blue occupies stops 298.8..360 and 0..122.4,
@@ -274,6 +292,9 @@ Departures from the plate that were deliberate, and the one-line way back.
 | The scrim rides the footage | The design has a flat 30% `#0A0A0A` wash over the whole frame. It is only drawn when footage is loaded, because over nothing it lifts every pixel by 3 and the plate's empty background is (0,0,0). Back: drop the `bgOn` test on `nscrim`. |
 | Halo opacity `.65`, blur 34 | The design says a 22px blur at full strength. That reached only 38px against the plate's 57 and ran the near field 16 over. These two reproduce the measured profile instead. Back: opacity 1, blur 22. |
 | Caret 32px tall | The design draws it 40.1. The plate renders it 32, matching the text's ascender-to-baseline, and that is what is built. |
+| Act 2's exit is a smear plus a fade | The plate's page is genuinely leaving, not only spreading, and no amount of blur alone reaches its 1st-percentile luminance. The split between the two is fitted, not measured separately. Back: nothing to restore — but if the page should only smear, drop the `0.75 * rush * rush` term and expect the frame to stay ~35 too dark at f86. |
+| Act 2's chrome fades on a plain ramp | Measured, its rule goes in one frame, its nav in two and its mark by f84 — three different times. This uses a single 79→83 fade over all of it, which lands the nav and mark right and takes the rule out a frame or two late. |
+| Act 3's arrival smear ÷8 | The settle's own velocity is 138px on the first frame, and feeding that straight in over-blurs the frame to a mean of 11.6 against the plate's 15.6. The divisor is by eye against the plate's own legibility on f87. |
 | Wall width `4900px` | Not measurable from the plate — only its consequences are. This is the width that puts both lit phrases on one row 1693px apart (the plate's own rest positions measure ~1722), lands 25.5% of the frame carrying wall against its 24.1%, and leaves ~950px of copy to the right of the second phrase so the block's edge never walks into frame. Changing the copy or the type size re-wraps it; the panel warns when the two phrases stop sharing a row. |
 | Wall `#252525`, `blur(15px)` | Fitted to the banded coverage rather than sampled — the plate's wall is blurred past the point where a stem has a colour to read. Back: nothing to restore, but the pair is what sets act 3's floor. |
 | Glow radii and alphas | Fitted so the frame mean lands on the plate's. The band split does not match: the plate has 2.9% of the frame above 150 and only **0.2%** between 90 and 150, where this has ~1.1% in that middle band. Its halo falls off faster than three stacked shadows can. Suspect the plate's own compression crushed the skirt; not resolved. |

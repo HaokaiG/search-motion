@@ -354,7 +354,12 @@
   #stage2.live{opacity:1;visibility:visible}
   /* the white card act 2 rises on; it is act 2's, not the stage's, so the
      transparency belongs to act 1 the same way it does in the other piece */
-  #n2page{position:absolute;inset:0;background:#fff;opacity:0}
+  /* The white page washes in UNDER act 1's furniture-turned-transparent and
+     OVER nothing else: act 1 sits below it so its context line reads through
+     the wash exactly as the plate's does (86 at full becomes 142 under a third
+     of white), while the box rides above it, because the box is not covered —
+     it becomes the chip. Hence the three z-indexes rather than tree order. */
+  #n2page{position:absolute;inset:0;background:#fff;opacity:0;z-index:2}
 
   /* ── act 1 furniture ────────────────────────────────────────────────
      Laid out from the supplied design file, which agrees with the plate
@@ -365,7 +370,7 @@
      (1308.9,606.3) against 1309..1335 / 606..641. The design's own opacities
      check out too — #F0F2F5 at 50% over #0A0A0A at 35% predicts (122,123,124)
      for the + pill and the plate reads (119,120,123).                    */
-  #n1{position:absolute;inset:0}
+  #n1{position:absolute;inset:0;z-index:1}
   /* The design puts a 30% #0A0A0A scrim with a 10px backdrop blur under
      everything. It only has work to do when there is footage behind it, and
      over nothing it lifts the whole frame by 3 — measured, the plate's empty
@@ -394,10 +399,12 @@
      90deg, and it drives the ring, the halo and nothing else. A conic is the
      honest shape: the plate runs a full spectrum AROUND the perimeter, which
      a linear gradient cannot do however you rotate it. */
+  /* The box's rect is written per frame through the morph, so these are only
+     where it starts. z-index lifts it over the white wash. */
   #nbox{position:absolute;left:426.01px;top:389.58px;
-        width:1067.86px;height:300.24px}
+        width:1067.86px;height:300.24px;z-index:3;border-radius:57px}
   /* face first, then the halo outside it, then the 2px ring on top */
-  .nface{position:absolute;inset:0;border-radius:57px;
+  .nface{position:absolute;inset:0;border-radius:inherit;
          background:rgba(10,10,10,.35)}
   /* The halo is the box shape blurred and then cut off at the box's own
      edge, so none of it washes into the face — which is why the plate reads
@@ -410,7 +417,7 @@
          -webkit-mask-composite:xor;mask-composite:exclude}
   .nglow b{position:absolute;inset:70px;border-radius:57px;overflow:hidden;
            filter:blur(34px)}
-  .nring{position:absolute;inset:0;border-radius:57px;padding:2px;
+  .nring{position:absolute;inset:0;border-radius:inherit;padding:2px;
          box-sizing:border-box;overflow:hidden;
          -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
          mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
@@ -459,7 +466,7 @@
      207; the chip is 711x99 at (969,291) with its text inset 45; the body
      starts at x=241 on a 51px pitch, and its last paragraph is grey rather
      than black — 154,154,154 against the others' 0. */
-  #n2{position:absolute;inset:0;opacity:0}
+  #n2{position:absolute;inset:0;opacity:0;z-index:4}
   .n2logo{position:absolute;left:66px;top:65px;width:72px;height:73px;
           background:var(--gmark) center/contain no-repeat}
   .n2nav{position:absolute;left:0;top:87px;width:1920px;height:44px;
@@ -478,6 +485,7 @@
           padding:0 45px;border-radius:45px;background:#f0f1f4;
           font-size:36px;color:#1f1f1f;white-space:pre-wrap;
           display:grid;place-items:center start;box-sizing:border-box}
+  .n2chrome{position:absolute;inset:0}
   .n2body{position:absolute;left:241px;top:452px;width:1300px;
           font-size:36px;line-height:51px;color:#000}
   .n2body p{margin:0}
@@ -497,7 +505,7 @@
      third carrying the far end of the glow's gradient. The plate's letters are
      white all along (251,254,253 at both ends) — only the halo runs through the
      wheel, so the colour lives entirely in text-shadow. */
-  #n3{position:absolute;inset:0;opacity:0}
+  #n3{position:absolute;inset:0;opacity:0;z-index:5}
   /* 4900px is the width that reproduces the plate. It puts both lit phrases on
      one row 1693px apart — the plate's two rest positions measure ~1722 apart,
      and its wall grid does not shift vertically by a single pixel across the
@@ -779,6 +787,23 @@
   <div id="stage2">
     <div id="n2page"></div>
 
+    <!-- The box lives beside #n1, not inside it: #n1 carries a z-index so it
+         can sit UNDER the white wash, which makes it a stacking context, and a
+         child of it can never rise above a sibling of it however it is numbered.
+         The box has to clear the wash because it does not get covered — it
+         becomes the chip. -->
+    <div id="nbox">
+      <div class="nface"></div>
+      <div class="nglow" id="nglow"><b><i></i></b></div>
+      <div class="nring" id="nring"><i></i></div>
+      <div id="nq"><span id="nqt"></span><span id="ncaret"></span></div>
+      <div class="nplus"></div>
+      <svg class="nmic" viewBox="1308.92 606.29 27.5 36.32"><path d="M1322.67 627.781C1321.26 627.781 1320.06 627.273 1319.08 626.258C1318.13 625.243 1317.66 623.999 1317.66 622.526V611.249C1317.66 609.874 1318.15 608.712 1319.13 607.762C1320.11 606.78 1321.29 606.289 1322.67 606.289C1324.04 606.289 1325.22 606.78 1326.2 607.762C1327.18 608.712 1327.68 609.874 1327.68 611.249V622.526C1327.68 623.999 1327.18 625.243 1326.2 626.258C1325.25 627.273 1324.07 627.781 1322.67 627.781ZM1321.19 642.611V635.933C1317.72 635.572 1314.81 634.116 1312.45 631.562C1310.1 629.008 1308.92 625.996 1308.92 622.526H1311.91C1311.91 625.505 1312.96 628.01 1315.06 630.04C1317.15 632.069 1319.69 633.084 1322.67 633.084C1325.65 633.084 1328.18 632.069 1330.28 630.04C1332.37 628.01 1333.42 625.505 1333.42 622.526H1336.42C1336.42 625.996 1335.24 629.008 1332.88 631.562C1330.52 634.116 1327.61 635.572 1324.14 635.933V642.611H1321.19Z"/></svg>
+      <div class="nsend" id="nsend">
+        <svg viewBox="1401.24 608.22 31.43 31.43"><path d="M1415.48 639.648V613.866L1403.3 626.045L1401.24 623.933L1416.95 608.219L1432.67 623.933L1430.61 626.045L1418.43 613.866V639.648H1415.48Z"/></svg>
+      </div>
+    </div>
+
     <div id="n1">
       <div id="nscrim"></div>
       <div class="n-g"></div>
@@ -794,38 +819,33 @@
       <svg class="n-rail" style="left:84px;top:402px;width:39px;height:39px"
            viewBox="84 402 39 39"><path d="M87.9 441C86.8275 441 85.9094 440.619 85.1456 439.856C84.3819 439.093 84 438.176 84 437.105V409.839C84 408.768 84.3819 407.851 85.1456 407.088C85.9094 406.325 86.8275 405.944 87.9 405.944H105.304L101.404 409.839H87.9V437.105H115.2V423.569L119.1 419.674V437.105C119.1 438.176 118.718 439.093 117.954 439.856C117.191 440.619 116.272 441 115.2 441H87.9ZM95.7 429.315V421.037L113.591 403.169C113.981 402.779 114.42 402.487 114.908 402.292C115.395 402.097 115.883 402 116.37 402C116.89 402 117.386 402.097 117.857 402.292C118.328 402.487 118.759 402.779 119.149 403.169L121.879 405.944C122.236 406.333 122.513 406.763 122.708 407.234C122.903 407.705 123 408.184 123 408.67C123 409.157 122.911 409.636 122.732 410.107C122.553 410.577 122.269 411.007 121.879 411.397L103.988 429.315H95.7ZM99.6 425.419H102.33L113.64 414.124L112.275 412.76L110.861 411.397L99.6 422.644V425.419Z"/></svg>
 
-      <div id="nbox">
-        <div class="nface"></div>
-        <div class="nglow" id="nglow"><b><i></i></b></div>
-        <div class="nring" id="nring"><i></i></div>
-        <div id="nq"><span id="nqt"></span><span id="ncaret"></span></div>
-        <div class="nplus"></div>
-        <svg class="nmic" viewBox="1308.92 606.29 27.5 36.32"><path d="M1322.67 627.781C1321.26 627.781 1320.06 627.273 1319.08 626.258C1318.13 625.243 1317.66 623.999 1317.66 622.526V611.249C1317.66 609.874 1318.15 608.712 1319.13 607.762C1320.11 606.78 1321.29 606.289 1322.67 606.289C1324.04 606.289 1325.22 606.78 1326.2 607.762C1327.18 608.712 1327.68 609.874 1327.68 611.249V622.526C1327.68 623.999 1327.18 625.243 1326.2 626.258C1325.25 627.273 1324.07 627.781 1322.67 627.781ZM1321.19 642.611V635.933C1317.72 635.572 1314.81 634.116 1312.45 631.562C1310.1 629.008 1308.92 625.996 1308.92 622.526H1311.91C1311.91 625.505 1312.96 628.01 1315.06 630.04C1317.15 632.069 1319.69 633.084 1322.67 633.084C1325.65 633.084 1328.18 632.069 1330.28 630.04C1332.37 628.01 1333.42 625.505 1333.42 622.526H1336.42C1336.42 625.996 1335.24 629.008 1332.88 631.562C1330.52 634.116 1327.61 635.572 1324.14 635.933V642.611H1321.19Z"/></svg>
-        <div class="nsend" id="nsend">
-          <svg viewBox="1401.24 608.22 31.43 31.43"><path d="M1415.48 639.648V613.866L1403.3 626.045L1401.24 623.933L1416.95 608.219L1432.67 623.933L1430.61 626.045L1418.43 613.866V639.648H1415.48Z"/></svg>
-        </div>
-      </div>
     </div>
 
     <div id="n2">
-      <div class="n2logo"></div>
-      <div class="n2nav">
-        <span class="on" style="left:242px">AI Mode</span>
-        <i style="left:401px"></i>
-        <span style="left:483px">All</span>
-        <span style="left:585px">Images</span>
-        <span style="left:761px">Videos</span>
-        <span style="left:933px">Shopping</span>
-        <span style="left:1150px">More</span>
-        <i style="left:1253px"></i>
+      <!-- The chrome does not smear out, it leaves: the plate's rule is gone
+           in a single frame at f80, its nav in two, its mark by f84, while the
+           answer is still smearing at f86. Blur alone cannot do both, so the
+           two are separated here. -->
+      <div class="n2chrome" id="n2chrome">
+        <div class="n2logo"></div>
+        <div class="n2nav">
+          <span class="on" style="left:242px">AI Mode</span>
+          <i style="left:401px"></i>
+          <span style="left:483px">All</span>
+          <span style="left:585px">Images</span>
+          <span style="left:761px">Videos</span>
+          <span style="left:933px">Shopping</span>
+          <span style="left:1150px">More</span>
+          <i style="left:1253px"></i>
+        </div>
+        <svg class="n2rail" viewBox="0 0 40 150" aria-hidden="true">
+          <path d="M2 4h30M2 14h22M2 24h26"/>
+          <path d="M33 20l2.2 5 5 2.2-5 2.2-2.2 5-2.2-5-5-2.2 5-2.2z" fill="#54585c" stroke="none"/>
+          <path d="M4 118v-8l22-22 8 8-22 22z"/><path d="M2 146h36"/>
+        </svg>
+        <div class="n2rule"></div>
+        <div class="n2chip" id="n2chip"></div>
       </div>
-      <svg class="n2rail" viewBox="0 0 40 150" aria-hidden="true">
-        <path d="M2 4h30M2 14h22M2 24h26"/>
-        <path d="M33 20l2.2 5 5 2.2-5 2.2-2.2 5-2.2-5-5-2.2 5-2.2z" fill="#54585c" stroke="none"/>
-        <path d="M4 118v-8l22-22 8 8-22 22z"/><path d="M2 146h36"/>
-      </svg>
-      <div class="n2rule"></div>
-      <div class="n2chip" id="n2chip"></div>
       <div class="n2body" id="n2body"></div>
     </div>
 
@@ -834,6 +854,16 @@
     <svg id="nfx" width="0" height="0" aria-hidden="true"><defs>
       <filter id="nsmear" x="-60%" y="-20%" width="220%" height="140%">
         <feGaussianBlur id="nsmearB" stdDeviation="0 0"/>
+      </filter>
+      <!-- Act 2's exit is its own smear, so the two never share a value. The
+           offset after the blur is what makes it directional: a gaussian
+           spreads both ways, and the plate's streaks run one way, trailing to
+           the right off letters whose left edges stay legible. Blurring by s
+           and then pushing the result right by s turns a +/-s spread into one
+           that runs 0..2s, which is what a trail looks like. -->
+      <filter id="nsmear2" x="-60%" y="-20%" width="220%" height="140%">
+        <feGaussianBlur id="nsmear2B" stdDeviation="0 0"/>
+        <feOffset id="nsmear2O" dx="0" dy="0"/>
       </filter>
     </defs></svg>
     <div id="n3">
@@ -962,9 +992,13 @@
         <option value="1280">1280px</option>
         <option value="1920">1920px</option>
       </select>
+      <!-- Both plates are 23.976, so 24 is a resample: it lands 193 frames on a
+           192-frame piece and drifts a frame by the end, which shows on the two
+           joins. "Source" is the only rate that is frame-for-frame. -->
       <select id="gfps">
         <option value="8">8 fps</option>
         <option value="12" selected>12 fps</option>
+        <option value="23.976">23.976 fps · source</option>
         <option value="24">24 fps</option>
         <option value="30">30 fps</option>
         <option value="60">60 fps</option>
@@ -3554,20 +3588,50 @@ document.getElementById("seg").addEventListener("change", e => {
    gives 0 px of drift everywhere except across that phrase change, so it is
    two held scenes with a move between them, not a crawl.               */
 const N2_NF = 192;
-const N2_DUR = N2_NF * FRAME;
+/* The piece is the plate's 192 frames, numbered 1..192 the way the plate's are
+   — every constant here is quoted in those numbers — so t=0 is frame 1 and the
+   run is 191 frame-times long, not 192. Starting the clock at frame 0 instead
+   put an extra frame at the head of every export: invisible on the held parts,
+   and a whole frame of lag on the two joins, where the exported file showed the
+   prompt box still dark on the frame the plate has already washed grey. */
+const N2_DUR = (N2_NF - 1) * FRAME;
 const N2_TYPE0 = 3, N2_TYPE1 = 34;
 /* The send button's fill is a straight three-frame ramp: the plate reads pure
    white through f39 and then .33, .67, 1.00 on f40, f41, f42. The press that
    follows shows as the pill's left edge coming in 2, 6, 7 then 4px over f43..46
    — on a 124px pill that is a scale easing to 0.887 on f45 and back. */
 const N2_SEND = 39, N2_PRESS = 43, N2_REL = 47, N2_PRESS_MID = 45;
-/* The flash is fitted rather than eased by eye. The plate's frame means run
-   5.3, 25.9, 102.2, 175.5, 250.3 over f48..f52; inverting this build's own
-   opacity-to-mean response says the card has to be at .094, .430, .716 and
-   .982 on those frames, and those four steps are evenly spaced to within
-   0.02 — so the ramp really is straight, over 48.72..52.06. */
-const N2_FLASH0 = 48.72, N2_FLASH1 = 52.06;
-const N2_A2 = 52, N2_A3 = 88;
+/* ── the two act joins ──────────────────────────────────────────────────
+   Neither is a cut. Both were measured off the plate frame by frame.
+
+   Act 1 into act 2 is a MORPH: the prompt box becomes the answer page's query
+   chip while a white page washes in behind it. Tracking the box's own rect
+   gives (959,540,1069,300) on f49, (998,518,1028,275) on f50, (1099,464,929,220)
+   on f51 and the chip by f52 — one interpolation, at .008, .115, .391, 1 over
+   f49..52, which is t^3.25 on t = (f-48)/4. The wash underneath is exactly linear: the plate's
+   empty background reads 0, 85, 170, 255 on f49..52. The face lifts ahead of
+   both, 0 -> 149 -> 211 -> 234 -> 240, which is 1-(1-t)^3, and the ring and its
+   halo are gone within two frames.
+
+   Act 2 into act 3 is a RUSH, not a cut. The answer page smears horizontally
+   from f80 — its 1st-percentile luminance climbs 0, 22, 57, 88, 101, 145, 167,
+   185 as the ink spreads — and act 3 arrives on f87 already moving, at 0.808
+   scale about (268,609), settling as 1 - 0.192*0.63^(f-87). The scale origin is
+   solved from the lit phrase's own extents and reproduces them to a pixel. */
+const N2_MORPH0 = 48, N2_MORPH1 = 52;
+const N2_RUSH0 = 78, N2_RUSH1 = 87;              // act 2's exit smear
+const N2_A3_S0 = 0.192, N2_A3_DECAY = 0.63;      // act 3's arrival settle
+const N2_A3_OX = 268, N2_A3_OY = 609;            // and what it scales about
+
+/* The wash is exactly linear and exactly four frames: the plate's empty
+   background reads 0, 0, 85, 170, 255 on f48..f52. An earlier fit against
+   whole-frame means put it at 48.72..52.06, because the mean also carries the
+   box's face lifting on f49 — the box is 15.5% of the frame, which is the
+   whole of that frame's rise. Separating the two puts the wash back on 49. */
+const N2_FLASH0 = 49, N2_FLASH1 = 52;
+/* Act 3 starts on 87, not 88: the plate's mean drops from 245.2 to 15.6 between
+   86 and 87, and its first act-3 frame is already the wall, smeared. */
+const N2_A2 = 52, N2_A3 = 87;
 /* The swap is one continuous camera move, not a cut. Tracking the lit core:
    it holds at x=152 through f114, eases off left (138, 104, 33), goes dark at
    f124, and the next phrase enters from the right at x=527 and eases to rest
@@ -3619,9 +3683,17 @@ const n2chip = document.getElementById("n2chip"), n2body = document.getElementBy
 const n3wall = document.getElementById("n3wall"), n3lit = document.getElementById("n3lit"),
       n3tip = document.getElementById("n3tip"), n3ink = document.getElementById("n3ink"),
       n3fx = document.getElementById("n3");
-const nsmearB = document.getElementById("nsmearB");
+const nsmearB = document.getElementById("nsmearB"),
+      nsmear2B = document.getElementById("nsmear2B"),
+      nsmear2O = document.getElementById("nsmear2O");
 const n3pages = [n3wall, n3tip, n3lit, n3ink];
 const nctx = document.getElementById("nctx"), nscrim = document.getElementById("nscrim");
+const n2chrome = document.getElementById("n2chrome");
+const nbox = document.getElementById("nbox"), nface = document.querySelector("#nbox .nface"),
+      nq = document.getElementById("nq"), nplus = document.querySelector("#nbox .nplus"),
+      nmicEl = document.querySelector("#nbox .nmic");
+/* where the box starts, kept so the morph has something to leave from */
+const NB_L = 426.01, NB_T = 389.58, NB_W = 1067.86, NB_H = 300.24;
 
 let N2_Q = "why is the tush push so controversial";
 let N2_CTX = "The player must touch the ground inbounds with both feet, or with any other body part besides the hands (such as a knee, shin, hip, or elbow).";
@@ -3718,7 +3790,7 @@ function n3Aim(i){
 
 function render2(t){
   const T = Math.min(Math.max(t, 0), N2_DUR);
-  const f = T * FPS + 1e-6;
+  const f = T * FPS + 1;                       // t=0 is the plate's frame 1
 
   nscrim.style.opacity = bgOn ? "1" : "0";
 
@@ -3758,21 +3830,96 @@ function render2(t){
   nsend.style.transform = `scale(${press})`;
   nsend.querySelector("svg").style.fill = sendInk;
 
-  /* ── the flash, and the handover ── */
+  /* ── act 1 into act 2: the box becomes the chip ── */
   const flash = sat((f - N2_FLASH0) / (N2_FLASH1 - N2_FLASH0));
   n2page.style.opacity = (f >= N2_A3 ? 0 : flash).toFixed(3);
-  n1El.style.opacity = (1 - flash).toFixed(3);
-  n1El.style.visibility = flash >= 1 ? "hidden" : "visible";
+  /* act 1's furniture is not faded — the white page rising over it is what
+     takes it out, which is why the plate's context line is still legible at a
+     third of the way through and gone at the end */
+  n1El.style.opacity = "1";
+  n1El.style.visibility = f >= N2_A2 ? "hidden" : "visible";
+
+  const mt = sat((f - N2_MORPH0) / (N2_MORPH1 - N2_MORPH0));
+  const inMorph = f > N2_MORPH0 && f < N2_A2;
+  if (f < N2_A2){
+    /* the target is read off act 2's own chip, so editing the prompt re-aims
+       the morph instead of leaving it pointing at a baked rectangle */
+    const cx = n2chip.offsetLeft, cy = n2chip.offsetTop,
+          cw = n2chip.offsetWidth, ch = n2chip.offsetHeight;
+    const u = Math.pow(mt, 3.25);
+    const lerp = (a, b) => a + (b - a) * u;
+    nbox.style.left   = lerp(NB_L, cx).toFixed(2) + "px";
+    nbox.style.top    = lerp(NB_T, cy).toFixed(2) + "px";
+    nbox.style.width  = lerp(NB_W, cw).toFixed(2) + "px";
+    nbox.style.height = lerp(NB_H, ch).toFixed(2) + "px";
+    nbox.style.borderRadius = lerp(57, 45).toFixed(2) + "px";
+
+    /* the face lifts ahead of the move, and the ring and halo go first */
+    /* The face reads 0, 149, 211, 234, 240 across f48..52 — as a share of the
+       chip's own #F0F1F4 that is 0, .62, .879, .975, 1, which is 1-(1-t)^3.
+       Its alpha goes to 1 almost at once: the plate's box is an opaque light
+       grey through the morph, not the 35% wash it is while act 1 is running. */
+    const face = 1 - Math.pow(1 - mt, 3);
+    nface.style.background =
+      `rgb(${(10 + 230 * face).toFixed(0)},${(10 + 231 * face).toFixed(0)},${(10 + 234 * face).toFixed(0)})`;
+    nface.style.opacity = (0.35 + 0.65 * sat(mt * 4)).toFixed(3);
+    const ring = sat(1 - (f - 48.3) / 1.9);
+    nring.style.opacity = ring.toFixed(3);
+    nglow.style.opacity = (0.65 * ring).toFixed(3);
+    for (const el of [nplus, nmicEl, nsend]) el.style.opacity = (1 - sat(mt * 2)).toFixed(3);
+
+    /* the query rides the box down into the chip */
+    nq.style.fontSize = lerp(44, 36).toFixed(2) + "px";
+    nq.style.top = lerp(32, (ch - 44) / 2).toFixed(2) + "px";
+    nq.style.left = lerp(45.58, 45).toFixed(2) + "px";
+    /* The query does not fade from white to dark, it flips: the plate's text is
+       255 against a black face on f48 and 0 against a 151 face on f49, and
+       stays 0 while the face keeps lifting to 213 and 236. Lerping the ink
+       instead puts it within 19 of the face on that first frame, which reads
+       as the text briefly disappearing. */
+    nq.style.color = face > 0.25 ? "#000" : "#fff";   // flip when the face can carry it
+    ncaret.style.opacity = (1 - sat(mt * 3)).toFixed(3);
+  }
+  nbox.style.visibility = f >= N2_A2 ? "hidden" : "visible";
 
   /* ── act 2 ── */
   const inA2 = f >= N2_A2 && f < N2_A3;
-  n2El.style.opacity = inA2 ? sat((f - N2_A2) / 6).toFixed(3) : "0";
+  n2El.style.opacity = inA2 ? "1" : "0";
   n2El.style.visibility = inA2 ? "visible" : "hidden";
+
+  /* On the way out the page smears sideways, and only sideways — the plate's
+     last frames are horizontal streaks, so this is the directional filter and
+     not a blur(), which pulls the ink apart vertically too.
+
+     Smearing alone will not do it either. A block of text blurred sideways
+     converges on the mean darkness of each line rather than on white: at 400px
+     of it the frame's 1st percentile only reaches 150 against the plate's 185.
+     The page is genuinely leaving as well. Fitting the two together against
+     that percentile across f80..86 gives a 34px smear on rush^1.6 and a 0.75
+     fade on rush^2 — 92, 141, 192 against the plate's 88, 145, 185. */
+  const rush = sat((f - N2_RUSH0) / (N2_RUSH1 - N2_RUSH0));
+  const rushS = Math.pow(rush, 1.6) * 34;
+  nsmear2B.setAttribute("stdDeviation", rushS.toFixed(2) + " 0");
+  nsmear2O.setAttribute("dx", rushS.toFixed(2));
+  n2body.style.filter = rush > 0 ? "url(#nsmear2)" : "";
+  n2El.style.transform = rush > 0 ? `scale(${(1 + rush * 0.05).toFixed(4)})` : "";
+  if (inA2){
+    n2El.style.opacity = "1";
+    n2body.style.opacity = (sat((f - N2_A2) / 6) * (1 - 0.5 * rush * rush)).toFixed(3);
+    /* the chrome is simply gone by 83 */
+    n2chrome.style.opacity = (1 - sat((f - 79) / 4)).toFixed(3);
+  }
 
   /* ── act 3 ── */
   const inA3 = f >= N2_A3;
-  n3El.style.opacity = inA3 ? sat((f - N2_A3) / 4).toFixed(3) : "0";
+  n3El.style.opacity = inA3 ? "1" : "0";
   n3El.style.visibility = inA3 ? "visible" : "hidden";
+  /* it arrives already moving and settles: the lit phrase measures 0.808 of
+     its rest width on the first frame and is within a pixel by f96 */
+  const a3s = f => 1 - N2_A3_S0 * Math.pow(N2_A3_DECAY, Math.max(0, f - N2_A3));
+  const sc = a3s(f);
+  n3El.style.transformOrigin = `${N2_A3_OX}px ${N2_A3_OY}px`;
+  n3El.style.transform = sc < 0.9995 ? `scale(${sc.toFixed(5)})` : "";
   if (inA3){
     /* One move from where the layout put the first phrase to where it put the
        second. Because both ends are read back off the spans, the distance is
@@ -3807,9 +3954,13 @@ function render2(t){
        350px in that one frame, so the type spreads and its peak drops from 255
        to 192. Drive the smear off the frame's own velocity, so re-timing the
        swap re-blurs it instead of leaving a stale streak behind. */
-    const vel = Math.abs(a1.x - a0.x) * (swapE(f + 0.5) - swapE(f - 0.5));
-    nsmearB.setAttribute("stdDeviation", (vel / 2.5).toFixed(1) + " 0");
-    n3fx.style.filter = vel > 6 ? "url(#nsmear)" : "";
+    /* the swap's own speed, plus whatever the arrival is still doing: the
+       first act-3 frames are moving 110px each as the wall grows into place */
+    const velSwap = Math.abs(a1.x - a0.x) * (swapE(f + 0.5) - swapE(f - 0.5));
+    const velIn = (a3s(f + 0.5) - a3s(f - 0.5)) * 1546;
+    const sd = velSwap / 2.5 + velIn / 8;
+    nsmearB.setAttribute("stdDeviation", sd.toFixed(1) + " 0");
+    n3fx.style.filter = sd > 2 ? "url(#nsmear)" : "";
 
     /* the wheel the ring carried, still turning, now spread along the phrase:
        the near end at one hue and the far end N2_HUE_SPREAD ahead of it */

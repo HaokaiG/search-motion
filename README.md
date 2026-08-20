@@ -281,9 +281,23 @@ The reference is 1920×1080, **192 frames**, and its background measures pure `(
 is a transparent plate composited onto black rather than a black one, so the recreation treats
 it as transparent and paints black underneath only when an export asks for opaque pixels.
 
-It runs in three acts: the prompt typing into a dark rounded box (frames 3–47), a white flash
-into the answer page (48–52), the page held (52–87), then the answer's own words returning at
-5× with one phrase lit (88–192), the lit phrase swapping once across 116–138.
+It runs in three acts joined by two transitions, neither of which is a cut: the prompt typing
+into a dark rounded box (frames 3–47), the box **morphing into the answer page's query chip**
+(48–52), the page held (52–79), the page **rushing out sideways** while act 3 arrives already
+moving (80–96), and the answer's own words at 5× with one phrase lit, swapping once across
+116–138.
+
+### The two joins
+
+| Quantity | Method | Result |
+|---|---|---|
+| Act 1 → 2 | Track the box's own rect frame by frame | It is a morph, not a flash. (959,540,1069,300) on f49, (998,518,1028,275) on f50, (1099,464,929,220) on f51, and the chip by f52 — one interpolation at .008, .115, .391, 1, which is **t^3.25** on t=(f−48)/4. The target is read off act 2's chip, so editing the prompt re-aims it |
+| The wash under it | Empty background, frame by frame | Exactly linear and exactly four frames: **0, 0, 85, 170, 255** on f48–52. An earlier fit against whole-frame means put it at 48.72–52.06 — the mean also carries the box's face lifting on f49, and the box is 15.5% of the frame, which is that frame's whole rise |
+| The box's face | Median inside the tracked rect | 0, 149, 211, 234, 240 on f48–52 — as a share of the chip's `#F0F1F4` that is **1−(1−t)³**. It goes opaque almost at once; the plate's box is a light grey through the morph, not the 35% wash it is while act 1 runs |
+| The query through it | Extremes inside the box | It **flips**, it does not fade: 255 against a black face on f48, 0 against a 151 face on f49, and 0 while the face keeps lifting. Lerping the ink puts it within 19 of the face on that first frame, which reads as the text vanishing |
+| Act 2 → 3 | Ink counts per element | The chrome leaves, the answer smears. The rule is gone in one frame at f80, the nav in two, the mark by f84 — while the body is still smearing at f86. One blur cannot do both, so they are separated |
+| The smear | 1st-percentile luminance, f80–86 | 0, 22, 57, 88, 101, 145, 167, 185. Smearing alone cannot reach it — a block of text blurred sideways converges on each line's mean darkness, and at 400px the percentile only reaches 150 — so the body fades as well. Fitted together: a **34px directional smear on rush^1.6** and a **0.75 fade on rush²** |
+| Act 3's arrival | The lit phrase's extents, f87–96 | It arrives already moving at **0.808** scale and settles as **1 − 0.192·0.63^(f−87)**, about a point at **(268, 609)** solved from those extents — which reproduces them to a pixel |
 
 Act 1's layout came from a supplied design file rather than from the frames, and
 the two agree everywhere they can be compared — the mark at (67,64) 72×73 against
@@ -316,10 +330,15 @@ each `viewBox` *is* the measurement.
 | Act-3 wall grid | Row bands across the whole act | Identical on every frame — 37–152, 219–385, 418–598, 667–797. **Zero vertical movement**, so the swap has to be a purely horizontal move |
 | Glow | Halo hue at the phrase's near end on eight frames | 29° at f94, 2 at f104, 227 at f114, 188 at f140, 149 at f150, 65 at f160, 44 at f170, 271 at f190 — a constant **4.70°/frame decreasing through 75° at f160**, to 29° rms. The far end runs **83°** ahead of the near end. The letters themselves are white all along `(251,254,253)`; only the halo turns |
 
-**How closely it lands.** Comparing frame means against the plate on 21 frames spanning all 192:
-**1.93 rms**, with every frame inside ±1 except the flash's two middle frames (−6.0, −4.5) and
-the single frame the phrase swaps on (−3.7). The same check run on the *decoded 1920×1080 MP4*
-rather than the preview gives +0.0, −1.0, −0.7 and +0.4 on frames 40, 70, 95 and 160.
+**How closely it lands.** Comparing frame means against the plate on 29 frames spanning all 192:
+**1.55 rms**, every frame inside ±3.2 but for the first act-3 frame (−4.2) and the one the phrase
+swaps on (−3.7). Run against the *decoded 1920×1080 MP4* rather than the preview it is **2.02**
+over fourteen frames including both joins — 192 frames in the file, frame for frame with the
+plate, decoding without error.
+
+Export it at **23.976 · source** to get that. Both plates are 23.976, so choosing 24 resamples:
+193 frames land on a 192-frame piece and the drift reaches a whole frame by the end, which is
+invisible on the held stretches and obvious on the two joins.
 
 ### How act 3 is drawn
 
