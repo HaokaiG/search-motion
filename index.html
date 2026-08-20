@@ -383,8 +383,10 @@
      over nothing it lifts the whole frame by 3 — measured, the plate's empty
      background is a flat (0,0,0) and carrying the scrim regardless put the
      act at 8.1 against its 5.5. So it rides the footage. */
-  #nscrim{position:absolute;inset:0;background:rgba(10,10,10,.3);opacity:0;
-          -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  #nscrim{position:absolute;inset:0;background:rgba(10,10,10,.3);opacity:0}
+  /* the design's 10px backdrop blur, on its own switch: it is the expensive
+     part of this look and not every plate wants it */
+  #stage2.blur #nscrim{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
   .n-g{position:absolute;left:67px;top:64px;width:72px;height:73px;
        background:var(--gmark) center/contain no-repeat}
   /* The answer above the box is the tail of the previous turn — two lines of
@@ -411,8 +413,19 @@
   #nbox{position:absolute;left:426.01px;top:389.58px;
         width:1067.86px;height:300.24px;z-index:3;border-radius:57px}
   /* face first, then the halo outside it, then the 2px ring on top */
+  /* Two looks, both from the supplied files. Dark Blur is #0A0A0A at 35% on a
+     57px radius with white type; White is an opaque white box on a 69px radius
+     with black type, its mic and + glyph dark and its send the blue. The box's
+     geometry is the same in both — 1067.86x300.24 at (426.02,389.58) — so only
+     the skin changes. */
   .nface{position:absolute;inset:0;border-radius:inherit;
          background:rgba(10,10,10,.35)}
+  #stage2.box-white .nface{background:#fff}
+  #stage2.box-white #nbox{border-radius:69px}
+  #stage2.box-white #nq{color:#000}
+  #stage2.box-white .nmic{fill:#0A0A0A;opacity:1}
+  #stage2.box-white .nplus{background:#F0F2F5}
+  #stage2.box-white #ncaret{background:#000}
   /* The halo is the box shape blurred and then cut off at the box's own
      edge, so none of it washes into the face — which is why the plate reads
      pure black inside. The cut is a mask rather than an opaque face, because
@@ -958,6 +971,16 @@
         <option value="1" selected>Wheel measured</option>
         <option value="2">Wheel double</option>
       </select>
+      <select id="n2box">
+        <option value="dark" selected>Box: dark blur</option>
+        <option value="white">Box: white</option>
+      </select>
+      <select id="n2blur">
+        <option value="on" selected>Backdrop blur: on</option>
+        <option value="off">Backdrop blur: off</option>
+      </select>
+    </div>
+    <div class="row">
       <select id="n2size">
         <option value="120">Wall 120px</option>
         <option value="156" selected>Wall 156px</option>
@@ -3896,8 +3919,14 @@ function render2(t){
   else ncaret.className = (Math.floor(f / 8) % 2) ? "off" : "";
 
   /* ── the send button lights, then is pressed ── */
-  let sendCol = "#fff", sendInk = "#1f1f1f", press = 1;
-  if (f >= N2_SEND){
+  /* The send starts white and turns blue over three frames — but only on the
+     dark look. On the white box a white pill is invisible, and both the design
+     file and the reference clip show it already blue there, so that look holds
+     #346BF1 from the first frame. */
+  const whiteBox = stage2.classList.contains("box-white");
+  let sendCol = whiteBox ? "#346BF1" : "#fff",
+      sendInk = whiteBox ? "#fff" : "#1f1f1f", press = 1;
+  if (f >= N2_SEND && !whiteBox){
     const u = sat((f - N2_SEND) / 3);
     const r = Math.round(255 + (0x34 - 255) * u),
           g = Math.round(255 + (0x6B - 255) * u),
@@ -3922,6 +3951,12 @@ function render2(t){
 
   const mt = sat((f - N2_MORPH0) / (N2_MORPH1 - N2_MORPH0));
   const inMorph = f > N2_MORPH0 && f < N2_A2;
+  /* the skin the box starts from — the morph has to lerp out of whichever look
+     is on, not out of the dark one it was written against */
+  const boxWhite = stage2.classList.contains("box-white");
+  const F0 = boxWhite ? [255, 255, 255] : [10, 10, 10];
+  const FA0 = boxWhite ? 1 : 0.35;
+  const R0 = boxWhite ? 69 : 57;
   if (f < N2_A2){
     /* the target is read off act 2's own chip, so editing the prompt re-aims
        the morph instead of leaving it pointing at a baked rectangle */
@@ -3933,7 +3968,7 @@ function render2(t){
     nbox.style.top    = lerp(NB_T, cy).toFixed(2) + "px";
     nbox.style.width  = lerp(NB_W, cw).toFixed(2) + "px";
     nbox.style.height = lerp(NB_H, ch).toFixed(2) + "px";
-    nbox.style.borderRadius = lerp(57, 45).toFixed(2) + "px";
+    nbox.style.borderRadius = lerp(R0, 45).toFixed(2) + "px";
 
     /* the face lifts ahead of the move, and the ring and halo go first */
     /* The face reads 0, 149, 211, 234, 240 across f48..52 — as a share of the
@@ -3941,9 +3976,9 @@ function render2(t){
        Its alpha goes to 1 almost at once: the plate's box is an opaque light
        grey through the morph, not the 35% wash it is while act 1 is running. */
     const face = 1 - Math.pow(1 - mt, 3);
-    nface.style.background =
-      `rgb(${(10 + 230 * face).toFixed(0)},${(10 + 231 * face).toFixed(0)},${(10 + 234 * face).toFixed(0)})`;
-    nface.style.opacity = (0.35 + 0.65 * sat(mt * 4)).toFixed(3);
+    const fc = i => (F0[i] + ([240, 241, 244][i] - F0[i]) * face).toFixed(0);
+    nface.style.background = `rgb(${fc(0)},${fc(1)},${fc(2)})`;
+    nface.style.opacity = (FA0 + (1 - FA0) * sat(mt * 4)).toFixed(3);
     const ring = sat(1 - (f - 48.3) / 1.9);
     nring.style.opacity = ring.toFixed(3);
     nglow.style.opacity = (0.65 * ring).toFixed(3);
@@ -3958,7 +3993,8 @@ function render2(t){
        stays 0 while the face keeps lifting to 213 and 236. Lerping the ink
        instead puts it within 19 of the face on that first frame, which reads
        as the text briefly disappearing. */
-    nq.style.color = face > 0.25 ? "#000" : "#fff";   // flip when the face can carry it
+    /* the flip is only the dark look's — the white box already carries dark type */
+    nq.style.color = (boxWhite || face > 0.25) ? "#000" : "#fff";
     /* the caret is not the morph's business — it has been off since the typing
        landed on f35, and an inline opacity here outranks the .off class that
        put it there, which showed it again for a frame */
@@ -4105,6 +4141,9 @@ let PIECE = 1;
 const $piece = document.getElementById("piece");
 function pieceDur(){ return PIECE === 2 ? N2_DUR : DUR; }
 function pieceFrames(){ return PIECE === 2 ? N2_NF : NF_EFF; }
+function applyN2LookBoot(){
+  if (typeof $n2box !== "undefined" && $n2box) applyN2Look();
+}
 function applyPiece(){
   /* the stage stays laid out either way — on piece 2 it is holding the plate */
   stage.style.display = "";
@@ -4112,7 +4151,7 @@ function applyPiece(){
   stage2.classList.toggle("live", PIECE === 2);
   for (const el of document.querySelectorAll(".p1only")) el.hidden = PIECE === 2;
   for (const el of document.querySelectorAll(".p2only")) el.hidden = PIECE !== 2;
-  if (PIECE === 2) n2Build();
+  if (PIECE === 2){ n2Build(); applyN2LookBoot(); }
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
 }
@@ -4123,7 +4162,8 @@ const $n2q = document.getElementById("n2q"), $n2ctx = document.getElementById("n
       $n2a = document.getElementById("n2a"), $n2q1 = document.getElementById("n2q1"),
       $n2q2 = document.getElementById("n2q2"), $n2warn = document.getElementById("n2warn"),
       $n2spin = document.getElementById("n2spin"), $n2size = document.getElementById("n2size"),
-      $n2tail = document.getElementById("n2tail"), $n2qwarn = document.getElementById("n2qwarn");
+      $n2tail = document.getElementById("n2tail"), $n2qwarn = document.getElementById("n2qwarn"),
+      $n2box = document.getElementById("n2box"), $n2blur = document.getElementById("n2blur");
 $n2a.value = N2_BODY;
 function applyN2(){
   N2_Q = $n2q.value;
@@ -4154,6 +4194,13 @@ function applyN2(){
   render(hold !== null ? hold : 0);
 }
 for (const el of [$n2q, $n2ctx, $n2a, $n2q1, $n2q2, $n2tail]) el.addEventListener("input", applyN2);
+function applyN2Look(){
+  stage2.classList.toggle("box-white", $n2box.value === "white");
+  stage2.classList.toggle("blur", $n2blur.value === "on");
+  render(hold !== null ? hold : 0);
+}
+$n2box.addEventListener("change", applyN2Look);
+$n2blur.addEventListener("change", applyN2Look);
 $n2spin.addEventListener("change", () => { render(hold !== null ? hold : 0); });
 $n2size.addEventListener("change", e => {
   for (const el of n3pages){
