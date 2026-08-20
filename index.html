@@ -3945,6 +3945,12 @@ function n3Aim(i){
 function render2(t){
   const T = Math.min(Math.max(t, 0), N2_DUR);
   const f = T * FPS + 1;                       // t=0 is the plate's frame 1
+  /* the readouts are the other piece's, written past its early return, so this
+     one has to fill them itself. Same three quantities, this piece's version of
+     them: the clock, whatever the camera is translating, and the width of the
+     blur that is on — which here is a smear filter rather than a shutter, but
+     it is the same number in the same units. */
+  let panPx = 0, smearPx = 0;
 
   /* The footage runs under this piece whole. There is no click here for it to
      cross at, so it never fades — and BG_OP has to be written every frame
@@ -4115,6 +4121,9 @@ function render2(t){
   const travel = f > 79
     ? 650 * (Math.pow(f - 78.5, 2.25) - Math.pow(f - 79.5, 2.25)) * 0.0067 : 0;
   const step = travel / (nsmear2T.length - 1);
+  /* reported as a sigma so it is the same quantity the other piece prints and
+     the same one act 3 prints: a box of length L has sigma L/sqrt(12) */
+  if (travel > 0) smearPx = travel / Math.sqrt(12);
   nsmear2T.forEach((el, k) => el.setAttribute("dx", (k * step).toFixed(1)));
   nsmear2B.setAttribute("stdDeviation", (step / 2).toFixed(2) + " 0");
   const sharp = Math.max(0, 1 - (f - 79) / 11);
@@ -4185,6 +4194,7 @@ function render2(t){
     const velIn = (a3s(f + 0.5) - a3s(f - 0.5)) * 1546;
     const sd = velSwap / 2.5 + velIn / 8;
     nsmearB.setAttribute("stdDeviation", sd.toFixed(1) + " 0");
+    panPx = tx; smearPx = sd;
     n3fx.style.filter = sd > 2 ? "url(#nsmear)" : "";
 
     /* the wheel the ring carried, still turning, now spread along the phrase:
@@ -4206,6 +4216,10 @@ function render2(t){
     for (const sp of n3tip.querySelectorAll(".lit"))
       sp.style.textShadow = sp.classList.contains("on") ? glow(h) : "none";
   }
+
+  $t.textContent = T.toFixed(3);
+  $p.textContent = Math.round(panPx);
+  $s.textContent = smearPx.toFixed(1);
 }
 
 /* ── which piece is live ──────────────────────────────────────────────────

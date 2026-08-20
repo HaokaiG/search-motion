@@ -92,6 +92,11 @@ Nothing here is judged by eye. Every change goes through the same loop:
   smeared past use, but its left stays sharp the whole way — so the scale was
   solved on the left half's line centres, and on the vertical, which carries no
   smear at all. Correlating the whole block returned 0.5 and nonsense.
+- **An early return skips the reporting too.** The playback readouts — clock,
+  pan, shutter — were written at the end of the search piece's render, and the
+  prompt piece returns before it, so all three sat frozen on whatever the other
+  piece last left there. It reads as a broken panel and it is really one path
+  doing bookkeeping the other never reaches. The same shape of bug as `BG_OP`.
 - **A global set in one code path is stale in the other.** `BG_OP` — the plate's
   opacity, which the search piece fades at the click — was written only inside
   that piece's `render`. The prompt piece returns before it, so scrubbing the
