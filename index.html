@@ -382,21 +382,14 @@
        background:var(--gmark) center/contain no-repeat}
   /* The answer above the box is the tail of the previous turn — two lines of
      it, x-height 19.5 so 37px type, on a 48px pitch from x=258, and it fades
-     going up: the lower line's ink peaks at 120 and the upper at 86.
-
-     White at 47%, not a grey. The ground here is transparent, and over black
-     the two are the same picture — but only one of them is right over footage,
-     and only one carries usable alpha out of an export. The design file says
-     the same thing about the rail glyphs, which it writes as white at
-     fill-opacity 0.6 rather than as #9a9a9a. */
+     going up: the lower line's ink peaks at 120 and the upper at 86. */
   .n-ctx{position:absolute;left:258px;top:69px;width:1392px;
-         font-size:37px;line-height:48px;font-weight:400;
-         color:rgba(255,255,255,.47);
-         -webkit-mask-image:linear-gradient(rgba(0,0,0,.56),#000);
-         mask-image:linear-gradient(rgba(0,0,0,.56),#000)}
+         font-size:37px;line-height:48px;font-weight:400;color:#787878;
+         -webkit-mask-image:linear-gradient(rgba(0,0,0,.72),#000);
+         mask-image:linear-gradient(rgba(0,0,0,.72),#000)}
   .n-acts{position:absolute;left:270px;top:231px;display:flex;
           align-items:center;gap:66px}
-  .n-acts svg{width:36px;height:36px;fill:#fff;opacity:.6}   /* peaks at 152 */
+  .n-acts svg{width:36px;height:36px;fill:#989898}
   /* the rail's two glyphs are the design file's own paths, kept in page
      coordinates so the viewBox is the measurement */
   .n-rail{position:absolute;fill:#fff;opacity:.6}
@@ -528,10 +521,7 @@
      the 400 of the copy around it. At 400 the phrase's ink came out a fifth
      short of the plate's. */
   .n3page .lit{display:inline-block;padding:0 70px;margin:0 -70px;font-weight:500}
-  /* and the wall the same way: white at 14.5%, which is the #252525 it used to
-     be once it lands on nothing, and faint white type over footage rather than
-     dark grey type that would darken whatever is behind it */
-  .n3wall{color:rgba(255,255,255,.145);filter:blur(15px)}
+  .n3wall{color:#252525;filter:blur(15px)}
   /* The two glow layers carry no ink at all — a transparent glyph still casts
      its shadow, which is exactly what is wanted here: masking a layer that also
      held the letters faded the letters with it, and the phrase's bright core

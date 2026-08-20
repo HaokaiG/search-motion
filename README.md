@@ -310,7 +310,6 @@ each `viewBox` *is* the measurement.
 | Quantity | Method | Result |
 |---|---|---|
 | The box | Threshold and take runs on the ring | **1067.86×300.24** at (426.01, 389.58), radius **57**; face `#0A0A0A` at 35%, ring 2px |
-| Faint marks are white at low alpha | Levels, plate vs build | The ground is transparent, so a mark reading 24/255 is white at 14.5%, not `#252525` at full alpha — the same picture over black, a different one over footage and in an alpha export. The context line is white at 47% (its lines peak at 86 and 120), the action row at 60% (152), the wall at 14.5%. The design file agrees independently: it writes the rail glyphs as white at `fill-opacity 0.6` |
 | The scrim | Empty background, plate vs build | The design puts a 30% `#0A0A0A` wash with a 10px backdrop blur under everything. The plate's empty background is a flat **(0,0,0)**, and carrying the scrim regardless put act 1 at 8.1 against its 5.5 — so it rides the footage, which is the only thing it has work to do over |
 | The wheel's shape | Ring colour at 124 points around the perimeter | Not a screen-space sweep. Drawn on a **square** and squashed, so the whole top edge is one blue while the entire spectrum crowds along the bottom, and it runs **anticlockwise**. Squash fitted at **0.436** — the design file's transform implies the box's own 0.281, at which the hues land ~120px left of the plate's |
 | The wheel's phase | Same, frame by frame | `from` = **43.99 − 1.149·f**, to 1.15° rms across all 47 frames of the act |
