@@ -45,6 +45,25 @@ Nothing here is judged by eye. Every change goes through the same loop:
   so the caret came back for every frame from f35 to the morph, and again for a
   frame inside it. Two things writing one property, one of them louder. The
   caret is not the morph's business at all; the line is gone.
+- **Scan every frame for events before believing a section is static.** A
+  frame-to-frame mean-difference pass over all 192 found two stretches carrying
+  real change that had been built as holds: f53–67, where the answer was on a
+  six-frame opacity ramp and is actually rising into place over twelve, and
+  f80–86, where it is scaling out of frame and had been a blur. It also
+  confirmed the two joins and found the only genuinely dead stretch in the
+  piece, f68–79. One cheap pass, and it points at everything that was flattened.
+- **A blur is a symptom; find the motion.** Act 2's exit was fitted three times
+  as a smear — gaussian, directional, then a box — and none of them could
+  produce the plate's steady 19–21 per-frame change, because a smear that is not
+  carrying an actual displacement barely changes between frames. Measuring the
+  line centres instead showed the block scaling 1.0067 → 1.304 about a fixed
+  point. Once that was in, the blur followed from it rather than standing in
+  for it. When a fit needs an implausible parameter to match one statistic and
+  still misses another, the model is wrong, not the number.
+- **Measure where the signal is clean.** That block's right-hand side is
+  smeared past use, but its left stays sharp the whole way — so the scale was
+  solved on the left half's line centres, and on the vertical, which carries no
+  smear at all. Correlating the whole block returned 0.5 and nonsense.
 - **A global set in one code path is stale in the other.** `BG_OP` — the plate's
   opacity, which the search piece fades at the click — was written only inside
   that piece's `render`. The prompt piece returns before it, so scrubbing the

@@ -863,15 +863,41 @@
       <filter id="nsmear" x="-60%" y="-20%" width="220%" height="140%">
         <feGaussianBlur id="nsmearB" stdDeviation="0 0"/>
       </filter>
-      <!-- Act 2's exit is its own smear, so the two never share a value. The
-           offset after the blur is what makes it directional: a gaussian
-           spreads both ways, and the plate's streaks run one way, trailing to
-           the right off letters whose left edges stay legible. Blurring by s
-           and then pushing the result right by s turns a +/-s spread into one
-           that runs 0..2s, which is what a trail looks like. -->
-      <filter id="nsmear2" x="-60%" y="-20%" width="220%" height="140%">
-        <feGaussianBlur id="nsmear2B" stdDeviation="0 0"/>
-        <feOffset id="nsmear2O" dx="0" dy="0"/>
+      <!-- Act 2's exit is a BOX smear, not a gaussian one. A gaussian thins as
+           it spreads, so its ink drops out of measurement within about 50px of
+           the block however wide the sigma is; the plate's reaches x=23..1919
+           by f84 and still reads, and its frame-to-frame change holds at 13-15
+           where a gaussian's decays to 3. That is what real motion blur looks
+           like — a subject sampled evenly along its travel, which is a box.
+           Nine taps averaged progressively (m_k = (k*m_(k-1) + t_k)/(k+1)) with
+           a small gaussian first to fill between them. -->
+      <filter id="nsmear2" x="-100%" y="-50%" width="300%" height="200%">
+        <feGaussianBlur in="SourceGraphic" id="nsmear2B" stdDeviation="0 0" result="b"/>
+        <feOffset in="b" dx="0" result="t0"/>
+        <feOffset in="b" dx="0" result="t1"/>
+        <feOffset in="b" dx="0" result="t2"/>
+        <feOffset in="b" dx="0" result="t3"/>
+        <feOffset in="b" dx="0" result="t4"/>
+        <feOffset in="b" dx="0" result="t5"/>
+        <feOffset in="b" dx="0" result="t6"/>
+        <feOffset in="b" dx="0" result="t7"/>
+        <feOffset in="b" dx="0" result="t8"/>
+        <feComposite in="t0" in2="t1" operator="arithmetic" k2="0.5000" k3="0.5000" result="m1"/>
+        <feComposite in="m1" in2="t2" operator="arithmetic" k2="0.6667" k3="0.3333" result="m2"/>
+        <feComposite in="m2" in2="t3" operator="arithmetic" k2="0.7500" k3="0.2500" result="m3"/>
+        <feComposite in="m3" in2="t4" operator="arithmetic" k2="0.8000" k3="0.2000" result="m4"/>
+        <feComposite in="m4" in2="t5" operator="arithmetic" k2="0.8333" k3="0.1667" result="m5"/>
+        <feComposite in="m5" in2="t6" operator="arithmetic" k2="0.8571" k3="0.1429" result="m6"/>
+        <feComposite in="m6" in2="t7" operator="arithmetic" k2="0.8750" k3="0.1250" result="m7"/>
+        <feComposite in="m7" in2="t8" operator="arithmetic" k2="0.8889" k3="0.1111" result="m8"/>
+        <!-- and the page is still THERE under its own trail: the plate's answer
+             keeps a dense left edge at x=236 all the way through while its
+             right runs off the frame, which a pure box cannot do — a box gives
+             every sample equal weight, so the leading edge thins to 1/9 and
+             measures as gone. Mixing the unsmeared page back in at a falling
+             weight is what holds that edge. -->
+        <feComposite id="nsmear2M" in="SourceGraphic" in2="m8"
+                     operator="arithmetic" k2="1" k3="0"/>
       </filter>
     </defs></svg>
     <div id="n3">
@@ -3699,11 +3725,26 @@ const n3wall = document.getElementById("n3wall"), n3lit = document.getElementByI
       n3tip = document.getElementById("n3tip"), n3ink = document.getElementById("n3ink"),
       n3fx = document.getElementById("n3");
 const nsmearB = document.getElementById("nsmearB"),
-      nsmear2B = document.getElementById("nsmear2B"),
-      nsmear2O = document.getElementById("nsmear2O");
+      nsmear2B = document.getElementById("nsmear2B");
+const nsmear2T = [...document.querySelectorAll('#nsmear2 feOffset')];
+const nsmear2M = document.getElementById("nsmear2M");
 const n3pages = [n3wall, n3tip, n3lit, n3ink];
 const nctx = document.getElementById("nctx"), nscrim = document.getElementById("nscrim");
 const n2chrome = document.getElementById("n2chrome");
+const n2nav = document.querySelector("#n2 .n2nav");
+/* The answer does not simply fade up — it rises. Correlating the body's row
+   profile against its settled frame gives it 143px low on f56 and reaching 0
+   on f67, with the peak correlation climbing 0.92 -> 1.00, and the whole block
+   moves together: padding the windows so the paragraphs are measured
+   separately returns the same displacement for all of them. Fitting a power
+   over the window puts it at 180*(1-t)^2.4 across f55..67.
+
+   The chrome around it does something else again. Its ink counts say the chip
+   fades up from f52 and the nav from f55, both settling around f62, while the
+   mark never moves at all — measured at 66..137 / 65..137 on every frame of
+   the act. Four behaviours, and a single six-frame opacity ramp for the lot of
+   them was flattening all of it. */
+const N2_RISE0 = 55, N2_RISE1 = 67, N2_RISE_PX = 180, N2_RISE_P = 2.4;
 const nbox = document.getElementById("nbox"), nface = document.querySelector("#nbox .nface"),
       nq = document.getElementById("nq"), nplus = document.querySelector("#nbox .nplus"),
       nmicEl = document.querySelector("#nbox .nmic");
@@ -3912,27 +3953,58 @@ function render2(t){
   const inA2 = f >= N2_A2 && f < N2_A3;
   n2El.style.opacity = inA2 ? "1" : "0";
   n2El.style.visibility = inA2 ? "visible" : "hidden";
+  if (inA2){
+    const rise = N2_RISE_PX *
+      Math.pow(1 - sat((f - N2_RISE0) / (N2_RISE1 - N2_RISE0)), N2_RISE_P);
+    n2body.style.transform = rise > 0.5 ? `translateY(${rise.toFixed(1)}px)` : "";
+    n2nav.style.opacity  = sat((f - 55) / 7).toFixed(3);
+    n2chip.style.opacity = sat((f - 52) / 8).toFixed(3);
+  }
 
-  /* On the way out the page smears sideways, and only sideways — the plate's
-     last frames are horizontal streaks, so this is the directional filter and
-     not a blur(), which pulls the ink apart vertically too.
+  /* On the way out the page smears sideways, and it is a BOX smear rather than
+     a gaussian one — real motion blur is a subject sampled evenly along its
+     travel. A gaussian thins as it spreads, so its ink leaves measurement
+     within about 50px of the block however wide the sigma; the plate's answer
+     is still reading at the frame's edge, and its rows change by 19-21 a frame
+     where a gaussian's change decays to 3.
 
-     Smearing alone will not do it either. A block of text blurred sideways
-     converges on the mean darkness of each line rather than on white: at 400px
-     of it the frame's 1st percentile only reaches 150 against the plate's 185.
-     The page is genuinely leaving as well. Fitting the two together against
-     that percentile across f80..86 gives a 34px smear on rush^1.6 and a 0.75
-     fade on rush^2 — 92, 141, 192 against the plate's 88, 145, 185. */
-  const rush = sat((f - N2_RUSH0) / (N2_RUSH1 - N2_RUSH0));
-  const rushS = Math.pow(rush, 1.6) * 34;
-  nsmear2B.setAttribute("stdDeviation", rushS.toFixed(2) + " 0");
-  nsmear2O.setAttribute("dx", rushS.toFixed(2));
-  n2body.style.filter = rush > 0 ? "url(#nsmear2)" : "";
-  n2El.style.transform = rush > 0 ? `scale(${(1 + rush * 0.05).toFixed(4)})` : "";
+     And the smear is a symptom, not the motion. Measuring the answer's line
+     centres on its left half — which stays sharp the whole way — they spread
+     from a fixed point: 1.0067 on f80, 1.027 on f81, 1.080, 1.157, 1.304, all
+     about y=600 to within 2.2px. The block is SCALING UP, out of frame, and
+     each point's blur is its own velocity, which is why the smear grows with x
+     while the left edge stays crisp. Fitting the growth gives
+     1 + 0.0067*(f-79)^2.25, and the pivot's x is the block's own left margin,
+     241 — which is what holds that edge still.
+
+     The chrome does not go with it: the mark measures at 66..137 on every
+     frame until it is gone, where scaling about that pivot would have walked
+     it 14px by f82. It fades on its own. */
+  const a2s = f > 79 ? 1 + 0.0067 * Math.pow(f - 79, 2.25) : 1;
+  n2body.style.transformOrigin = "0px 148px";        // (241,600) in stage terms
+  n2body.style.transform = a2s > 1.0005 ? `scale(${a2s.toFixed(5)})` : "";
+  /* the blur each frame is how far the block moved in it, averaged over its
+     width — the pivot is at its left edge, so the mean arm is half of 1300 */
+  const travel = f > 79
+    ? 650 * (Math.pow(f - 78.5, 2.25) - Math.pow(f - 79.5, 2.25)) * 0.0067 : 0;
+  const step = travel / (nsmear2T.length - 1);
+  nsmear2T.forEach((el, k) => el.setAttribute("dx", (k * step).toFixed(1)));
+  nsmear2B.setAttribute("stdDeviation", (step / 2).toFixed(2) + " 0");
+  const sharp = Math.max(0, 1 - (f - 79) / 11);
+  nsmear2M.setAttribute("k2", sharp.toFixed(3));
+  nsmear2M.setAttribute("k3", (1 - sharp).toFixed(3));
+  /* the whole page smears, chrome included — the nav and mark measure as gone
+     by f82 and f84 not because they fade but because they are thin, and a box
+     this long dilutes them below reading while the dense answer survives */
+  n2body.style.filter = travel > 0 ? "url(#nsmear2)" : "";
   if (inA2){
     n2El.style.opacity = "1";
-    n2body.style.opacity = (sat((f - N2_A2) / 6) * (1 - 0.5 * rush * rush)).toFixed(3);
-    /* the chrome is simply gone by 83 */
+    /* and it thins as it goes: the plate's frame mean RISES through the exit,
+       244.2, 244.8, 245.2, where a block that only scaled would darken it.
+       Solving the ink left against those means puts the body at about .63 by f84
+       and .47 by f86. */
+    n2body.style.opacity =
+      (sat((f - N2_A2) / 2) * (1 - 0.55 * Math.pow(sat((f - 80) / 6), 1.5))).toFixed(3);
     n2chrome.style.opacity = (1 - sat((f - 79) / 4)).toFixed(3);
   }
 
