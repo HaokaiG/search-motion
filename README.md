@@ -451,9 +451,11 @@ flattering one, and it is the one worth reporting.
 
 ## Licence
 
-The code is MIT (`LICENSE`). The assets are not mine: Google Sans Flex is under the SIL Open
-Font License and the Google marks belong to Google. **`NOTICE.md` has the details** — and the
-source advertisement is deliberately not in this repository.
+No licence is granted for the code — all rights reserved.
+
+The assets are a separate matter and are not mine either way: Google Sans Flex is under the SIL
+Open Font License and the Google marks belong to Google. **`NOTICE.md` has the details**, and its
+terms still apply — and the source advertisement is deliberately not in this repository.
 
 ## Where it falls short
 
