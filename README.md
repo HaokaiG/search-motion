@@ -285,11 +285,25 @@ It runs in three acts: the prompt typing into a dark rounded box (frames 3–47)
 into the answer page (48–52), the page held (52–87), then the answer's own words returning at
 5× with one phrase lit (88–192), the lit phrase swapping once across 116–138.
 
+Act 1's layout came from a supplied design file rather than from the frames, and
+the two agree everywhere they can be compared — the mark at (67,64) 72×73 against
+a measured 67–137 / 64–137, the rail glyphs and the mic landing on their measured
+boxes to the pixel, and the design's own opacities checking out: `#F0F2F5` at 50%
+over `#0A0A0A` at 35% predicts (122,123,124) for the **+** pill where the plate
+reads (119,120,123). Its icon paths are used directly, in page coordinates, so
+each `viewBox` *is* the measurement.
+
 | Quantity | Method | Result |
 |---|---|---|
-| The box | Threshold and take runs on the ring | **1066×297** centred on (959.2, 539.8), radius **60** |
-| Typing | Caret's right edge, frame to frame | Frames **3→34** |
-| Send button | Fill colour sampled on the button | Lights **40–42**, `(231,231,231)` → `(81,108,215)`; pressed **43–46** |
+| The box | Threshold and take runs on the ring | **1067.86×300.24** at (426.01, 389.58), radius **57**; face `#0A0A0A` at 35%, ring 2px |
+| The scrim | Empty background, plate vs build | The design puts a 30% `#0A0A0A` wash with a 10px backdrop blur under everything. The plate's empty background is a flat **(0,0,0)**, and carrying the scrim regardless put act 1 at 8.1 against its 5.5 — so it rides the footage, which is the only thing it has work to do over |
+| The wheel's shape | Ring colour at 124 points around the perimeter | Not a screen-space sweep. Drawn on a **square** and squashed, so the whole top edge is one blue while the entire spectrum crowds along the bottom, and it runs **anticlockwise**. Squash fitted at **0.436** — the design file's transform implies the box's own 0.281, at which the hues land ~120px left of the plate's |
+| The wheel's phase | Same, frame by frame | `from` = **43.99 − 1.149·f**, to 1.15° rms across all 47 frames of the act |
+| Typing | Caret's right edge, frame to frame | Frames **3→34**; caret 3.4×32 at the text's ascender |
+| Prompt type | x-height on the settled line | 23px x-height → **44px**, pure white, starting x=473 |
+| Context above the box | Row bands and x-height | Two lines of the previous turn, **37px** on a 48px pitch from x=258, fading upward — the lower line's ink peaks at 120 and the upper at 86 |
+| Send button | Fill colour sampled on the button | Pure white through f39, then a straight three-frame ramp — **.33, .67, 1.00** on f40, f41, f42 — to the design's `#346BF1`. The press after it shows as the pill's left edge coming in 2, 6, 7, 4px over f43–46, a scale easing to **0.887** on f45 and back |
+| Halo | Profile out from the box edge | Reaches **57–60px** on every side: 40 at 2px out, 35 at 10, 22 at 30. Cut off at the box's own edge so none of it washes into the face, which is why the plate reads pure black inside |
 | Flash | Frame means, inverted through this build's own opacity-to-mean response | Plate reads 5.3, 25.9, 102.2, 175.5, 250.3 over f48–52, so the card has to sit at .094, .430, .716, .984. A straight ramp over **48.75…51.75** reproduces them to 5.4 rms — a ramp running the full four frames to 52 gives 7.1 |
 | Act-2 page | Edge/run detection on f70 | Mark **72px** at (66,65); nav ink band y 87–121 with items at 242, 483, 585, 761, 933, 1150 and carets at 401, 1253; rule at **207**; chip **711×99** at (969,291), text inset 45; body from x=241 on a **51px** pitch; rail glyphs at y 293–324 and 403–441 |
 | Act-2 weights | Stem widths on the x-height | 3px through the first paragraph's opening, **4px** from the claim to the end of that paragraph, and 4px on the two quoted names — so the emphasis is a real weight change, not a colour one |
@@ -303,9 +317,9 @@ into the answer page (48–52), the page held (52–87), then the answer's own w
 | Glow | Halo hue at the phrase's near end on eight frames | 29° at f94, 2 at f104, 227 at f114, 188 at f140, 149 at f150, 65 at f160, 44 at f170, 271 at f190 — a constant **4.70°/frame decreasing through 75° at f160**, to 29° rms. The far end runs **83°** ahead of the near end. The letters themselves are white all along `(251,254,253)`; only the halo turns |
 
 **How closely it lands.** Comparing frame means against the plate on 21 frames spanning all 192:
-**2.54 rms**, with every held frame inside ±1. What is left is the four-frame flash (worst +8.5)
-and the single frame the phrase swaps on (−3.7). The same check run on the *decoded 1920×1080
-MP4* rather than the preview gives −1.1, −0.7 and +0.4 on frames 70, 95 and 160.
+**1.93 rms**, with every frame inside ±1 except the flash's two middle frames (−6.0, −4.5) and
+the single frame the phrase swaps on (−3.7). The same check run on the *decoded 1920×1080 MP4*
+rather than the preview gives +0.0, −1.0, −0.7 and +0.4 on frames 40, 70, 95 and 160.
 
 ### How act 3 is drawn
 

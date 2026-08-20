@@ -39,6 +39,20 @@ Nothing here is judged by eye. Every change goes through the same loop:
 - **A metric that does not move is not proof.** The 4px text jump when typing
   ended never showed up in the score — one frame cannot shift a 132-frame mean.
   It took someone watching it.
+- **A nearest-colour lookup cannot locate a flat.** Fitting act 1's wheel by
+  inverting ring pixels back to a position on the gradient gave 1.773 deg/frame
+  with a 3.6 deg residual — because blue occupies stops 298.8..360 and 0..122.4,
+  half the wheel at one colour, so every blue sample answered with an arbitrary
+  point inside that flat. Restricted to the purple-to-teal arc the same fit
+  landed at 0.869 with 0.63 residual. The two disagree by 40 deg by mid-act.
+  Fit only where the signal can actually distinguish positions.
+- **A design file's stated geometry is not the rendered geometry.** The supplied
+  file's transform implies its angular gradient is squashed by the box's own
+  aspect, 0.281. Built that way, the hues land about 120px left of the plate's
+  along the bottom edge. Fitting squash and phase together against colours at
+  124 points around the perimeter picks 0.436. Take a design file's *layout* —
+  it agreed with the plate to the pixel on every box, glyph and opacity — and
+  still measure anything it only implies.
 - **A transparent glyph still casts its text-shadow.** Setting the act-3 glow on the *page*
   element rather than on each phrase lit the entire wall — every one of its transparent
   letters cast the coloured shadow. Frame means went from 16 to 59. The shadow belongs on the
@@ -256,6 +270,10 @@ Departures from the plate that were deliberate, and the one-line way back.
 
 | | |
 |---|---|
+| Wheel squash `0.436` | Fitted against the plate, not taken from the design file, which implies 0.281. Back: `scale(-1,0.281159)` on `.nring i,.nglow i`. |
+| The scrim rides the footage | The design has a flat 30% `#0A0A0A` wash over the whole frame. It is only drawn when footage is loaded, because over nothing it lifts every pixel by 3 and the plate's empty background is (0,0,0). Back: drop the `bgOn` test on `nscrim`. |
+| Halo opacity `.65`, blur 34 | The design says a 22px blur at full strength. That reached only 38px against the plate's 57 and ran the near field 16 over. These two reproduce the measured profile instead. Back: opacity 1, blur 22. |
+| Caret 32px tall | The design draws it 40.1. The plate renders it 32, matching the text's ascender-to-baseline, and that is what is built. |
 | Wall width `4900px` | Not measurable from the plate — only its consequences are. This is the width that puts both lit phrases on one row 1693px apart (the plate's own rest positions measure ~1722), lands 25.5% of the frame carrying wall against its 24.1%, and leaves ~950px of copy to the right of the second phrase so the block's edge never walks into frame. Changing the copy or the type size re-wraps it; the panel warns when the two phrases stop sharing a row. |
 | Wall `#252525`, `blur(15px)` | Fitted to the banded coverage rather than sampled — the plate's wall is blurred past the point where a stem has a colour to read. Back: nothing to restore, but the pair is what sets act 3's floor. |
 | Glow radii and alphas | Fitted so the frame mean lands on the plate's. The band split does not match: the plate has 2.9% of the frame above 150 and only **0.2%** between 90 and 150, where this has ~1.1% in that middle band. Its halo falls off faster than three stacked shadows can. Suspect the plate's own compression crushed the skirt; not resolved. |

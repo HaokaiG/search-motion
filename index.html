@@ -356,53 +356,101 @@
      transparency belongs to act 1 the same way it does in the other piece */
   #n2page{position:absolute;inset:0;background:#fff;opacity:0}
 
-  /* ── act 1 furniture ── */
+  /* ── act 1 furniture ────────────────────────────────────────────────
+     Laid out from the supplied design file, which agrees with the plate
+     everywhere the two can be compared: the mark at (67,64) 72x73 against a
+     measured 67..137 / 64..137; the rail glyphs at (84,292) and (84,402)
+     against 84..119 / 293..324 and 84..122 / 403..441; the box at
+     (426.01,389.58) 1067.86x300.24 against 425..1493 / 390..690; the mic at
+     (1308.9,606.3) against 1309..1335 / 606..641. The design's own opacities
+     check out too — #F0F2F5 at 50% over #0A0A0A at 35% predicts (122,123,124)
+     for the + pill and the plate reads (119,120,123).                    */
   #n1{position:absolute;inset:0}
-  .n-g{position:absolute;left:64px;top:56px;width:52px;height:52px;
+  /* The design puts a 30% #0A0A0A scrim with a 10px backdrop blur under
+     everything. It only has work to do when there is footage behind it, and
+     over nothing it lifts the whole frame by 3 — measured, the plate's empty
+     background is a flat (0,0,0) and carrying the scrim regardless put the
+     act at 8.1 against its 5.5. So it rides the footage. */
+  #nscrim{position:absolute;inset:0;background:rgba(10,10,10,.3);opacity:0;
+          -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .n-g{position:absolute;left:67px;top:64px;width:72px;height:73px;
        background:var(--gmark) center/contain no-repeat}
-  .n-ctx{position:absolute;left:150px;top:60px;width:1500px;
-         font-size:26px;line-height:38px;font-weight:400;color:#9aa0a6}
-  .n-acts{position:absolute;left:64px;top:132px;display:flex;gap:44px}
-  .n-acts svg{width:34px;height:34px;fill:#9aa0a6}
-  .n-side{position:absolute;left:74px;top:250px;display:flex;
-          flex-direction:column;gap:46px}
-  .n-side svg{width:36px;height:36px;fill:#9aa0a6}
+  /* The answer above the box is the tail of the previous turn — two lines of
+     it, x-height 19.5 so 37px type, on a 48px pitch from x=258, and it fades
+     going up: the lower line's ink peaks at 120 and the upper at 86. */
+  .n-ctx{position:absolute;left:258px;top:69px;width:1392px;
+         font-size:37px;line-height:48px;font-weight:400;color:#787878;
+         -webkit-mask-image:linear-gradient(rgba(0,0,0,.72),#000);
+         mask-image:linear-gradient(rgba(0,0,0,.72),#000)}
+  .n-acts{position:absolute;left:270px;top:231px;display:flex;
+          align-items:center;gap:66px}
+  .n-acts svg{width:36px;height:36px;fill:#989898}
+  /* the rail's two glyphs are the design file's own paths, kept in page
+     coordinates so the viewBox is the measurement */
+  .n-rail{position:absolute;fill:#fff;opacity:.6}
 
-  /* ── the prompt box ── */
-  #nbox{position:absolute;left:427px;top:391px;width:1066px;height:297px}
-  /* The ring is a conic gradient with a black face laid over the middle of
-     it, which leaves a stroke of exactly the inset. A conic is the honest
-     shape here: the reference runs a full rainbow AROUND the perimeter —
-     blue along the top, magenta at the bottom left, orange under the
-     middle, green at the bottom right — which a linear gradient cannot do
-     however you rotate it, since it only ever shows two hues at once.  */
-  .nring{position:absolute;inset:0;border-radius:60px;
-         background:conic-gradient(from 0deg,
-           #4285F4,#9B72CB,#D96570,#F2A60C,#34A853,#4285F4)}
-  .nglow{position:absolute;inset:-10px;border-radius:70px;filter:blur(22px);
-         opacity:.85;background:conic-gradient(from 0deg,
-           #4285F4,#9B72CB,#D96570,#F2A60C,#34A853,#4285F4)}
-  .nface{position:absolute;inset:3px;border-radius:57px;background:#000}
-  #nq{position:absolute;left:47px;top:34px;width:960px;
-      font-size:58px;line-height:1.18;font-weight:400;color:#fafafa;
+  /* ── the prompt box ──────────────────────────────────────────────────
+     The wheel is the design's own angular gradient, seventeen stops from
+     90deg, and it drives the ring, the halo and nothing else. A conic is the
+     honest shape: the plate runs a full spectrum AROUND the perimeter, which
+     a linear gradient cannot do however you rotate it. */
+  #nbox{position:absolute;left:426.01px;top:389.58px;
+        width:1067.86px;height:300.24px}
+  /* face first, then the halo outside it, then the 2px ring on top */
+  .nface{position:absolute;inset:0;border-radius:57px;
+         background:rgba(10,10,10,.35)}
+  /* The halo is the box shape blurred and then cut off at the box's own
+     edge, so none of it washes into the face — which is why the plate reads
+     pure black inside. The cut is a mask rather than an opaque face, because
+     the face is only 35% and would otherwise let the blur through. */
+  .nglow{position:absolute;inset:-70px;border-radius:127px;padding:70px;
+         box-sizing:border-box;opacity:.65;
+         -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+         mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+         -webkit-mask-composite:xor;mask-composite:exclude}
+  .nglow b{position:absolute;inset:70px;border-radius:57px;overflow:hidden;
+           filter:blur(34px)}
+  .nring{position:absolute;inset:0;border-radius:57px;padding:2px;
+         box-sizing:border-box;overflow:hidden;
+         -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+         mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+         -webkit-mask-composite:xor;mask-composite:exclude}
+  /* The wheel is not a screen-space sweep. It is drawn on a SQUARE and then
+     squashed — which is why the whole top edge comes out one blue while the
+     entire spectrum crowds along the bottom — and it runs anticlockwise, hence
+     the -1 on x. A plain conic on the box puts the warm half up the left-hand
+     side instead.
+
+     The squash is 0.436, fitted rather than assumed. The design file's own
+     transform implies the box's aspect, 0.2812, but at that value the hues
+     land about 120px left of the plate's along the bottom edge: matching
+     colours at 124 points around the perimeter over a grid of squash and
+     phase picks 0.436, and the per-frame phase then fits a line to 1.15 deg
+     against 3.4 at 0.2812. Back: 0.281159 for the design file's value. */
+  .nring i,.nglow i{position:absolute;left:50%;top:50%;
+           width:1067.86px;height:1067.86px;margin:-533.93px 0 0 -533.93px;
+           transform:scale(-1,0.436)}
+  #nq{position:absolute;left:45.58px;top:32px;width:960px;
+      font-size:44px;line-height:1.2;font-weight:400;color:#fff;
       white-space:pre-wrap}
-  #ncaret{display:inline-block;width:3px;height:52px;background:#fafafa;
-          vertical-align:-9px;margin-left:4px}
+  #ncaret{display:inline-block;width:3.4px;height:32px;background:#fff;
+          vertical-align:-4px;margin-left:6px}
   #ncaret.off{opacity:0}
-  .nplus{position:absolute;left:31px;top:201px;width:98px;height:62px;
-         border-radius:31px;background:#3c4043}
-  .nplus::before,.nplus::after{content:"";position:absolute;background:#e8eaed;
-         border-radius:2px}
-  .nplus::before{left:33px;top:29px;width:32px;height:4px}
-  .nplus::after{left:47px;top:15px;width:4px;height:32px}
-  .nmic{position:absolute;left:882px;top:215px;width:27px;height:36px;
-        fill:#e8eaed}
-  /* pale until the query lands, then Google blue — measured 231,231,231
-     going to 81,108,215 across frames 40 to 42 */
-  .nsend{position:absolute;left:942px;top:198px;width:94px;height:70px;
-         border-radius:35px;background:#e7e7e7;
-         display:grid;place-items:center}
-  .nsend svg{width:34px;height:34px;fill:#1f1f1f}
+  .nplus{position:absolute;left:30px;top:199.18px;
+         width:94.2px;height:70.65px;border-radius:35.33px;
+         background:rgba(240,242,245,.5)}
+  .nplus::before,.nplus::after{content:"";position:absolute;background:#0A0A0A}
+  .nplus::before{left:33.07px;top:33.66px;width:28.06px;height:3.34px}
+  .nplus::after{left:45.43px;top:21.3px;width:3.34px;height:28.06px}
+  .nmic{position:absolute;left:882.91px;top:216.71px;
+        width:27.5px;height:36.32px;fill:#F8F9FA;opacity:.5}
+  /* pale until the query lands, then the design's blue — the plate goes
+     (255,255,255) at f31 to (74,104,225) by f45, and #346BF1 is the design's
+     own value for that end */
+  .nsend{position:absolute;left:943.8px;top:199.14px;
+         width:94.29px;height:70.72px;border-radius:35.36px;
+         background:#e7e7e7;display:grid;place-items:center}
+  .nsend svg{width:31.43px;height:31.43px;fill:#1f1f1f}
 
   /* ── act 2, the answer page ─────────────────────────────────────────
      Every number here is off the plate's f70. The mark is 72px square at
@@ -732,6 +780,7 @@
     <div id="n2page"></div>
 
     <div id="n1">
+      <div id="nscrim"></div>
       <div class="n-g"></div>
       <div class="n-ctx" id="nctx"></div>
       <div class="n-acts">
@@ -740,20 +789,20 @@
         <svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11a2 2 0 0 0-2-2h-6.31l.95-4.57.03-.32a1.5 1.5 0 0 0-.44-1.06L14.17 1 7.59 7.59A1.98 1.98 0 0 0 7 9v10a2 2 0 0 0 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
         <svg viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2a2 2 0 0 0 2 2h6.31l-.95 4.57-.3.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59A1.98 1.98 0 0 0 17 15V5a2 2 0 0 0-2-2zm4 0v12h4V3h-4z"/></svg>
       </div>
-      <div class="n-side">
-        <svg viewBox="0 0 24 24"><path d="M3 18h13v-2H3v2zm0-5h10v-2H3v2zm0-7v2h13V6H3zm18 9.59L17.42 12 21 8.41 19.59 7l-5 5 5 5L21 15.59z"/></svg>
-        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-      </div>
+      <svg class="n-rail" style="left:84px;top:292px;width:36px;height:32px"
+           viewBox="84 292 36 32"><path d="M111.9 324C111.87 324 111.75 323.911 111.54 323.733C111.06 321.926 110.145 320.37 108.795 319.067C107.475 317.733 105.9 316.83 104.07 316.356C104.01 316.326 103.92 316.207 103.8 316C103.8 315.941 103.89 315.822 104.07 315.644C105.9 315.17 107.475 314.281 108.795 312.978C110.145 311.644 111.06 310.074 111.54 308.267C111.57 308.207 111.69 308.119 111.9 308C111.96 308 112.08 308.089 112.26 308.267C112.77 310.074 113.685 311.644 115.005 312.978C116.325 314.281 117.9 315.17 119.73 315.644C119.79 315.644 119.88 315.763 120 316C120 316.03 119.91 316.148 119.73 316.356C117.9 316.83 116.31 317.733 114.96 319.067C113.64 320.37 112.74 321.926 112.26 323.733C112.26 323.793 112.14 323.881 111.9 324ZM84 313.333V309.778H100.2V313.333H84ZM84 304.444V300.889H116.4V304.444H84ZM84 295.556V292H116.4V295.556H84Z"/></svg>
+      <svg class="n-rail" style="left:84px;top:402px;width:39px;height:39px"
+           viewBox="84 402 39 39"><path d="M87.9 441C86.8275 441 85.9094 440.619 85.1456 439.856C84.3819 439.093 84 438.176 84 437.105V409.839C84 408.768 84.3819 407.851 85.1456 407.088C85.9094 406.325 86.8275 405.944 87.9 405.944H105.304L101.404 409.839H87.9V437.105H115.2V423.569L119.1 419.674V437.105C119.1 438.176 118.718 439.093 117.954 439.856C117.191 440.619 116.272 441 115.2 441H87.9ZM95.7 429.315V421.037L113.591 403.169C113.981 402.779 114.42 402.487 114.908 402.292C115.395 402.097 115.883 402 116.37 402C116.89 402 117.386 402.097 117.857 402.292C118.328 402.487 118.759 402.779 119.149 403.169L121.879 405.944C122.236 406.333 122.513 406.763 122.708 407.234C122.903 407.705 123 408.184 123 408.67C123 409.157 122.911 409.636 122.732 410.107C122.553 410.577 122.269 411.007 121.879 411.397L103.988 429.315H95.7ZM99.6 425.419H102.33L113.64 414.124L112.275 412.76L110.861 411.397L99.6 422.644V425.419Z"/></svg>
 
       <div id="nbox">
-        <div class="nglow" id="nglow"></div>
-        <div class="nring" id="nring"></div>
         <div class="nface"></div>
+        <div class="nglow" id="nglow"><b><i></i></b></div>
+        <div class="nring" id="nring"><i></i></div>
         <div id="nq"><span id="nqt"></span><span id="ncaret"></span></div>
         <div class="nplus"></div>
-        <svg class="nmic" viewBox="0 0 24 32"><path d="M12 19a5 5 0 0 0 5-5V6a5 5 0 0 0-10 0v8a5 5 0 0 0 5 5zm8-5a8 8 0 0 1-7 7.94V28h-2v-6.06A8 8 0 0 1 4 14h2a6 6 0 0 0 12 0h2z"/></svg>
+        <svg class="nmic" viewBox="1308.92 606.29 27.5 36.32"><path d="M1322.67 627.781C1321.26 627.781 1320.06 627.273 1319.08 626.258C1318.13 625.243 1317.66 623.999 1317.66 622.526V611.249C1317.66 609.874 1318.15 608.712 1319.13 607.762C1320.11 606.78 1321.29 606.289 1322.67 606.289C1324.04 606.289 1325.22 606.78 1326.2 607.762C1327.18 608.712 1327.68 609.874 1327.68 611.249V622.526C1327.68 623.999 1327.18 625.243 1326.2 626.258C1325.25 627.273 1324.07 627.781 1322.67 627.781ZM1321.19 642.611V635.933C1317.72 635.572 1314.81 634.116 1312.45 631.562C1310.1 629.008 1308.92 625.996 1308.92 622.526H1311.91C1311.91 625.505 1312.96 628.01 1315.06 630.04C1317.15 632.069 1319.69 633.084 1322.67 633.084C1325.65 633.084 1328.18 632.069 1330.28 630.04C1332.37 628.01 1333.42 625.505 1333.42 622.526H1336.42C1336.42 625.996 1335.24 629.008 1332.88 631.562C1330.52 634.116 1327.61 635.572 1324.14 635.933V642.611H1321.19Z"/></svg>
         <div class="nsend" id="nsend">
-          <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg>
+          <svg viewBox="1401.24 608.22 31.43 31.43"><path d="M1415.48 639.648V613.866L1403.3 626.045L1401.24 623.933L1416.95 608.219L1432.67 623.933L1430.61 626.045L1418.43 613.866V639.648H1415.48Z"/></svg>
         </div>
       </div>
     </div>
@@ -841,9 +890,9 @@
     <h3 class="sub">Look</h3>
     <div class="row">
       <select id="n2spin">
-        <option value="2.5">Wheel slow</option>
-        <option value="5" selected>Wheel measured</option>
-        <option value="10">Wheel fast</option>
+        <option value="0.5">Wheel half</option>
+        <option value="1" selected>Wheel measured</option>
+        <option value="2">Wheel double</option>
       </select>
       <select id="n2size">
         <option value="120">Wall 120px</option>
@@ -3507,13 +3556,17 @@ document.getElementById("seg").addEventListener("change", e => {
 const N2_NF = 192;
 const N2_DUR = N2_NF * FRAME;
 const N2_TYPE0 = 3, N2_TYPE1 = 34;
-const N2_SEND = 40, N2_PRESS = 43, N2_REL = 47;
+/* The send button's fill is a straight three-frame ramp: the plate reads pure
+   white through f39 and then .33, .67, 1.00 on f40, f41, f42. The press that
+   follows shows as the pill's left edge coming in 2, 6, 7 then 4px over f43..46
+   — on a 124px pill that is a scale easing to 0.887 on f45 and back. */
+const N2_SEND = 39, N2_PRESS = 43, N2_REL = 47, N2_PRESS_MID = 45;
 /* The flash is fitted rather than eased by eye. The plate's frame means run
    5.3, 25.9, 102.2, 175.5, 250.3 over f48..f52; inverting this build's own
    opacity-to-mean response says the card has to be at .094, .430, .716 and
-   .984 on those frames. A straight ramp over 48.75..51.75 reproduces them to
-   5.4 rms, against 7.1 for a ramp that runs the full four frames to 52. */
-const N2_FLASH0 = 48.75, N2_FLASH1 = 51.75;
+   .982 on those frames, and those four steps are evenly spaced to within
+   0.02 — so the ramp really is straight, over 48.72..52.06. */
+const N2_FLASH0 = 48.72, N2_FLASH1 = 52.06;
 const N2_A2 = 52, N2_A3 = 88;
 /* The swap is one continuous camera move, not a cut. Tracking the lit core:
    it holds at x=152 through f114, eases off left (138, 104, 33), goes dark at
@@ -3531,10 +3584,30 @@ const N2_SWAP_K = 0.4;
    at f140, 149 at f150, 65 at f160, 44 at f170, 271 at f190 — and fitting a
    constant rate gives 4.70 deg a frame decreasing through 75 deg at f160, to
    29 deg rms. The phrase's far end runs 83 deg ahead of its near end. */
-const N2_HUE_SPREAD = 83, N2_HUE_AT160 = 75, N2_HUE_RATE = 0.94;   // x spin
+const N2_HUE_SPREAD = 83, N2_HUE_AT160 = 75, N2_HUE_RATE = 4.70;  // deg/frame
 /* the ring's hues turn; measured on the clip the whole wheel drifts round
    rather than pulsing, so this is one angle advancing per frame */
-const N2_SPIN = 5;
+const N2_SPIN = 1;                      // the panel's multiplier on both rates
+/* Act 1's wheel turns. Inverting the ring's colour back to a position on the
+   gradient around the perimeter, frame by frame, gives `from` = 43.99 -
+   1.149f to 1.15 deg rms across all 47 frames of the act.
+
+   Invert only the part of the wheel that can be told apart. Blue occupies
+   stops 298.8..360 and 0..122.4 — half the wheel at one colour — so a
+   nearest-colour lookup over the full range answers with a point picked out
+   of that flat, and the fit came out at 1.773 deg/frame with a 3.6 deg
+   residual. Restricted to the purple-to-teal arc the same fit lands at 0.869
+   with 0.63, and the two disagree by 40 deg by the middle of the act. */
+const N2_RING_F0 = 43.99, N2_RING_RATE = 1.149;
+/* The design file's angular gradient, verbatim — seventeen stops from 90deg.
+   Blue holds the whole top, breaks through purple and pink into red under the
+   left, orange and yellow along the bottom, green up the right, and teal back
+   into blue. Six evenly-spread brand hues cannot make that shape. */
+const N2_WHEEL =
+  "#3186FF 0deg,#3186FF 122.4deg,#9378FF 133.2deg,#F96BD6 140.4deg," +
+  "#FC413D 147.6deg,#FC413D 172.8deg,#FF6A2B 180deg,#FEC700 187.2deg," +
+  "#FFDB0F 201.6deg,#87DD41 208.8deg,#0EBC5F 219.6deg,#0EBC5F 252deg," +
+  "#00A8BB 259.2deg,#3C90FF 262.8deg,#3186FF 298.8deg,#3186FF 360deg";
 
 const stage2 = document.getElementById("stage2");
 const nqt = document.getElementById("nqt"), ncaret = document.getElementById("ncaret");
@@ -3548,7 +3621,7 @@ const n3wall = document.getElementById("n3wall"), n3lit = document.getElementByI
       n3fx = document.getElementById("n3");
 const nsmearB = document.getElementById("nsmearB");
 const n3pages = [n3wall, n3tip, n3lit, n3ink];
-const nctx = document.getElementById("nctx");
+const nctx = document.getElementById("nctx"), nscrim = document.getElementById("nscrim");
 
 let N2_Q = "why is the tush push so controversial";
 let N2_CTX = "The player must touch the ground inbounds with both feet, or with any other body part besides the hands (such as a knee, shin, hip, or elbow).";
@@ -3647,13 +3720,14 @@ function render2(t){
   const T = Math.min(Math.max(t, 0), N2_DUR);
   const f = T * FPS + 1e-6;
 
+  nscrim.style.opacity = bgOn ? "1" : "0";
+
   /* ── the ring turns throughout act 1 ── */
   const spin = $n2spin ? +$n2spin.value : N2_SPIN;
-  const ang = (f * spin) % 360;
-  const wheel = `conic-gradient(from ${ang.toFixed(1)}deg,` +
-                "#4285F4,#9B72CB,#D96570,#F2A60C,#34A853,#4285F4)";
-  nring.style.background = wheel;
-  nglow.style.background = wheel;
+  const ang = (N2_RING_F0 - f * N2_RING_RATE * spin % 360 + 720) % 360;
+  const wheel = `conic-gradient(from ${ang.toFixed(2)}deg,${N2_WHEEL})`;
+  nring.firstElementChild.style.background = wheel;
+  nglow.querySelector("i").style.background = wheel;
 
   /* ── typing ── */
   let n = 0;
@@ -3669,16 +3743,17 @@ function render2(t){
   else ncaret.className = (Math.floor(f / 8) % 2) ? "off" : "";
 
   /* ── the send button lights, then is pressed ── */
-  let sendCol = "#e7e7e7", sendInk = "#1f1f1f", press = 1;
+  let sendCol = "#fff", sendInk = "#1f1f1f", press = 1;
   if (f >= N2_SEND){
-    const u = sat((f - N2_SEND) / (42 - N2_SEND));
-    const r = Math.round(231 + (81 - 231) * u),
-          g = Math.round(231 + (108 - 231) * u),
-          b = Math.round(231 + (215 - 231) * u);
+    const u = sat((f - N2_SEND) / 3);
+    const r = Math.round(255 + (0x34 - 255) * u),
+          g = Math.round(255 + (0x6B - 255) * u),
+          b = Math.round(255 + (0xF1 - 255) * u);
     sendCol = `rgb(${r},${g},${b})`;
     sendInk = u > 0.5 ? "#fff" : "#1f1f1f";
   }
-  if (f >= N2_PRESS && f < N2_REL) press = 0.93;
+  if (f > N2_PRESS && f < N2_REL)
+    press = 1 - 0.113 * (1 - Math.abs(f - N2_PRESS_MID) / (N2_PRESS_MID - N2_PRESS));
   nsend.style.background = sendCol;
   nsend.style.transform = `scale(${press})`;
   nsend.querySelector("svg").style.fill = sendInk;
@@ -3738,7 +3813,7 @@ function render2(t){
 
     /* the wheel the ring carried, still turning, now spread along the phrase:
        the near end at one hue and the far end N2_HUE_SPREAD ahead of it */
-    const h = (N2_HUE_AT160 - (f - 160) * spin * N2_HUE_RATE % 360 + 720) % 360;
+    const h = (N2_HUE_AT160 - (f - 160) * N2_HUE_RATE * spin % 360 + 720) % 360;
     const far = (h + N2_HUE_SPREAD) % 360;
     /* Tight and bright, then straight down: banding the plate's settled frame
        puts 2.9% of it above 150 but only 0.2% between 90 and 150, so its halo
