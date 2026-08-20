@@ -310,6 +310,7 @@ each `viewBox` *is* the measurement.
 | Quantity | Method | Result |
 |---|---|---|
 | The box | Threshold and take runs on the ring | **1067.86×300.24** at (426.01, 389.58), radius **57**; face `#0A0A0A` at 35%, ring 2px |
+| Footage behind it | Plate loaded, exported frames | The piece composites over footage the same way the search one does — **60%** of act 1's frame is plate (the 30% scrim is over it), 0% of act 2's, where the answer page covers it, and **90%** of act 3's. The `<video>`/`<img>` live in the other piece's stage, which stays in the layout as a plate holder rather than being duplicated |
 | The scrim | Empty background, plate vs build | The design puts a 30% `#0A0A0A` wash with a 10px backdrop blur under everything. The plate's empty background is a flat **(0,0,0)**, and carrying the scrim regardless put act 1 at 8.1 against its 5.5 — so it rides the footage, which is the only thing it has work to do over |
 | The wheel's shape | Ring colour at 124 points around the perimeter | Not a screen-space sweep. Drawn on a **square** and squashed, so the whole top edge is one blue while the entire spectrum crowds along the bottom, and it runs **anticlockwise**. Squash fitted at **0.436** — the design file's transform implies the box's own 0.281, at which the hues land ~120px left of the plate's |
 | The wheel's phase | Same, frame by frame | `from` = **43.99 − 1.149·f**, to 1.15° rms across all 47 frames of the act |

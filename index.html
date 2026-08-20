@@ -348,6 +348,13 @@
      Geometry, all measured: the box is 1066 x 297 centred on the frame at
      960,540 — its measured centre came out 959.2, 539.8 — with a 60px
      corner, which fits five points on the arc to within 0.4px.          */
+  /* Piece 2 needs the footage behind it too, and the <video>/<img> live in
+     piece 1's stage. Rather than run a second decoder, that stage stays in the
+     layout with everything but the plate hidden and its own white turned off,
+     so it is a plate holder and nothing else. It sits before #stage2 in the
+     markup, so the footage lands under piece 2 without any z-index. */
+  #stage.plate-only{background:transparent}
+  #stage.plate-only > *:not(#bgvid):not(#bgimg){display:none}
   #stage2{position:absolute;inset:0;overflow:hidden;contain:strict;
           font-family:var(--font);background:transparent;
           opacity:0;visibility:hidden}
@@ -3792,6 +3799,15 @@ function render2(t){
   const T = Math.min(Math.max(t, 0), N2_DUR);
   const f = T * FPS + 1;                       // t=0 is the plate's frame 1
 
+  /* The footage runs under this piece whole. There is no click here for it to
+     cross at, so it never fades — and BG_OP has to be written every frame
+     rather than left alone, because the other piece's render sets it and a
+     value left at 0 from a scrub past its click would take the plate out of
+     this one entirely. */
+  bgSync(T);
+  BG_OP = 1;
+  if (bgOn) bgvid.style.opacity = bgimg.style.opacity = "1";
+
   nscrim.style.opacity = bgOn ? "1" : "0";
 
   /* ── the ring turns throughout act 1 ── */
@@ -3992,7 +4008,9 @@ const $piece = document.getElementById("piece");
 function pieceDur(){ return PIECE === 2 ? N2_DUR : DUR; }
 function pieceFrames(){ return PIECE === 2 ? N2_NF : NF_EFF; }
 function applyPiece(){
-  stage.style.display  = PIECE === 2 ? "none" : "";
+  /* the stage stays laid out either way — on piece 2 it is holding the plate */
+  stage.style.display = "";
+  stage.classList.toggle("plate-only", PIECE === 2);
   stage2.classList.toggle("live", PIECE === 2);
   for (const el of document.querySelectorAll(".p1only")) el.hidden = PIECE === 2;
   for (const el of document.querySelectorAll(".p2only")) el.hidden = PIECE !== 2;

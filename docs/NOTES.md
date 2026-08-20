@@ -39,6 +39,13 @@ Nothing here is judged by eye. Every change goes through the same loop:
 - **A metric that does not move is not proof.** The 4px text jump when typing
   ended never showed up in the score — one frame cannot shift a 132-frame mean.
   It took someone watching it.
+- **A global set in one code path is stale in the other.** `BG_OP` — the plate's
+  opacity, which the search piece fades at the click — was written only inside
+  that piece's `render`. The prompt piece returns before it, so scrubbing the
+  search piece past its click and then switching left `BG_OP` at 0 and the
+  footage vanished from the second piece entirely. It reads as "footage does not
+  work here" and it is really "the other piece turned it off". Anything shared
+  between two render paths has to be written by both.
 - **A child cannot outrank its parent's stacking context.** The prompt box has to
   sit above the white wash while the rest of act 1 sits below it. Giving `#n1` a
   z-index so it could go under, and the box inside it a higher one so it could go
@@ -338,6 +345,36 @@ Departures from the plate that were deliberate, and the one-line way back.
 | `ICON_TEXT_INK_GAP = 73` | The plate's close-up starts the query 33.7 past the plus. That is not arbitrary — the ad's wide shot runs its gap at 0.585 of its mark's width, and 0.585 × the plus's 58 is 33.9, so the plate scales the gap to the icon. Holding the wide shot's absolute 73 for both icons instead was requested, and it is the one departure that moves the **default** off the measured geometry: bar 2547 → 2586, pan 1639 → 1678. Back: set the constant to 33.7. |
 | No legal line | The plate carries a disclaimer across `y 1039`, measured at 16.94px `#5f6368`. Removed by request. Back: restore the `.row.legal` div in `#act2` and its `.legal` rule with `--legal:#5f6368`. Act 2's other blocks are unaffected — nothing was positioned off it, and the answer's overflow bound is the 1010 constant, not the element. |
 | Both gradients drift **clockwise** | The plate drifts both counter-clockwise. By request. Back: negate the beam's `shift` at its `paintRamp` call, and set `RING_DRIFT = -771`. Each flip pivots on its own reference frame (30, 120), so the measured hues *at* those frames hold either way. |
+
+## Footage under the prompt piece
+
+The `<video>` and `<img>` live inside the search piece's stage, and that stage
+used to be `display:none` whenever the prompt piece was live — so the export
+composited footage correctly (it draws the plate itself, under the serialised
+stage) while the preview showed none of it. The stage now stays in the layout
+with `.plate-only`, which hides everything in it but those two elements and
+turns off its own white. It sits before `#stage2` in the markup, so the plate
+lands under the second piece without any z-index, and one decoder serves both.
+
+Measured with a plate loaded: the exported frame is 60% footage through act 1 —
+the design's 30% scrim is over it — 0% through act 2, where the answer page's
+white covers it, and 90% through act 3.
+
+One thing to know when using it: act 3's wall is `#252525` at full alpha, so over
+footage it reads as dark type that darkens the plate behind it rather than as
+faint light type sitting on it. Expressing it as white at 14.5% is identical over
+black — the frame means agree to 0.1 — and different over footage. That was built
+and then reverted by request; it is `836728e` on `main` if it is wanted back.
+
+## Known defect
+
+**ProRes 4444 writes one damaged slice on frame 1.** Decoding a 480px alpha
+export of the prompt piece, ffmpeg reports `ac tex damaged 2050, 2048` — one
+slice's AC data overran its declared size by two bits — once across all 192
+frames, on the first. The decoder recovers, all 192 frames come out and the
+alpha is correct throughout, so the file is usable, but a slice size is being
+written short somewhere in `proresFrame`. Only the one export was checked, so it
+is not isolated to alpha or to that size.
 
 ## Not done
 
