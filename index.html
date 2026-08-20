@@ -418,9 +418,11 @@
      the skin changes. */
   .nface{position:absolute;inset:0;border-radius:inherit;
          background:rgba(10,10,10,.35)}
-  /* 35% by request, which is what the dark look already carries — so both boxes
-     are now the same wash over whatever is behind them, one dark and one white */
-  #stage2.box-white .nface{background:rgba(255,255,255,.35)}
+  /* The white box is solid; only the dark one is a 35% wash. They are different
+     looks rather than the same wash in two colours — at 35% the white one
+     renders as mid-grey over nothing and its black type loses most of its
+     contrast against it. */
+  #stage2.box-white .nface{background:#fff}
   #stage2.box-white #nbox{border-radius:69px}
   #stage2.box-white #nq{color:#000}
   #stage2.box-white .nmic{fill:#0A0A0A;opacity:1}
@@ -4043,7 +4045,7 @@ function render2(t){
      is on, not out of the dark one it was written against */
   const boxWhite = stage2.classList.contains("box-white");
   const F0 = boxWhite ? [255, 255, 255] : [10, 10, 10];
-  const FA0 = 0.35;                       // both looks start at the same wash
+  const FA0 = boxWhite ? 1 : 0.35;        // the white box is solid, the dark a wash
   const R0 = boxWhite ? 69 : 57;
   if (f < N2_A2){
     /* the target is read off act 2's own chip, so editing the prompt re-aims
