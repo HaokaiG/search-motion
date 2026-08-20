@@ -66,6 +66,13 @@ Nothing here is judged by eye. Every change goes through the same loop:
   be seen, one slice overran its declared size, and ffmpeg reported `ac tex
   damaged 2050, 2048`. Premultiplying fixed the convention and the corruption in
   one go — the same export now decodes clean.
+- **A bounding box measures everything inside it, including what you did not
+  mean.** Reading the send button's press off the close-up gave a 1.190 stretch
+  peaking five frames in. The supplied source says 1.25 at 1.9 frames. The
+  threshold had been catching the button's blurred energy blob spreading outside
+  it, not the pill — so the number described the glow's swell, not the scale.
+  When a source of truth exists, it beats a pixel measurement of a thing with a
+  glow attached to it.
 - **Scan every frame for events before believing a section is static.** A
   frame-to-frame mean-difference pass over all 192 found two stretches carrying
   real change that had been built as holds: f53–67, where the answer was on a
@@ -341,8 +348,8 @@ Departures from the plate that were deliberate, and the one-line way back.
 
 | | |
 |---|---|
-| The send press is a stretch, not a shrink | The two references disagree. `SendButton_20260819.mp4`, a 300x200 close-up, stretches the pill to **1.190** horizontally with its height and centre fixed. The NFL plate shrinks it — its left edge moves *right* by up to 7px over f43..46, about 0.87. The close-up is the later reference and the one asked for, so it is what is built. Back: `press = 1 - 0.113 * (1 - abs(f-45)/2)` and a `transform: scale(press)`. |
-| The press runs 1.8x the clip's rate | The close-up takes nine frames over the arc; this piece has five between the press and the box starting to morph, and the buttons have faded by the ninth. At the clip's own rate the pill freezes mid-stretch and vanishes instead of returning. The measured curve is kept whole and played faster, which also lands it back at rest on f48 where the plate's press ends. Back: `N2_PRESS_RATE = 1`. |
+| The send press comes from source, not pixels | The supplied implementation is exact and supersedes both clips: `scale(1.25, 1)` on the button at 23% of 350ms, `scale(0.9, 0.94)` on the icon, an energy blob to .6 opacity and 15px of lift over its own 400ms. The NFL plate reads as a *shrink* to about 0.87, which is neither. Built from the source. |
+| The press overruns the morph | 350ms is 8.4 frames and the button has faded out of the morph before it finishes, so the last third of the return is not seen. The curve is left at its true rate rather than compressed — it is at 1.026 by the time it disappears, which is close enough to rest to read as finished. |
 | No outline on the query box | Removed by request, referencing `PromptBox_20260819.mp4`, where the profile across the box edge steps from the glow at 23-29 straight to the face at 255 with only a 1-2px antialias. The NFL plate *does* carry a crisp 2px conic ring, so this is a departure from it and costs 0.25 rms on that piece (1.57 to 1.82). Back: restore the `.nring` element, its mask rule and the three lines that drove it — commit `de0ceaf` is the last one that had it. |
 | Wheel squash `0.436` | Fitted against the plate, not taken from the design file, which implies 0.281. Back: `scale(-1,0.281159)` on `.nring i,.nglow i`. |
 | The scrim rides the footage | The design has a flat 30% `#0A0A0A` wash over the whole frame. It is only drawn when footage is loaded, because over nothing it lifts every pixel by 3 and the plate's empty background is (0,0,0). Back: drop the `bgOn` test on `nscrim`. |

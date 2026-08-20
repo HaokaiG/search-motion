@@ -480,7 +480,13 @@
   .nsend{position:absolute;left:943.8px;top:199.14px;
          width:94.29px;height:70.72px;border-radius:35.36px;
          background:#e7e7e7;display:grid;place-items:center}
-  .nsend svg{width:31.43px;height:31.43px;fill:#1f1f1f}
+  .nsend svg{width:31.43px;height:31.43px;fill:#1f1f1f;
+             transform-origin:bottom;will-change:transform}
+  /* the supplied .button-energy: a blurred blue blob inset inside the button
+     that lifts out of it as it is pressed. Its inset and blur are scaled from
+     the 48x36 the source is written against to this button's 94.29x70.72. */
+  .nenergy{position:absolute;inset:9.8px;background:#779CFF;border-radius:inherit;
+           filter:blur(13.7px);opacity:0;pointer-events:none}
 
   /* ── act 2, the answer page ─────────────────────────────────────────
      Every number here is off the plate's f70. The mark is 72px square at
@@ -818,7 +824,7 @@
       <div id="nq"><span id="nqt"></span><span id="ncaret"></span></div>
       <div class="nplus"></div>
       <svg class="nmic" viewBox="1308.92 606.29 27.5 36.32"><path d="M1322.67 627.781C1321.26 627.781 1320.06 627.273 1319.08 626.258C1318.13 625.243 1317.66 623.999 1317.66 622.526V611.249C1317.66 609.874 1318.15 608.712 1319.13 607.762C1320.11 606.78 1321.29 606.289 1322.67 606.289C1324.04 606.289 1325.22 606.78 1326.2 607.762C1327.18 608.712 1327.68 609.874 1327.68 611.249V622.526C1327.68 623.999 1327.18 625.243 1326.2 626.258C1325.25 627.273 1324.07 627.781 1322.67 627.781ZM1321.19 642.611V635.933C1317.72 635.572 1314.81 634.116 1312.45 631.562C1310.1 629.008 1308.92 625.996 1308.92 622.526H1311.91C1311.91 625.505 1312.96 628.01 1315.06 630.04C1317.15 632.069 1319.69 633.084 1322.67 633.084C1325.65 633.084 1328.18 632.069 1330.28 630.04C1332.37 628.01 1333.42 625.505 1333.42 622.526H1336.42C1336.42 625.996 1335.24 629.008 1332.88 631.562C1330.52 634.116 1327.61 635.572 1324.14 635.933V642.611H1321.19Z"/></svg>
-      <div class="nsend" id="nsend">
+      <div class="nsend" id="nsend"><i class="nenergy" id="nenergy"></i>
         <svg viewBox="1401.24 608.22 31.43 31.43"><path d="M1415.48 639.648V613.866L1403.3 626.045L1401.24 623.933L1416.95 608.219L1432.67 623.933L1430.61 626.045L1418.43 613.866V639.648H1415.48Z"/></svg>
       </div>
     </div>
@@ -3688,14 +3694,7 @@ const N2_TYPE0 = 3, N2_TYPE1 = 34;
    later reference and the one asked for, so it wins; the plate's own reading is
    in the departures table. */
 const N2_SEND = 39, N2_PRESS = 43;
-const N2_PRESS_W = [1, 1.063, 1.148, 1.180, 1.185, 1.190, 1.185, 1.164, 1.101, 1];
-/* The close-up takes nine frames over the arc. This piece has five between the
-   press and the box beginning to morph, and the buttons have faded out by the
-   time the ninth would land — played at its own rate the pill freezes mid-
-   stretch and vanishes rather than coming back. So the measured curve is kept
-   whole and run 1.8x faster, which also puts it back at rest on f48, where the
-   plate's own press ends. Back: set this to 1 for the clip's own timing. */
-const N2_PRESS_RATE = 9 / 5;
+
 /* ── the two act joins ──────────────────────────────────────────────────
    Neither is a cut. Both were measured off the plate frame by frame.
 
@@ -3778,7 +3777,8 @@ const N2_WHEEL =
 const stage2 = document.getElementById("stage2");
 const nqt = document.getElementById("nqt"), ncaret = document.getElementById("ncaret");
 const nglow = document.getElementById("nglow");
-const nsend = document.getElementById("nsend");
+const nsend = document.getElementById("nsend"),
+      nenergy = document.getElementById("nenergy");
 const n1El = document.getElementById("n1"), n2El = document.getElementById("n2"),
       n3El = document.getElementById("n3"), n2page = document.getElementById("n2page");
 const n2chip = document.getElementById("n2chip"), n2body = document.getElementById("n2body");
@@ -3812,6 +3812,34 @@ const nbox = document.getElementById("nbox"), nface = document.querySelector("#n
 /* where the box starts, kept so the morph has something to leave from */
 const NB_L = 426.01, NB_T = 389.58, NB_W = 1067.86, NB_H = 300.24;
 const NSEND_L = 943.8, NSEND_W = 94.29;      // the send pill's resting rect
+
+/* The press, taken from the supplied source rather than from pixels. The button
+   scales to (1.25, 1) at 23% of a 350ms run and returns; the icon inside it
+   counter-squishes to (0.9, 0.94) on the same offsets; the energy blob fades
+   0 -> .6 by 12.5%, holds to 62.5% and is gone by the end of its own 400ms,
+   drifting 15px up the whole time. Two easings do the work — the source's
+   decelerate curve on the way out, its legacy curve on the way back — with the
+   animation itself linear.
+
+   The clip alone could not have given this. Measuring the pill's bounding box
+   there reads a 1.190 peak five frames in, because the threshold also catches
+   the energy blob blurring outside the button; the source says 1.25 at 1.9. */
+const CB_DECEL = [0, 0, 0, 1], CB_LEGACY = [0.4, 0, 0.2, 1], CB_ENERGY = [0.3, 0, 1, 1];
+function cbez(c, x){
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const [x1, y1, x2, y2] = c;
+  const bx = t => 3*(1-t)*(1-t)*t*x1 + 3*(1-t)*t*t*x2 + t*t*t;
+  const by = t => 3*(1-t)*(1-t)*t*y1 + 3*(1-t)*t*t*y2 + t*t*t;
+  let lo = 0, hi = 1, t = x;
+  for (let i = 0; i < 24; i++){
+    t = (lo + hi) / 2;
+    if (bx(t) < x) lo = t; else hi = t;
+  }
+  return by(t);
+}
+const N2_PRESS_MS = 350, N2_ENERGY_MS = 400, PRESS_PEAK = 0.23;
+const BTN_SX = 1.25, ICON_SX = 0.9, ICON_SY = 0.94, ENERGY_LIFT = 15;
 
 let N2_Q = "why is the tush push so controversial";
 let N2_CTX = "The player must touch the ground inbounds with both feet, or with any other body part besides the hands (such as a knee, shin, hip, or elbow).";
@@ -3956,16 +3984,28 @@ function render2(t){
     sendCol = `rgb(${r},${g},${b})`;
     sendInk = u > 0.5 ? "#fff" : "#1f1f1f";
   }
-  const k = (f - N2_PRESS) * N2_PRESS_RATE;
-  if (k > 0 && k < N2_PRESS_W.length - 1){
-    const i = Math.floor(k), t = k - i;
-    press = N2_PRESS_W[i] + (N2_PRESS_W[i + 1] - N2_PRESS_W[i]) * t;
-  }
+  /* the source's two-segment keyframe: out on the decelerate curve to the peak
+     at 23%, back on the legacy curve over the rest */
+  const seg = (u, peak) => u < PRESS_PEAK
+    ? cbez(CB_DECEL,  u / PRESS_PEAK) * (peak - 1) + 1
+    : cbez(CB_LEGACY, (u - PRESS_PEAK) / (1 - PRESS_PEAK)) * (1 - peak) + peak;
+  const pu = sat((f - N2_PRESS) / (N2_PRESS_MS / 1000 * FPS));
+  press = seg(pu, BTN_SX);
+  const iconX = seg(pu, ICON_SX), iconY = seg(pu, ICON_SY);
+  nsend.querySelector("svg").style.transform = `scale(${iconX.toFixed(4)},${iconY.toFixed(4)})`;
+
+  /* the energy blob runs on its own 400ms: linear opacity through .6, and a
+     15px lift the whole way on the source's own curve. fill:both, so once it is
+     over it stays where it ended rather than snapping back. */
+  const eu = sat((f - N2_PRESS) / (N2_ENERGY_MS / 1000 * FPS));
+  const eop = eu < 0.125 ? 0.6 * (eu / 0.125)
+            : eu < 0.625 ? 0.6
+            : 0.6 * (1 - (eu - 0.625) / 0.375);
+  nenergy.style.opacity = (f > N2_PRESS ? eop : 0).toFixed(3);
+  nenergy.style.transform =
+    `translateY(${(-ENERGY_LIFT * cbez(CB_ENERGY, eu)).toFixed(2)}px)`;
   nsend.style.background = sendCol;
-  /* width, held on its own centre — the caps keep their radius */
-  const sw = NSEND_W * press;
-  nsend.style.width = sw.toFixed(2) + "px";
-  nsend.style.left = (NSEND_L - (sw - NSEND_W) / 2).toFixed(2) + "px";
+  nsend.style.transform = `scale(${press.toFixed(4)},1)`;
   nsend.querySelector("svg").style.fill = sendInk;
 
   /* ── act 1 into act 2: the box becomes the chip ── */
