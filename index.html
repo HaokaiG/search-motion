@@ -602,7 +602,16 @@
      the 400 of the copy around it. At 400 the phrase's ink came out a fifth
      short of the plate's. */
   .n3page .lit{display:inline-block;padding:0 70px;margin:0 -70px;font-weight:500}
-  .n3wall{color:#252525;filter:blur(15px)}
+  /* The wall is WHITE INK AT LOW ALPHA rather than the flat #252525 it was,
+     by request. Over the plate's black ground the two are the same thing —
+     37/255 is .145, so `rgba(255,255,255,.145)` composites to exactly the 37
+     the measurement asked for, and act 3's frame means do not move. What it
+     changes is everything else: act 3 is the act that runs 90% plate, and an
+     opaque grey glyph covers whatever is behind it while a translucent white
+     one lifts it. In the exported matte the wall's own cores drop from an
+     alpha of 155 to 37, so footage now reads through the out-of-focus copy
+     instead of being hidden by it. Back: #252525. */
+  .n3wall{color:rgba(255,255,255,.145);filter:blur(15px)}
   /* The two glow layers carry no ink at all — a transparent glyph still casts
      its shadow, which is exactly what is wanted here: masking a layer that also
      held the letters faded the letters with it, and the phrase's bright core
