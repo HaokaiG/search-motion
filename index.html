@@ -393,10 +393,24 @@
   /* The answer above the box is the tail of the previous turn — two lines of
      it, x-height 19.5 so 37px type, on a 48px pitch from x=258, and it fades
      going up: the lower line's ink peaks at 120 and the upper at 86. */
-  .n-ctx{position:absolute;left:258px;top:69px;width:1392px;
+  /* Anchored by its BOTTOM edge, not its top. The previous turn reads
+     upward into the past, so a longer one has to grow up and out of frame
+     rather than down into the box. The bottom stays at 165 — the two
+     measured lines are 69..165 on a 48px pitch — so `bottom:915` on the
+     1080 frame is the same rectangle for the reference and the right one
+     for any other length; #stage2's overflow does the leaving.
+     The fade goes with it, and had to stop spanning the element: over its
+     own height it always put the TOP line at .72 whatever the count, so a
+     four-line turn would have left frame at 72% and been cut hard by the
+     edge. It is a fixed ramp off the bottom instead, at the slope the two
+     measured lines imply — .72 at 96px up, so zero at 342.86 — which is the
+     same gradient exactly while there are two lines and keeps each further
+     line receding past them. Text is at 52% as it crosses the frame's top
+     and gone 178px above it. */
+  .n-ctx{position:absolute;left:258px;bottom:915px;width:1392px;
          font-size:37px;line-height:48px;font-weight:400;color:#787878;
-         -webkit-mask-image:linear-gradient(rgba(0,0,0,.72),#000);
-         mask-image:linear-gradient(rgba(0,0,0,.72),#000)}
+         -webkit-mask-image:linear-gradient(to top,#000 0,transparent 342.86px);
+         mask-image:linear-gradient(to top,#000 0,transparent 342.86px)}
   .n-act{position:absolute;fill:#fff;opacity:.6}
   /* the rail's two glyphs are the design file's own paths, kept in page
      coordinates so the viewBox is the measurement */
