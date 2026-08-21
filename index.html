@@ -473,18 +473,22 @@
   #ncaret{display:inline-block;width:3.4px;height:40.13px;background:#fff;
           vertical-align:-8px;margin-left:6px}
   #ncaret.off{opacity:0}
-  .nplus{position:absolute;left:30px;top:199.18px;
+  /* The three controls hang off the box's BOTTOM edge, at the insets the
+     design puts them at — 30.41, 47.21 and 30.38 below it. They were written
+     from the top, which is the same thing at the resting height and pins them
+     under the text once the box grows a line. */
+  .nplus{position:absolute;left:30px;bottom:30.41px;
          width:94.2px;height:70.65px;border-radius:35.33px;
          background:rgba(240,242,245,.5)}
   .nplus::before,.nplus::after{content:"";position:absolute;background:#0A0A0A}
   .nplus::before{left:33.07px;top:33.66px;width:28.06px;height:3.34px}
   .nplus::after{left:45.43px;top:21.3px;width:3.34px;height:28.06px}
-  .nmic{position:absolute;left:882.91px;top:216.71px;
+  .nmic{position:absolute;left:882.91px;bottom:47.21px;
         width:27.5px;height:36.32px;fill:#F8F9FA;opacity:.5}
   /* pale until the query lands, then the design's blue — the plate goes
      (255,255,255) at f31 to (74,104,225) by f45, and #346BF1 is the design's
      own value for that end */
-  .nsend{position:absolute;left:943.8px;top:199.14px;
+  .nsend{position:absolute;left:943.8px;bottom:30.38px;
          width:94.29px;height:70.72px;border-radius:35.36px;
          background:#e7e7e7;display:grid;place-items:center}
   .nsend svg{width:31.43px;height:31.43px;fill:#1f1f1f;
@@ -514,10 +518,23 @@
   .n2rule{position:absolute;left:240px;top:207px;width:1500px;height:2px;
           background:#d5d5d8}
   .n2rail{position:absolute;fill:#56595E}
-  .n2chip{position:absolute;left:969px;top:291px;max-width:1500px;height:99px;
-          padding:0 45px;border-radius:45px;background:#f0f1f4;
+  /* The bubble hugs its text, the same rule the other piece's does: pinned by
+     its RIGHT edge and grown leftward, so a longer prompt reaches back toward
+     the answer column instead of running off the frame. Two sources agree on
+     which edge is the anchor — AIM Chat_White.svg draws the bubble 861..1680
+     for its own string, the plate 969..1680 for this one. Two lengths, one
+     right edge, 240 in from the frame's.
+     The widest it can get is 1439, where its left edge meets the answer
+     column at 241 — the limit read off the layout rather than off a string.
+     A row is 99: the plate's own height, and also 24 of padding either side
+     of the body's 51px line, so the single row still lands on 99 exactly.
+     The corners are the design file's path — 49.5 / 10 / 60 / 49.5, squaring
+     the one nearest the sender, where this had assumed a plain 45 pill. */
+  .n2chip{position:absolute;right:240px;top:291px;max-width:1439px;
+          padding:24px 45px;line-height:51px;
+          border-radius:49.5px 10px 60px 49.5px;background:#f0f1f4;
           font-size:36px;color:#1f1f1f;white-space:pre-wrap;
-          display:grid;place-items:center start;box-sizing:border-box}
+          display:grid;place-items:center start}
   .n2chrome{position:absolute;inset:0}
   .n2body{position:absolute;left:241px;top:452px;width:1300px;
           font-size:36px;line-height:51px;color:#000}
@@ -1402,9 +1419,14 @@ function scheduleFor(str){
    scrollbar in the panel rather than an overlay one — wraps the field and so
    wraps the bubble. That is the feature behaving as asked, not a fault, and
    the way back is to hand `qq` the raw string again.                     */
+/* One measurer, two callers. `wrapAs` breaks a string the way the given
+   element would break it and hands back the rows; which element is passed is
+   what differs between the pieces. Here it is the panel's field; in the
+   prompt piece it is the prompt box itself, which is that piece's field. */
 let qMirror = null;
-function fieldLines(str){
-  const ta = $q, cs = getComputedStyle(ta);
+const fieldLines = str => wrapAs($q, str);
+function wrapAs(ta, str){
+  const cs = getComputedStyle(ta);
   if (!qMirror){
     qMirror = document.createElement("div");
     document.body.appendChild(qMirror);
@@ -3860,6 +3882,34 @@ const nbox = document.getElementById("nbox"), nface = document.querySelector("#n
 const NB_L = 426.01, NB_T = 389.58, NB_W = 1067.86, NB_H = 300.24;
 const NSEND_L = 943.8, NSEND_W = 94.29;      // the send pill's resting rect
 
+/* ── both shapes follow the prompt's length ─────────────────────────────
+   The box keeps every inset the design gives it — the text 32 down from its
+   top, the controls ~30 up from its bottom, and the 114 of air between them —
+   so a second row simply makes it one line taller. It grows about the frame's
+   centre, because that is where it sits: 426.01 + 1067.86/2 is 959.94 and
+   389.58 + 300.24/2 is 539.7, both within a third of a pixel of the middle of
+   1920x1080, so growing from the top alone would walk it off that centre.
+
+   The box is sized for the whole prompt rather than for however much of it has
+   been typed. Neither reference clip shows a box that changes size while the
+   typist is running, and the resting rect is read by the morph, the halo and
+   the export alike; a box that grew mid-type would be new motion, not a
+   layout rule. Back: size on nqt.textContent instead of N2_Q.
+
+   The chip grows by its own line, 51 against the box's 52.8, and pushes the
+   answer down by the difference rather than overlapping it — the same as the
+   other piece's bubble. */
+const NQ_LH = 52.8;                          // #nq's 44px at 1.2
+const N2CHIP_ROW = 99, N2CHIP_LH = 51, N2BODY_TOP = 452;
+const N2CHIP_R = [49.5, 10, 60, 49.5];       // the design file's four corners
+let N2_ROWS = 1;
+function n2Fit(rows){
+  N2_ROWS = Math.max(1, rows);
+  n2body.style.top = (N2BODY_TOP + (N2_ROWS - 1) * N2CHIP_LH) + "px";
+}
+const nbH = () => NB_H + (N2_ROWS - 1) * NQ_LH;
+const nbT = () => NB_T - (N2_ROWS - 1) * NQ_LH / 2;
+
 /* The press, taken from the supplied source rather than from pixels. The button
    scales to (1.25, 1) at 23% of a 350ms run and returns; the icon inside it
    counter-squishes to (0.9, 0.94) on the same offsets; the energy blob fades
@@ -3908,7 +3958,15 @@ function n2Schedule(){
 function n2Build(){
   n2Schedule();
   nctx.textContent = N2_CTX;
-  n2chip.textContent = N2_Q;
+  /* The bubble takes the BOX's line breaks. The other piece mirrors the panel's
+     field because that is where its query is typed; here the field is on screen
+     — the prompt box is the thing being typed into — so the bubble echoes it.
+     That is also what keeps the morph continuous: the box's two rows become the
+     chip's two rows, instead of the text reflowing partway through the three
+     frames it takes one to become the other. */
+  const rows = wrapAs(nq, N2_Q);
+  n2chip.textContent = rows.join("\n");
+  n2Fit(rows.length);
   /* The plate's answer is not one weight. Measuring stem widths on the
      x-height, its first paragraph runs 3px until the claim starts and 4px from
      there to the end of the paragraph, and the two quoted names are 4px too.
@@ -4090,10 +4148,12 @@ function render2(t){
     const u = Math.pow(sat((f - N2_MOVE0) / (N2_MOVE1 - N2_MOVE0)), N2_MORPH_P);
     const lerp = (a, b) => a + (b - a) * u;
     nbox.style.left   = lerp(NB_L, cx).toFixed(2) + "px";
-    nbox.style.top    = lerp(NB_T, cy).toFixed(2) + "px";
+    nbox.style.top    = lerp(nbT(), cy).toFixed(2) + "px";
     nbox.style.width  = lerp(NB_W, cw).toFixed(2) + "px";
-    nbox.style.height = lerp(NB_H, ch).toFixed(2) + "px";
-    nbox.style.borderRadius = lerp(R0, 45).toFixed(2) + "px";
+    nbox.style.height = lerp(nbH(), ch).toFixed(2) + "px";
+    /* four corners now, since the chip squares the one nearest the sender */
+    nbox.style.borderRadius =
+      N2CHIP_R.map(r => lerp(R0, r).toFixed(2) + "px").join(" ");
 
     /* the face lifts ahead of the move, and the ring and halo go first */
     /* The face reads 0, 149, 211, 234, 240 across f48..52 — as a share of the
@@ -4110,7 +4170,16 @@ function render2(t){
 
     /* the query rides the box down into the chip */
     nq.style.fontSize = lerp(44, 36).toFixed(2) + "px";
-    nq.style.top = lerp(32, (ch - 44) / 2).toFixed(2) + "px";
+    /* the leading goes with it: the box sets its text at 1.2 and the chat sets
+       it at the body's 1.417, so a two-row prompt would otherwise arrive with
+       its rows 8px tighter than the chip draws them */
+    nq.style.lineHeight = lerp(NQ_LH, N2CHIP_LH).toFixed(2) + "px";
+    /* 24 is the chip's own padding, and once the leading matches, the query's
+       line boxes ARE the chip's — so landing on its text is landing on that
+       inset, whatever the row count. The 27.5 this used to lerp to was the
+       same landing worked out for the box's tighter 1.2 leading and one row;
+       both put the first glyph within half a pixel of 318. */
+    nq.style.top = lerp(32, 24).toFixed(2) + "px";
     nq.style.left = lerp(45.58, 45).toFixed(2) + "px";
     /* The query does not fade from white to dark, it flips: the plate's text is
        255 against a black face on f48 and 0 against a 151 face on f49, and
@@ -4318,11 +4387,10 @@ function applyN2(){
     : split          ? "on different rows of the wall — the swap will tilt"
     :                  "";
   $n2q.style.height = "auto"; $n2q.style.height = $n2q.scrollHeight + "px";
-  /* the box does not grow, so say when the prompt has outrun it rather than
-     letting it silently wrap out of the frame */
-  const over = Math.max(0, nqt.scrollWidth - 960);
+  /* the box grows now, so say how far it grew rather than warning that it
+     cannot — the row count is the one number that explains both shapes */
   $n2warn.textContent = `${N2_Q.length} chars`
-                      + (over ? ` · ${Math.round(over)}px past the box` : "");
+                      + (N2_ROWS > 1 ? ` \u00b7 ${N2_ROWS} rows` : "");
   render(hold !== null ? hold : 0);
 }
 for (const el of [$n2q, $n2ctx, $n2a, $n2q1, $n2q2, $n2tail]) el.addEventListener("input", applyN2);
