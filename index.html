@@ -2398,8 +2398,7 @@ const $ts = document.getElementById("tspd"), $tsn = document.getElementById("tsp
 function applyQuery(){
   setQuery($q.value);
   /* the field hugs what was typed, so the rows it holds are the rows you see */
-  $q.style.height = "auto";
-  $q.style.height = $q.scrollHeight + "px";
+  fitField($q);
   /* the run, and the piece it implies. The old note about typing through the
      button cannot happen any more: the outline is quoted against the text's
      landing through TAIL, so it always lights the same seven frames after
@@ -4383,7 +4382,10 @@ function applyPiece(){
   stage2.classList.toggle("live", PIECE === 2);
   for (const el of document.querySelectorAll(".p1only")) el.hidden = PIECE === 2;
   for (const el of document.querySelectorAll(".p2only")) el.hidden = PIECE !== 2;
-  if (PIECE === 2){ n2Build(); applyN2LookBoot(); }
+  /* applyN2 rather than n2Build: this is the moment the panel becomes
+     visible, and the prompt field's scale and height can only be measured
+     once it has layout */
+  if (PIECE === 2){ applyN2(); applyN2LookBoot(); }
   render(hold !== null ? hold : 0);
   if (hold === null) window.play();
 }
@@ -4414,6 +4416,21 @@ $n2a.value = N2_BODY;
    Derived rather than baked, so a wider panel stays a faithful preview — and
    the render never depends on the panel, which is the other half of the point:
    the box wraps at its own width whatever the field is doing. */
+/* A hidden field measures 0, and writing that 0 back as a height is what made
+   the prompt box open as a sliver: `applyN2` runs at boot, when the piece is
+   still 1 and every p2only row is hidden, so `scrollHeight` came back 0 and
+   stuck there until the first keystroke re-measured it. Refuse to size an
+   element that has no layout, and size it again when the panel is shown. */
+function fitField(el){
+  if (!el.clientWidth) return;
+  el.style.height = "auto";
+  /* scrollHeight carries the padding but NOT the border, and these are
+     border-box, so handing it straight back left every field two pixels
+     short of its own text — one border top and bottom */
+  const cs = getComputedStyle(el);
+  el.style.height = (el.scrollHeight + parseFloat(cs.borderTopWidth)
+                                     + parseFloat(cs.borderBottomWidth)) + "px";
+}
 const NQ_EM = NQ_W / NQ_SIZE;
 function n2FieldScale(){
   const cs = getComputedStyle($n2q);
@@ -4450,7 +4467,7 @@ function applyN2(){
       missing.length ? missing.length + " not in the answer — nothing to light"
     : split          ? "on different rows of the wall — the swap will tilt"
     :                  "";
-  $n2q.style.height = "auto"; $n2q.style.height = $n2q.scrollHeight + "px";
+  fitField($n2q);
   /* the box grows now, so say how far it grew rather than warning that it
      cannot — the row count is the one number that explains both shapes */
   $n2warn.textContent = `${N2_Q.length} chars`
