@@ -2135,7 +2135,7 @@ function setSeg(v){
   stage.classList.toggle("seg-query", v === "query");
 }
 const segStart = () => (PIECE === 2 || SEG !== "chat")  ? 0 : SPLIT_FP + TAIL;
-const segEnd   = () => PIECE === 2 ? N2_NF
+const segEnd   = () => PIECE === 2 ? N2_NF + Math.round(N2_HOLD)
                      : SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
 
 function frame(now){
@@ -3688,7 +3688,21 @@ const N2_NF = 192;
    put an extra frame at the head of every export: invisible on the held parts,
    and a whole frame of lag on the two joins, where the exported file showed the
    prompt box still dark on the frame the plate has already washed grey. */
-const N2_DUR = (N2_NF - 1) * FRAME;
+/* A tenth of a second of hold inserted after the typing, by request, so the
+   button's click plays that much later. It is a hold rather than a shift of the
+   press alone: the move already waits for the click to finish, so moving only
+   the press would put it back over the transition it was just taken out of.
+   Holding the whole tail keeps that relationship — the clock freezes at f36,
+   once the query has landed and its caret has gone, and everything from the
+   send onward reads the held clock. The box's own glow keeps turning on the
+   real one, because it is the thing filling the pause.
+
+   The net effect is that the press starts on raw f43, which is where the plate
+   puts it; the earlier tenth-of-a-second-earlier request and this one cancel,
+   with the difference that the tail now carries the offset too.
+   Back: N2_HOLD = 0 restores the plate's timing exactly. */
+const N2_HOLD_AT = 36, N2_HOLD = 0.1 * FPS;
+const N2_DUR = (N2_NF - 1 + N2_HOLD) * FRAME;
 const N2_TYPE0 = 3, N2_TYPE1 = 34;
 /* The send button's fill is a straight three-frame ramp: the plate reads pure
    white through f39 and then .33, .67, 1.00 on f40, f41, f42.
@@ -3969,7 +3983,11 @@ function n3Aim(i){
 
 function render2(t){
   const T = Math.min(Math.max(t, 0), N2_DUR);
-  const f = T * FPS + 1;                       // t=0 is the plate's frame 1
+  const fRaw = T * FPS + 1;                    // t=0 is the plate's frame 1
+  /* the held clock: everything below is quoted in the plate's frame numbers, so
+     the hold is applied here once rather than to each of thirty constants */
+  const f = fRaw <= N2_HOLD_AT ? fRaw
+          : (fRaw < N2_HOLD_AT + N2_HOLD ? N2_HOLD_AT : fRaw - N2_HOLD);
   /* the readouts are the other piece's, written past its early return, so this
      one has to fill them itself. Same three quantities, this piece's version of
      them: the clock, whatever the camera is translating, and the width of the
@@ -3990,7 +4008,7 @@ function render2(t){
 
   /* ── the ring turns throughout act 1 ── */
   const spin = $n2spin ? +$n2spin.value : N2_SPIN;
-  const ang = (N2_RING_F0 - f * N2_RING_RATE * spin % 360 + 720) % 360;
+  const ang = (N2_RING_F0 - fRaw * N2_RING_RATE * spin % 360 + 720) % 360;
   const wheel = `conic-gradient(from ${ang.toFixed(2)}deg,${N2_WHEEL})`;
   nglow.querySelector("i").style.background = wheel;
 
