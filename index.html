@@ -3718,7 +3718,7 @@ const N2_SEND = 39, N2_PRESS = 43 - 0.1 * FPS;
    chip while a white page washes in behind it. Tracking the box's own rect
    gives (959,540,1069,300) on f49, (998,518,1028,275) on f50, (1099,464,929,220)
    on f51 and the chip by f52 — one interpolation, at .008, .115, .391, 1 over
-   f49..52, which is t^3.25 on t = (f-48)/4. The wash underneath is exactly linear: the plate's
+   f49..52, which is t^2.15 on t = (f-49)/3. The wash underneath is exactly linear: the plate's
    empty background reads 0, 85, 170, 255 on f49..52. The face lifts ahead of
    both, 0 -> 149 -> 211 -> 234 -> 240, which is 1-(1-t)^3, and the ring and its
    halo are gone within two frames.
@@ -3728,7 +3728,24 @@ const N2_SEND = 39, N2_PRESS = 43 - 0.1 * FPS;
    185 as the ink spreads — and act 3 arrives on f87 already moving, at 0.808
    scale about (268,609), settling as 1 - 0.192*0.63^(f-87). The scale origin is
    solved from the lit phrase's own extents and reproduces them to a pixel. */
+/* The morph waits for the click to finish. The press runs 350ms from f40.6 and
+   is back at rest on f48.994, and the morph used to start on 48 — a frame of
+   overlap this piece introduced when the plate's short press was replaced by
+   the supplied 350ms one. Starting on 49 costs nothing against the plate: its
+   own rect has moved 0.008 of the way by then, which is not a visible frame of
+   travel, and act 2 still begins on 52 so nothing downstream shifts. The
+   exponent refits from 3.25 to 2.15 over the shorter run and reproduces the
+   same measured rects — .115 on f50 and .391 on f51. */
 const N2_MORPH0 = 48, N2_MORPH1 = 52;
+/* The MOVE waits for the click; the face lifting does not. Those are separate
+   curves in the plate — on f49 its rect has travelled 0.008 of the way, which
+   is nothing, while its face has already gone from 0 to 149. The face is the
+   box changing colour rather than moving, so it keeps its own 48..52 run and
+   the frame still reads 25.9 there; only the rect is held back to 49..52, out
+   of the way of a press that is at rest on f48.994. Over the shorter run the
+   exponent refits from 3.25 to 2.15 and reproduces the same measured rects,
+   .115 on f50 and .391 on f51. */
+const N2_MOVE0 = 49, N2_MOVE1 = 52, N2_MORPH_P = 2.15;
 const N2_RUSH0 = 78, N2_RUSH1 = 87;              // act 2's exit smear
 const N2_A3_S0 = 0.192, N2_A3_DECAY = 0.63;      // act 3's arrival settle
 const N2_A3_OX = 268, N2_A3_OY = 609;            // and what it scales about
@@ -4052,7 +4069,7 @@ function render2(t){
        the morph instead of leaving it pointing at a baked rectangle */
     const cx = n2chip.offsetLeft, cy = n2chip.offsetTop,
           cw = n2chip.offsetWidth, ch = n2chip.offsetHeight;
-    const u = Math.pow(mt, 3.25);
+    const u = Math.pow(sat((f - N2_MOVE0) / (N2_MOVE1 - N2_MOVE0)), N2_MORPH_P);
     const lerp = (a, b) => a + (b - a) * u;
     nbox.style.left   = lerp(NB_L, cx).toFixed(2) + "px";
     nbox.style.top    = lerp(NB_T, cy).toFixed(2) + "px";
