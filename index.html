@@ -603,15 +603,27 @@
      short of the plate's. */
   .n3page .lit{display:inline-block;padding:0 70px;margin:0 -70px;font-weight:500}
   /* The wall is WHITE INK AT LOW ALPHA rather than the flat #252525 it was,
-     by request. Over the plate's black ground the two are the same thing —
-     37/255 is .145, so `rgba(255,255,255,.145)` composites to exactly the 37
-     the measurement asked for, and act 3's frame means do not move. What it
-     changes is everything else: act 3 is the act that runs 90% plate, and an
-     opaque grey glyph covers whatever is behind it while a translucent white
-     one lifts it. In the exported matte the wall's own cores drop from an
-     alpha of 155 to 37, so footage now reads through the out-of-focus copy
-     instead of being hidden by it. Back: #252525. */
+     by request — and it carries two alphas, because one number cannot do both
+     jobs. Over the plate's black ground .145 IS the old grey: 37/255 is .145,
+     so it composites to exactly the 37 the measurement asks for and act 3's
+     frame means do not move.
+
+     Over footage it is not, and that is what the second value is for. The old
+     grey worked there by COVERING — an opaque 37 against footage at 100 is 63
+     levels of darkening. White at .145 only lifts that same footage by 22, a
+     third of the contrast, which reads as the copy having vanished. .4 puts it
+     back: .4 x 155 is 62 against the old 63, so the wall has the presence it
+     used to have over a moving image, as a lift rather than a shadow, and is
+     still plainly a translucent overlay rather than solid text.
+
+     Same split the other piece already makes for its query, its caret and its
+     chip — the plain render is the one that answers to the plate, and the
+     footage render answers to what is behind it. The classes are toggled in
+     render2 off bgOn/alphaOn every frame, so they cannot fall out of step with
+     the mode, and they serialise with #stage2 into the export.
+     Back: one .145 for both, or #252525 for neither. */
   .n3wall{color:rgba(255,255,255,.145);filter:blur(15px)}
+  #stage2.has-bg .n3wall, #stage2.has-alpha .n3wall{color:rgba(255,255,255,.4)}
   /* The two glow layers carry no ink at all — a transparent glyph still casts
      its shadow, which is exactly what is wanted here: masking a layer that also
      held the letters faded the letters with it, and the phrase's bright core
@@ -4118,6 +4130,10 @@ function render2(t){
   if (bgOn) bgvid.style.opacity = bgimg.style.opacity = "1";
 
   nscrim.style.opacity = bgOn ? "1" : "0";
+  /* what is behind the piece, said in classes so the stylesheet can answer it —
+     act 3's wall is dimmer over the plate's black than it is over footage */
+  stage2.classList.toggle("has-bg", !!bgOn);
+  stage2.classList.toggle("has-alpha", !!alphaOn);
 
   /* ── the ring turns throughout act 1 ── */
   const spin = $n2spin ? +$n2spin.value : N2_SPIN;
