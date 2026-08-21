@@ -448,7 +448,7 @@
      pure black inside. The cut is a mask rather than an opaque face, because
      the face is only 35% and would otherwise let the blur through. */
   .nglow{position:absolute;inset:-70px;border-radius:127px;padding:70px;
-         box-sizing:border-box;opacity:.65;
+         box-sizing:border-box;opacity:1;
          -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
          mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
          -webkit-mask-composite:xor;mask-composite:exclude}
@@ -470,7 +470,19 @@
      There is no crisp outline on the box, only this bloom. Measured across the
      edge in PromptBox_20260819.mp4, the profile steps from the glow at 23-29
      straight to the face at 255 with nothing but a 1-2px antialias between —
-     the colour lives entirely outside the box. Correlating the whole perimeter
+     the colour lives entirely outside the box.
+
+     The bloom runs at FULL opacity by request, against the .65 that had been
+     fitted to that clip. Seach Query Box_Dark Blur.svg draws the glow as two
+     stacked layers — a 50-blur one at opacity .5 on the box's own rect and a
+     37-blur one at opacity 1 on a shorter 1070x249 — so 1 is the file's own
+     value for the brighter of them, and this single fitted layer takes it.
+     The cost is stated rather than hidden: at .65 the profile read 43-45 at
+     2px out and 25-26 at 20, against the clip's 38-53 and 18-29; at 1 it is
+     half again as bright and sits above that measured band. The face is
+     untouched, because it already carries the file's number — #0A0A0A at
+     fill-opacity .35, which is what `.nface` has always been.
+     Back: .65 here and `0.65 * ring` in render2. Correlating the whole perimeter
      between its frames puts the bloom's own rotation at 1.178 samples a frame
      with 0.32 rms, about 1.24 deg, which is the 1.149 already fitted off the
      other clip. */
@@ -4195,7 +4207,7 @@ function render2(t){
     nface.style.background = `rgb(${fc(0)},${fc(1)},${fc(2)})`;
     nface.style.opacity = (FA0 + (1 - FA0) * sat(mt * 4)).toFixed(3);
     const ring = sat(1 - (f - 48.3) / 1.9);   /* the halo leaves with the box */
-    nglow.style.opacity = (0.65 * ring).toFixed(3);
+    nglow.style.opacity = ring.toFixed(3);
     for (const el of [nplus, nmicEl, nsend]) el.style.opacity = (1 - sat(mt * 2)).toFixed(3);
 
     /* the query rides the box down into the chip */
