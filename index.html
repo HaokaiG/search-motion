@@ -316,7 +316,8 @@
          line-height:54px;
          background:var(--chip2);border-radius:51px 10px 51px 51px;
          display:grid;place-items:center start;
-         font-size:38.22px;font-weight:400;color:#1f1f1f;white-space:pre-wrap}
+         font-size:38.22px;font-weight:400;color:#1f1f1f;
+         white-space:pre-wrap;overflow-wrap:break-word}
   /* Flow layout, not absolute: the answer is editable, so the blocks have
      to push each other down. Column width 1290 reproduces the plate's line
      breaks for the reference copy (its longest line is 1279).            */
@@ -464,7 +465,7 @@
            transform:scale(-1,0.436)}
   #nq{position:absolute;left:45.58px;top:32px;width:960px;
       font-size:44px;line-height:1.2;font-weight:400;color:#fff;
-      white-space:pre-wrap}
+      white-space:pre-wrap;overflow-wrap:break-word}
   /* 40.128 is the design file's own caret — it draws it from y 434.73 to
      474.858, which is about 2px above the text's ascender and 5px below its
      baseline. The plate renders it at 32, only ascender-to-baseline, and that
@@ -534,7 +535,7 @@
           padding:24px 45px;line-height:51px;
           border-radius:49.5px 10px 60px 49.5px;background:#f0f1f4;
           font-size:36px;color:#1f1f1f;white-space:pre-wrap;
-          display:grid;place-items:center start}
+          overflow-wrap:break-word;display:grid;place-items:center start}
   .n2chrome{position:absolute;inset:0}
   .n2body{position:absolute;left:241px;top:452px;width:1300px;
           font-size:36px;line-height:51px;color:#000}
@@ -1425,17 +1426,22 @@ function scheduleFor(str){
    prompt piece it is the prompt box itself, which is that piece's field. */
 let qMirror = null;
 const fieldLines = str => wrapAs($q, str);
+/* Read the metrics off a live element. Only safe where nothing writes over
+   them — see `n2PromptLines`, which cannot use this. */
 function wrapAs(ta, str){
   const cs = getComputedStyle(ta);
+  return wrapAt(str, cs.font, cs.letterSpacing,
+                ta.clientWidth - parseFloat(cs.paddingLeft)
+                               - parseFloat(cs.paddingRight));
+}
+function wrapAt(str, font, letterSpacing, width){
   if (!qMirror){
     qMirror = document.createElement("div");
     document.body.appendChild(qMirror);
   }
   qMirror.style.cssText = "position:absolute;visibility:hidden;left:-9999px;" +
     "top:0;white-space:pre-wrap;overflow-wrap:break-word;" +
-    `font:${cs.font};letter-spacing:${cs.letterSpacing};` +
-    `width:${ta.clientWidth - parseFloat(cs.paddingLeft)
-                            - parseFloat(cs.paddingRight)}px;`;
+    `font:${font};letter-spacing:${letterSpacing};width:${width}px;`;
   const r = document.createRange(), out = [];
   for (const seg of str.split("\n")){
     if (!seg){ out.push(""); continue; }
@@ -3899,7 +3905,18 @@ const NSEND_L = 943.8, NSEND_W = 94.29;      // the send pill's resting rect
    The chip grows by its own line, 51 against the box's 52.8, and pushes the
    answer down by the difference rather than overlapping it — the same as the
    other piece's bubble. */
-const NQ_LH = 52.8;                          // #nq's 44px at 1.2
+/* The box's resting metrics, stated rather than read. The morph writes a
+   font-size and a line-height onto #nq every frame, so measuring the live
+   element makes the bubble's line breaks depend on which frame was rendered
+   last — inside the morph it measured a 36px line and broke a 68-character
+   prompt twelve characters late. */
+const NQ_SIZE = 44, NQ_W = 960;
+const NQ_LH = NQ_SIZE * 1.2;                 // #nq's 44px at 1.2
+function n2PromptLines(str){
+  const cs = getComputedStyle(nq);           // family and weight are never written
+  return wrapAt(str, `${cs.fontWeight} ${NQ_SIZE}px ${cs.fontFamily}`,
+                cs.letterSpacing, NQ_W);
+}
 const N2CHIP_ROW = 99, N2CHIP_LH = 51, N2BODY_TOP = 452;
 const N2CHIP_R = [49.5, 10, 60, 49.5];       // the design file's four corners
 let N2_ROWS = 1;
@@ -3964,7 +3981,7 @@ function n2Build(){
      That is also what keeps the morph continuous: the box's two rows become the
      chip's two rows, instead of the text reflowing partway through the three
      frames it takes one to become the other. */
-  const rows = wrapAs(nq, N2_Q);
+  const rows = n2PromptLines(N2_Q);
   n2chip.textContent = rows.join("\n");
   n2Fit(rows.length);
   /* The plate's answer is not one weight. Measuring stem widths on the
@@ -4366,7 +4383,40 @@ const $n2q = document.getElementById("n2q"), $n2ctx = document.getElementById("n
       $n2tail = document.getElementById("n2tail"), $n2qwarn = document.getElementById("n2qwarn"),
       $n2box = document.getElementById("n2box"), $n2blur = document.getElementById("n2blur");
 $n2a.value = N2_BODY;
+/* ── the panel's prompt field wraps where the box wraps ──────────────────
+   Both pieces end up with the same promise — what the field shows is what the
+   bubble draws — but they get there from opposite ends, because the two
+   layouts differ in what is on screen. The search piece's bar is one pill and
+   cannot have rows, so nothing rendered can define a break: there the FIELD is
+   the authority and the bubble copies it. Here the box is on screen at full
+   size, and forcing a 241px panel field's breaks onto a 960px box would end
+   its first line at 42 characters where 58 fit. So the box keeps the authority
+   and the field is made to agree with it instead.
+   Same typeface both ends, so matching the width in EMS matches the break
+   positions: 960 over 44 is 21.818em, which at the panel's 241px of inner
+   width is an 11.05px field rather than the 12 the other controls wear.
+   Checked across 48 prefixes of a 48-word prompt, four words to forty-eight:
+   the field and the box break at identical character positions on every one.
+   Derived rather than baked, so a wider panel stays a faithful preview — and
+   the render never depends on the panel, which is the other half of the point:
+   the box wraps at its own width whatever the field is doing. */
+const NQ_EM = NQ_W / NQ_SIZE;
+function n2FieldScale(){
+  const cs = getComputedStyle($n2q);
+  const inner = $n2q.clientWidth - parseFloat(cs.paddingLeft)
+                                 - parseFloat(cs.paddingRight);
+  if (inner <= 0) return;
+  /* the weight has to come across too. The panel sets its controls in Medium
+     and the box is Regular, and Medium's wider advances broke a long prompt a
+     row early — 6 rows in the field against the box's 5 at 223 characters.
+     Read off the box rather than written here, so the two cannot drift; the
+     size is the CSS pair 960/44 rather than a live read, because the morph
+     writes its own font-size onto #nq every frame. */
+  $n2q.style.fontWeight = getComputedStyle(nq).fontWeight;
+  $n2q.style.fontSize = (inner / NQ_EM).toFixed(3) + "px";
+}
 function applyN2(){
+  n2FieldScale();
   N2_Q = $n2q.value;
   N2_CTX = $n2ctx.value;
   N2_BODY = $n2a.value;
