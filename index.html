@@ -603,27 +603,25 @@
      short of the plate's. */
   .n3page .lit{display:inline-block;padding:0 70px;margin:0 -70px;font-weight:500}
   /* The wall is WHITE INK AT LOW ALPHA rather than the flat #252525 it was,
-     by request — and it carries two alphas, because one number cannot do both
-     jobs. Over the plate's black ground .145 IS the old grey: 37/255 is .145,
-     so it composites to exactly the 37 the measurement asks for and act 3's
-     frame means do not move.
+     and both of its numbers are now asked for rather than measured: 35%, and
+     a blur tuned down from 15 to 8 so the copy can be read.
 
-     Over footage it is not, and that is what the second value is for. The old
-     grey worked there by COVERING — an opaque 37 against footage at 100 is 63
-     levels of darkening. White at .145 only lifts that same footage by 22, a
-     third of the contrast, which reads as the copy having vanished. .4 puts it
-     back: .4 x 155 is 62 against the old 63, so the wall has the presence it
-     used to have over a moving image, as a lift rather than a shadow, and is
-     still plainly a translucent overlay rather than solid text.
+     The two work together, which is why one alone was not enough. A 15px blur
+     spreads a 156px glyph's ink far enough that its own core never reaches the
+     alpha it was given — at .35 the exported matte peaks at 55 against a
+     nominal 89, so the wall was drawing at 62% of what it was set to whatever
+     the alpha said. Halving the blur takes that peak to 76, 85% of nominal,
+     and the copy reads. Total ink is unchanged either way — the matte's mean
+     alpha is 14.2 at every blur from 4 to 15 — a blur redistributes, it does
+     not remove, so this is entirely about where the ink sits.
 
-     Same split the other piece already makes for its query, its caret and its
-     chip — the plain render is the one that answers to the plate, and the
-     footage render answers to what is behind it. The classes are toggled in
-     render2 off bgOn/alphaOn every frame, so they cannot fall out of step with
-     the mode, and they serialise with #stage2 into the export.
-     Back: one .145 for both, or #252525 for neither. */
-  .n3wall{color:rgba(255,255,255,.145);filter:blur(15px)}
-  #stage2.has-bg .n3wall, #stage2.has-alpha .n3wall{color:rgba(255,255,255,.4)}
+     One alpha again, in both modes: .35 is close enough to the .4 the footage
+     render had been given that the split it existed to solve is gone. What
+     that costs is act 3's plate match, and the cost is stated: those frames
+     read about 6 over the plate now, against a wall the reference draws at 37.
+     Back: .145 with blur(15px), which is the measured pair, or #252525 for the
+     flat grey this started as. */
+  .n3wall{color:rgba(255,255,255,.35);filter:blur(8px)}
   /* The two glow layers carry no ink at all — a transparent glyph still casts
      its shadow, which is exactly what is wanted here: masking a layer that also
      held the letters faded the letters with it, and the phrase's bright core
@@ -4130,10 +4128,6 @@ function render2(t){
   if (bgOn) bgvid.style.opacity = bgimg.style.opacity = "1";
 
   nscrim.style.opacity = bgOn ? "1" : "0";
-  /* what is behind the piece, said in classes so the stylesheet can answer it —
-     act 3's wall is dimmer over the plate's black than it is over footage */
-  stage2.classList.toggle("has-bg", !!bgOn);
-  stage2.classList.toggle("has-alpha", !!alphaOn);
 
   /* ── the ring turns throughout act 1 ── */
   const spin = $n2spin ? +$n2spin.value : N2_SPIN;
