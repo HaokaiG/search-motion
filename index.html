@@ -426,11 +426,16 @@
   #nbox{position:absolute;left:426.01px;top:389.58px;
         width:1067.86px;height:300.24px;z-index:3;border-radius:57px}
   /* face first, then the halo outside it, then the 2px ring on top */
-  /* Two looks, both from the supplied files. Dark Blur is #0A0A0A at 35% on a
-     57px radius with white type; White is an opaque white box on a 69px radius
-     with black type, its mic and + glyph dark and its send the blue. The box's
-     geometry is the same in both — 1067.86x300.24 at (426.02,389.58) — so only
-     the skin changes. */
+  /* Two looks, both from the supplied files. Dark Blur is #0A0A0A at 35% with
+     white type; White is an opaque white box with black type, its mic and +
+     glyph dark and its send the blue. The box's geometry is the same in both —
+     1067.86x300.24 at (426.02,389.58) — so only the skin changes.
+     The radius is now shared too, at the dark file's 57, by request. Seach
+     Query Box_White.svg draws its own on 69 (two stacked rects, rx 72.53 and
+     69.03), which is what the white look used to carry; one radius across both
+     looks means switching the Box control changes the skin and nothing else,
+     and it also puts the halo's inner rect — a fixed 57 — back in agreement
+     with the shape it is cut against. Back: 69 on both lines below. */
   .nface{position:absolute;inset:0;border-radius:inherit;
          background:rgba(10,10,10,.35)}
   /* The white box is solid; only the dark one is a 35% wash. They are different
@@ -438,7 +443,6 @@
      renders as mid-grey over nothing and its black type loses most of its
      contrast against it. */
   #stage2.box-white .nface{background:#fff}
-  #stage2.box-white #nbox{border-radius:69px}
   #stage2.box-white #nq{color:#000}
   #stage2.box-white .nmic{fill:#0A0A0A;opacity:1}
   #stage2.box-white .nplus{background:#F0F2F5}
@@ -4181,7 +4185,7 @@ function render2(t){
   const boxWhite = stage2.classList.contains("box-white");
   const F0 = boxWhite ? [255, 255, 255] : [10, 10, 10];
   const FA0 = boxWhite ? 1 : 0.35;        // the white box is solid, the dark a wash
-  const R0 = boxWhite ? 69 : 57;
+  const R0 = 57;                          // one radius for both looks
   if (f < N2_A2){
     /* the target is read off act 2's own chip, so editing the prompt re-aims
        the morph instead of leaving it pointing at a baked rectangle */
