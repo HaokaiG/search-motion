@@ -404,47 +404,47 @@
      upward into the past, so a longer one has to grow up and out of frame
      rather than down into the box; #stage2's overflow does the leaving.
 
-     The ink is the design file's own, off "Common Confusion….svg": a group at
-     80% carrying a LINEAR FILL, and a LAYER BLUR that the file sets to
-     `stdDeviation="0"` — the effect is there but switched off, so there is
-     nothing to add for it and the copy stays sharp.
-     The fill is a gradient in user space, (619.343,249.316) to
-     (611.843,-114.184) across a 1433x138.4 block — 363.58 long and 2.06% off
-     vertical, which rounds to straight up — with white at 50% for its first
-     stop and #666666 at 50% at 62.706% along. Resolved against that block's
-     own edges, white sits 110.89px BELOW the bottom and #666 117.04px above
-     it. At the bottom row that lands on 180.6 ink, and at 117.04 up on 102.
+     The ink is the design file's own, off "Common Confusion….svg": a group
+     carrying a LINEAR FILL and a LAYER BLUR. The fill is a gradient in user
+     space, (619.343,249.316) to (611.843,-114.184) across a 1433x138.4 block
+     — 363.58 long and 2.06% off vertical, which rounds to straight up — with
+     white at 50% for its first stop and #666666 at 50% at 62.706% along.
+     Resolved against that block's own edges, white sits 110.89px BELOW the
+     bottom and #666 117.04px above it: 180.6 ink at the bottom row, 102 at
+     117.04 up, a ratio of .565. The type is WHITE by request and its ceiling
+     60%, so that ratio is what survives of the file rather than its tones —
+     the ramp runs 1.0 at the bottom to .565 at 117.04, and its last stop
+     takes it to nothing at 342.86, the dissolve folded in so a turn long
+     enough to climb toward the frame's top edge goes rather than being cut.
 
-     It is drawn as REGULAR TEXT carrying that ramp in a mask, by request,
-     rather than as transparent text with the gradient clipped into it. That
-     is a difference in construction more than in pixels: measured on the same
-     70 strokes across three scanlines, mean stem width comes out 6.85 with
-     the mask, 6.87 with nothing, and 7.07 at full strength — the same glyphs
-     within a quarter of a pixel however the ink is delivered. (A single
-     scanline's MEDIAN run says 4 against 5, which reads like thinning and is
-     not: a fixed threshold over dimmer ink simply loses more of each edge.
-     Worth knowing before trusting that number again.) The tone is held to
-     within a level too — 71 at the bottom row and 57 at the top, against the
-     clipped version's 71 and 56.
-     So the colour is the file's bottom tone stated outright, 181, and the two
-     alphas over it — the fill's 50% and the group's 80% — are folded into the
-     single .4 on the element.
-     The mask then carries the ramp down to 102/180.6 = .565 by 117.04px up,
-     and its last stop takes it to nothing at 342.86 — the old dissolve folded
-     into the same ramp, so a turn long enough to climb toward the frame's top
-     edge goes rather than being cut by it.
-     What it costs: the file is dimmer than the plate, which reads 120 at the
-     bottom row and 86 at the top against these 71 and 57.
-     Back: `color:#787878` with a plain upward mask, which is the measured
-     pair. */
+     The file's blur is `stdDeviation="0"` — the effect declared and switched
+     off — and it is asked for here, heavier toward the TOP. A CSS blur is
+     uniform, so the line is drawn twice and cross-faded: a sharp copy that
+     is all of the ink at the bottom and none of it by 117.04 up, and a
+     blurred one that is the complement. Each row is then softer than the one
+     below it, which is the point — the further into the past, the less in
+     focus. Same construction as act 3's wall and the bar's beam.
+
+     The two masks are the product of the fill ramp and the crossfade, so
+     they sum to the fill wherever both are present. .45 rather than .3915 at
+     the halfway stop is the correction for stacking: two layers composite as
+     1-(1-a)(1-b), not a+b, and the plain product would leave a dip through
+     the handover. Verified in an export instead of trusted — the ramp comes
+     out monotonic top to bottom with the bottom row at the 60% ceiling. */
   .n-ctx{position:absolute;left:258px;bottom:calc(1080px - var(--ctx-bot));
-         width:1392px;opacity:.4;
-         font-size:37px;line-height:1.4;font-weight:400;
-         color:rgb(181,181,181);
+         width:1392px;opacity:.6;
+         font-size:37px;line-height:1.4;font-weight:400;color:#fff;
          -webkit-mask-image:linear-gradient(to top,#000 0,
-             rgba(0,0,0,.565) 117.04px,transparent 342.86px);
+             rgba(0,0,0,.45) 58.52px,transparent 117.04px);
          mask-image:linear-gradient(to top,#000 0,
-             rgba(0,0,0,.565) 117.04px,transparent 342.86px)}
+             rgba(0,0,0,.45) 58.52px,transparent 117.04px)}
+  .n-ctx-soft{filter:blur(4px);
+         -webkit-mask-image:linear-gradient(to top,transparent 0,
+             rgba(0,0,0,.45) 58.52px,rgba(0,0,0,.565) 117.04px,
+             transparent 342.86px);
+         mask-image:linear-gradient(to top,transparent 0,
+             rgba(0,0,0,.45) 58.52px,rgba(0,0,0,.565) 117.04px,
+             transparent 342.86px)}
   .n-act{position:absolute;fill:#fff;opacity:.6}
   /* the rail's two glyphs are the design file's own paths, kept in page
      coordinates so the viewBox is the measurement */
@@ -981,6 +981,7 @@
     <div id="n1">
       <div id="nscrim"></div>
       <div class="n-g"></div>
+      <div class="n-ctx n-ctx-soft" id="nctxb"></div>
       <div class="n-ctx" id="nctx"></div>
       <!-- the supplied action sheet, each glyph at the box the plate
            measures for it, now hung off the ctx-bot / ctx-gap pair so the
@@ -3993,7 +3994,8 @@ const nsmearB = document.getElementById("nsmearB"),
 const nsmear2T = [...document.querySelectorAll('#nsmear2 feOffset')];
 const nsmear2M = document.getElementById("nsmear2M");
 const n3pages = [n3wall, n3tip, n3lit, n3ink];
-const nctx = document.getElementById("nctx"), nscrim = document.getElementById("nscrim");
+const nctx = document.getElementById("nctx"), nctxb = document.getElementById("nctxb"),
+      nscrim = document.getElementById("nscrim");
 const n2chrome = document.getElementById("n2chrome");
 const n2nav = document.querySelector("#n2 .n2nav");
 /* The answer does not simply fade up — it rises. Correlating the body's row
@@ -4102,7 +4104,7 @@ function n2Schedule(){
 }
 function n2Build(){
   n2Schedule();
-  nctx.textContent = N2_CTX;
+  nctx.textContent = nctxb.textContent = N2_CTX;
   /* The bubble takes the BOX's line breaks. The other piece mirrors the panel's
      field because that is where its query is typed; here the field is on screen
      — the prompt box is the thing being typed into — so the bubble echoes it.
