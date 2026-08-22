@@ -161,52 +161,32 @@ centred in the space beside it. The panel lets you:
   Measured, frame 132 goes from 0% clear to 80%.
   Frames 133 to 135 are still not clear, and should not be — act 1's own chip is blown up across
   the whole frame by then. That is the foreground, not the background.
-  Turning it on puts the alpha into both exports that can hold one — the MOV keeps the whole
-  graded matte, the GIF what its single transparent index can — for compositing the move over
-  your own plate in an editor
-- **export a MOV, a GIF or an MP4** — every size up to 1920px at every rate up to 60fps, and
-  all three share the one size and rate. All three walk the same deterministic render path
-  rather than capturing the screen, so a frame is a frame whatever the machine is doing:
-  - the **MOV is ProRes 4444 with an alpha channel**, and the codec is written here — the DCT,
-    the quantiser, the run-level entropy coder and the frame layout, then the container. Nothing
-    in a browser will produce ProRes, and WebCodecs will not keep an alpha channel at all: every
-    VP8/VP9 config with `alpha:"keep"` comes back unsupported. Writing it was possible because
-    ffmpeg's own output could be used as ground truth — see `docs/NOTES.md`. It is quantised at
-    qscale 1, which with ProRes's default matrices rounds each coefficient to the nearest integer
-    and does nothing else, so it is visually lossless and correspondingly large: 63 MB for the
-    6.8s piece at 1920 and 24fps. Verified by decoding the export back with ffmpeg — RGB matches
-    the canvas to within the 1 code the sRGB → BT.709 video-range round trip costs, and the alpha
-    exactly — and then again through macOS's own AVFoundation, which is the stricter reader of
-    the two and the one an editor here would use
-  - the **GIF** is opaque whatever the stage is set to, and spends all 256 entries on colour.
-    It used to reserve one for transparency when the transparent mode was on; one all-or-nothing
-    index is a poor matte and the PNG sequence is the answer for that instead.
-    Its palette is built from a histogram of **every pixel of every frame** rather than a sparse
-    sample, split classic-median-cut style — widest box first, cut at the population median — and
-    each entry is the exact weighted mean of the colours behind it. Frames are then mapped by
-    exact nearest-neighbour with **Floyd–Steinberg** error diffusion, which is what turns 256
-    entries into a gradient that reads as continuous. Flat colour dithers to nothing, since the
-    error is zero when the colour is already in the palette, so it costs noise only where there
-    was banding to fix.
-    Measured as error integrated over 4x4 blocks — which is how the eye sees a dither — this goes
-    from 0.131 to **0.047** on the piece and from 2.368 to **0.312** on a gradient. Per *pixel*
-    the error rises slightly, 0.62 to 0.85, and that is the dither working rather than failing:
-    it trades pixel accuracy for local accuracy
-  - the **PNG sequence** is the answer when that is not good enough, which for a transparent GIF
-    it usually is not: a PNG has the whole channel and 8 bits of alpha a pixel, so the frames are
-    what the canvas actually drew rather than an approximation of it. Measured on a transparent
-    480px export, the PNGs carry 18–21% of the frame at partial alpha — the scrim and every
-    antialiased edge — all of which a GIF has to round to on or off. The browser's own encoder
-    writes them, so they are lossless; they come out in one archive because a browser will hand
-    over one file, and the ZIP is written here like the other containers, stored rather than
-    deflated since a PNG is already deflated
-  - the **MP4** is H.264 via WebCodecs, with the container written by hand alongside the others;
-    the profile level is asked for at export time rather than hard-coded, since Baseline 3.0
-    cannot carry 1080p at all and 4.0 cannot carry it at 60
-  The GIF used to hold every frame as raw RGBA — the palette is sampled across the whole
-  animation and could not be settled until the end — which is 3.4 GB at 1920 and 60fps, so it
-  declined the largest combinations. It now renders the piece twice instead, once for the
-  colours and once for the frames, and has no ceiling
+  Turning it on puts a graded matte into the MOV, for compositing the move over your own plate
+  in an editor
+- **export a MOV** — ProRes 4444, every size up to 1920px at every rate up to 60fps. It walks
+  the same deterministic render path rather than capturing the screen, so a frame is a frame
+  whatever the machine is doing.
+  The codec is written here — the DCT, the quantiser, the run-level entropy coder and the frame
+  layout, then the container. Nothing in a browser will produce ProRes, and WebCodecs will not
+  keep an alpha channel at all: every VP8/VP9 config with `alpha:"keep"` comes back unsupported.
+  Writing it was possible because ffmpeg's own output could be used as ground truth — see
+  `docs/NOTES.md`. It is quantised at qscale 1, which with ProRes's default matrices rounds each
+  coefficient to the nearest integer and does nothing else, so it is visually lossless and
+  correspondingly large: 63 MB for the 6.8s piece at 1920 and 24fps.
+  Verified by decoding the export back with ffmpeg — RGB matches the canvas to within the 1 code
+  the sRGB → BT.709 video-range round trip costs, and the alpha exactly — and then again through
+  macOS's own AVFoundation, which is the stricter reader of the two and the one an editor here
+  would use. The bytes were checked again after the exports below were removed: frame header
+  `icpf` / size 20 / version 0 / `apl0`, 1920×1080, chroma format **3 = 4:4:4**, progressive,
+  BT.709 primaries, transfer and matrix, alpha type **2 = 16-bit integer**, declared frame size
+  equal to the actual; container `qt  ` with `ap4h`, depth **32**, no `stss` because every ProRes
+  frame is a key frame, and every box length tiling the file exactly at every depth.
+
+  **The GIF, PNG-sequence and MP4 exports have been removed**, the piece having one deliverable.
+  They are in the history if they are wanted back — `git log -- index.html` around this note —
+  and with them went a hand-written GIF encoder (whole-animation histogram, median-cut palette,
+  Floyd–Steinberg), a ZIP writer, and an H.264 MP4 muxer over WebCodecs. What stays is the ISO
+  box grammar they shared with the MOV.
 
 The answer field warns when the copy passes the bottom of its measured column. The query field
 used to report the bar's width and the pan's distance beneath it; both are still derived from

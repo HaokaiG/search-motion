@@ -1288,11 +1288,7 @@
         <option value="60">60 fps</option>
       </select>
     </div>
-    <button id="premulbtn">MOV alpha: straight</button>
     <button id="vexport">Export MOV · ProRes 4444</button>
-    <button id="pexport">Export PNG sequence</button>
-    <button id="gexport">Export GIF</button>
-    <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
   </div>
 </div>
@@ -2745,328 +2741,6 @@ $q.addEventListener("input", () => {
   history.replaceState(null, "", "#" + h.toString());
 });
 
-/* ══════════════════════════════ GIF export ══════════════════════════════
-   No libraries, so this writes the whole container: an adaptive palette by
-   median cut, LZW, then GIF89a. Frames come off the DOM by serialising the
-   stage into an <svg><foreignObject>, which the browser will draw straight
-   onto a canvas — the embedded font and every inline style ride along.    */
-
-/* -- median cut ---------------------------------------------------------- */
-/* ══════════════════ the palette, and how the frame is mapped ═════════════
-   Two things decide what a 256-colour GIF looks like, and this used to do
-   both cheaply. The palette was median-cut over a sparse SAMPLE of pixels,
-   split so that each half held the same number of distinct colours — which
-   spends entries on a rare colour and a dominant one alike. And the mapping
-   was nearest-neighbour through a 5-bit cache, so every colour in an 8x8x8
-   cube got the same entry and a gradient came out in bands.
-   Both are now what a good GIF encoder does. The palette is built from a
-   histogram of EVERY pixel, split by population so the entries follow the
-   area a colour actually covers, with each entry the exact weighted mean of
-   the colours behind it. The mapping is exact nearest-neighbour with
-   Floyd-Steinberg error diffusion, which is what turns 256 entries into a
-   gradient that reads as continuous. Flat colour dithers to nothing — the
-   error is zero when the colour is already in the palette — so it costs
-   noise only where there was banding to fix.                             */
-
-/* Where "transparent" stops and "drawn" starts, out of 255. Deliberately
-   near zero rather than at half: the bar's scrim is alpha 51 and belongs on
-   the drawn side, composited onto the matte, not dropped.               */
-const GIF_ALPHA_CUT = 8;
-
-/* 6 bits a channel: 262144 bins, and the sums are kept exactly so a bin's
-   mean is the true mean of the colours in it rather than the bin's centre */
-function Hist(){
-  const N = 1 << 18;
-  this.n = new Uint32Array(N);
-  this.r = new Float64Array(N);
-  this.g = new Float64Array(N);
-  this.b = new Float64Array(N);
-}
-Hist.prototype.add = function(fr, skipClear){
-  const n = this.n, R = this.r, G = this.g, B = this.b;
-  for (let p = 0; p < fr.length; p += 4){
-    if (skipClear && fr[p + 3] < GIF_ALPHA_CUT) continue;
-    const r = fr[p], g = fr[p+1], b = fr[p+2];
-    const k = ((r >> 2) << 12) | ((g >> 2) << 6) | (b >> 2);
-    n[k]++; R[k] += r; G[k] += g; B[k] += b;
-  }
-};
-function paletteOf(H, want){
-  const occupied = [];
-  for (let k = 0; k < H.n.length; k++) if (H.n[k]) occupied.push(k);
-  if (!occupied.length) return [[0, 0, 0]];
-  const box = list => {
-    let pop = 0, mn = [63,63,63], mx = [0,0,0];
-    for (const k of list){
-      pop += H.n[k];
-      const c = [(k >> 12) & 63, (k >> 6) & 63, k & 63];
-      for (let i = 0; i < 3; i++){
-        if (c[i] < mn[i]) mn[i] = c[i];
-        if (c[i] > mx[i]) mx[i] = c[i];
-      }
-    }
-    const rng = [mx[0]-mn[0], mx[1]-mn[1], mx[2]-mn[2]];
-    const w = Math.max(rng[0], rng[1], rng[2]);
-    /* Split the WIDEST box, not the most populous one. Weighting the choice
-       by population is the obvious idea and it is wrong here: this piece is
-       mostly one white, so the box holding it wins every round and the
-       palette fills up with 256 shades of white. Measured, that put two
-       entries in a whole frame and a worst-case error of 255. Population
-       still decides WHERE the cut falls, which is where it belongs.    */
-    return { list, pop, ch: rng.indexOf(w), width: w, score: w };
-  };
-  let boxes = [box(occupied)];
-  while (boxes.length < want){
-    let bi = -1, best = 0;
-    for (let i = 0; i < boxes.length; i++){
-      const b = boxes[i];
-      if (b.width > 0 && b.list.length > 1 && b.score > best){ best = b.score; bi = i; }
-    }
-    if (bi < 0) break;
-    const b = boxes[bi], sh = 12 - 6 * b.ch;
-    b.list.sort((x, y) => ((x >> sh) & 63) - ((y >> sh) & 63));
-    /* Cut at the POPULATION median, not the middle of the list — but both
-       sides have to end up with something in them. When one bin holds more
-       than half the pixels, which is exactly this piece's white, the median
-       lands on that bin; if it also sorts last the right-hand box comes out
-       EMPTY, it can never be split again, and every further round produces
-       another empty. Measured before the clamp: one real entry and 255 of
-       [0,0,0], two colours in a whole frame. Clamped, the dominant bin is
-       simply peeled off into its own box on the first round, which is what
-       it deserves anyway.                                                */
-    let acc = 0, cut = 0;
-    for (; cut < b.list.length - 1; cut++){
-      acc += H.n[b.list[cut]];
-      if (acc * 2 >= b.pop) break;
-    }
-    if (cut > b.list.length - 2) cut = b.list.length - 2;
-    if (cut < 0) cut = 0;
-    boxes.splice(bi, 1, box(b.list.slice(0, cut + 1)), box(b.list.slice(cut + 1)));
-  }
-  return boxes.map(b => {
-    let r = 0, g = 0, bl = 0, n = 0;
-    for (const k of b.list){ r += H.r[k]; g += H.g[k]; bl += H.b[k]; n += H.n[k]; }
-    return n ? [Math.round(r/n), Math.round(g/n), Math.round(bl/n)] : [0,0,0];
-  });
-}
-
-/* Exact nearest entry, memoised on the whole 24-bit colour rather than on a
-   5-bit key. Flat areas hit the memo every time; the diffused error in a
-   gradient misses it and pays the search, which is the right way round. */
-function nearestIn(pal){
-  const n = pal.length;
-  const pr = new Int32Array(n), pg = new Int32Array(n), pb = new Int32Array(n);
-  for (let i = 0; i < n; i++){ pr[i] = pal[i][0]; pg[i] = pal[i][1]; pb[i] = pal[i][2]; }
-  const memo = new Map();
-  return (r, g, b) => {
-    const key = (r << 16) | (g << 8) | b;
-    const hit = memo.get(key);
-    if (hit !== undefined) return hit;
-    let bi = 0, bd = 1e12;
-    for (let i = 0; i < n; i++){
-      const dr = r - pr[i], dg = g - pg[i], db = b - pb[i];
-      const d = dr*dr*3 + dg*dg*6 + db*db;      /* the same luma weighting */
-      if (d < bd){ bd = d; bi = i; if (!d) break; }
-    }
-    if (memo.size < (1 << 20)) memo.set(key, bi);
-    return bi;
-  };
-}
-
-/* -- a growable byte sink ------------------------------------------------
-   A 1920 GIF runs to tens of megabytes and this used to accumulate it in a
-   plain array, one boxed number per byte — about eight bytes to hold one. */
-function Sink(cap){ this.b = new Uint8Array(cap); this.n = 0; }
-Sink.prototype.need = function(k){
-  if (this.n + k <= this.b.length) return;
-  let m = this.b.length * 2; while (m < this.n + k) m *= 2;
-  const bigger = new Uint8Array(m);
-  bigger.set(this.b.subarray(0, this.n)); this.b = bigger;
-};
-Sink.prototype.u8 = function(...v){
-  this.need(v.length); for (const x of v) this.b[this.n++] = x;
-};
-Sink.prototype.u16 = function(v){                /* GIF is little-endian */
-  this.need(2); this.b[this.n++] = v & 255; this.b[this.n++] = (v >> 8) & 255;
-};
-Sink.prototype.blob = function(a){
-  this.need(a.length); this.b.set(a, this.n); this.n += a.length;
-};
-Sink.prototype.done = function(){ return this.b.subarray(0, this.n); };
-
-/* -- LZW, GIF flavour ----------------------------------------------------
-   Emits its own 255-byte sub-blocks straight into the sink rather than
-   building the codes first and packeting them after.                     */
-function lzwInto(sink, idx, minCode){
-  const clear = 1 << minCode, end = clear + 1;
-  let dict = new Map(), next = end + 1, size = minCode + 1;
-  let cur = 0, bits = 0;
-  const chunk = new Uint8Array(255); let cn = 0;
-  const flush = () => {
-    if (cn){ sink.u8(cn); sink.blob(chunk.subarray(0, cn)); cn = 0; }
-  };
-  const byte = v => { chunk[cn++] = v; if (cn === 255) flush(); };
-  const put = c => {
-    cur |= c << bits; bits += size;
-    while (bits >= 8){ byte(cur & 255); cur >>= 8; bits -= 8; }
-  };
-  const reset = () => { dict = new Map(); next = end + 1; size = minCode + 1; };
-  put(clear);
-  let pre = idx[0];
-  for (let i = 1; i < idx.length; i++){
-    const k = idx[i], key = pre * 4096 + k;
-    if (dict.has(key)) { pre = dict.get(key); continue; }
-    put(pre);
-    dict.set(key, next++);
-    if (next > (1 << size)){
-      if (size < 12) size++;
-      else { put(clear); reset(); }
-    }
-    pre = k;
-  }
-  put(pre); put(end);
-  if (bits > 0) byte(cur & 255);
-  flush(); sink.u8(0);
-}
-
-/* -- the GIF itself -----------------------------------------------------
-   Written a frame at a time, so nothing but the compressed result is held.
-   The palette still has to be settled before the first frame — it is
-   sampled across the whole animation — which is why the export renders the
-   piece twice rather than keeping it.
-   `trans` is a palette index reserved for transparency, or -1. GIF has only
-   the one, all-or-nothing, so a partly covered pixel has to fall one side of
-   a threshold; the alpha the MOV carries is the real answer.             */
-/* `trans` is a palette index reserved for transparency, or -1. GIF's alpha is
-   one bit, so a pixel is either fully there or not there at all — but that is
-   only fatal if the cut is put at half covered. At half, this piece's 20%
-   scrim (alpha 51) falls the wrong side and the search bar disappears. The
-   cut belongs at "was anything drawn here", and everything above it is
-   composited onto a matte before it gets here, which is what Photoshop's own
-   GIF export means by a matte colour.                                     */
-function GifWriter(W, H, pal, delayCs, trans){
-  let bitsN = 1;
-  while ((1 << bitsN) < pal.length + (trans >= 0 ? 1 : 0)) bitsN++;
-  const size = 1 << bitsN;
-  this.W = W; this.H = H; this.delay = delayCs; this.pal = pal;
-  this.trans = trans === undefined ? -1 : trans;
-  this.minCode = Math.max(2, bitsN);
-  this.idx = new Uint8Array(W * H);
-  this.near = nearestIn(pal);
-  /* two rows of carried error, in floats: the diffusion has to survive being
-     added to the next pixel, so rounding it into a byte would defeat it */
-  this.e0 = new Float32Array(W * 3);
-  this.e1 = new Float32Array(W * 3);
-  const sk = this.sk = new Sink(1 << 20);
-  sk.u8(0x47,0x49,0x46,0x38,0x39,0x61);                // GIF89a
-  sk.u16(W); sk.u16(H);
-  sk.u8(0xF0 | (bitsN - 1), this.trans >= 0 ? this.trans : 0, 0);
-  for (let i = 0; i < size; i++){
-    const c = pal[i] || [0,0,0]; sk.u8(c[0], c[1], c[2]);
-  }
-  sk.u8(0x21,0xFF,0x0B);                               // Netscape loop
-  for (const ch of "NETSCAPE2.0") sk.u8(ch.charCodeAt(0));
-  sk.u8(3,1,0,0,0);
-}
-/* Floyd-Steinberg: the quantiser's error goes 7/16 right, then 3/16, 5/16
-   and 1/16 into the row below. On flat colour the error is zero and nothing
-   happens; on a gradient it is what stops the 256 entries banding.       */
-GifWriter.prototype.frame = function(fr){
-  const sk = this.sk, W = this.W, H = this.H, idx = this.idx,
-        pal = this.pal, near = this.near, t = this.trans;
-  /* disposal 2 with a transparent index, or a hole shows the frame before it
-     through rather than nothing */
-  sk.u8(0x21, 0xF9, 0x04, t >= 0 ? 0x09 : 0x00);
-  sk.u16(this.delay);
-  sk.u8(t >= 0 ? t : 0, 0);
-  sk.u8(0x2C); sk.u16(0); sk.u16(0); sk.u16(W); sk.u16(H); sk.u8(0);
-  let cur = this.e0, nxt = this.e1;
-  cur.fill(0);
-  for (let y = 0; y < H; y++){
-    nxt.fill(0);
-    const row = y * W;
-    for (let x = 0; x < W; x++){
-      const p = (row + x) * 4, o = x * 3;
-      /* nothing was drawn here: it is a hole, and a hole carries no error */
-      if (t >= 0 && fr[p + 3] < GIF_ALPHA_CUT){ idx[row + x] = t; continue; }
-      let r = fr[p] + cur[o], g = fr[p+1] + cur[o+1], b = fr[p+2] + cur[o+2];
-      r = r < 0 ? 0 : r > 255 ? 255 : r;
-      g = g < 0 ? 0 : g > 255 ? 255 : g;
-      b = b < 0 ? 0 : b > 255 ? 255 : b;
-      const i = near(r + 0.5 | 0, g + 0.5 | 0, b + 0.5 | 0);
-      idx[row + x] = i;
-      const c = pal[i], er = r - c[0], eg = g - c[1], eb = b - c[2];
-      if (x + 1 < W){
-        cur[o+3] += er * 0.4375; cur[o+4] += eg * 0.4375; cur[o+5] += eb * 0.4375;
-      }
-      if (y + 1 < H){
-        if (x > 0){
-          nxt[o-3] += er * 0.1875; nxt[o-2] += eg * 0.1875; nxt[o-1] += eb * 0.1875;
-        }
-        nxt[o] += er * 0.3125; nxt[o+1] += eg * 0.3125; nxt[o+2] += eb * 0.3125;
-        if (x + 1 < W){
-          nxt[o+3] += er * 0.0625; nxt[o+4] += eg * 0.0625; nxt[o+5] += eb * 0.0625;
-        }
-      }
-    }
-    const swap = cur; cur = nxt; nxt = swap;   /* not `t` — that is the hole */
-  }
-  sk.u8(this.minCode);
-  lzwInto(sk, idx, this.minCode);
-};
-GifWriter.prototype.done = function(){ this.sk.u8(0x3B); return this.sk.done(); };
-
-/* ══════════════════════ a ZIP, written here ══════════════════════════════
-   A PNG sequence is many files and a browser will hand over one, so they go
-   out in a single archive. Stored rather than deflated: a PNG is already
-   deflated and running it through again buys a percent and costs the whole
-   sequence in time. Same as the other containers here, it is written out
-   rather than pulled in.                                                  */
-const CRC_T = (() => {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++){
-    let c = n;
-    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-    t[n] = c >>> 0;
-  }
-  return t;
-})();
-function crc32(u8){
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8);
-  return (c ^ 0xFFFFFFFF) >>> 0;
-}
-/* files: [{name, bytes}] -> one stored archive */
-function zipOf(files){
-  const sk = new Sink(1 << 22);
-  const le16 = v => sk.u8(v & 255, (v >> 8) & 255);
-  const le32 = v => sk.u8(v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255);
-  const dir = [];
-  for (const f of files){
-    const name = [...f.name].map(c => c.charCodeAt(0));
-    const crc = crc32(f.bytes), off = sk.n, len = f.bytes.length;
-    sk.u8(0x50, 0x4B, 0x03, 0x04);
-    le16(20); le16(0); le16(0); le16(0); le16(0);   /* ver, flags, store, time, date */
-    le32(crc); le32(len); le32(len);
-    le16(name.length); le16(0);
-    sk.u8(...name); sk.blob(f.bytes);
-    dir.push({ name, crc, len, off });
-  }
-  const dirAt = sk.n;
-  for (const e of dir){
-    sk.u8(0x50, 0x4B, 0x01, 0x02);
-    le16(20); le16(20); le16(0); le16(0); le16(0); le16(0);
-    le32(e.crc); le32(e.len); le32(e.len);
-    le16(e.name.length); le16(0); le16(0); le16(0); le16(0);
-    le32(0); le32(e.off);
-    sk.u8(...e.name);
-  }
-  const dirSize = sk.n - dirAt;          /* before the record that reports it */
-  sk.u8(0x50, 0x4B, 0x05, 0x06);
-  le16(0); le16(0); le16(dir.length); le16(dir.length);
-  le32(dirSize); le32(dirAt); le16(0);
-  return sk.done();
-}
 
 /* -- DOM → pixels -------------------------------------------------------- */
 const styleTag = document.querySelector("style");
@@ -3135,17 +2809,14 @@ function drawStage(ctx, W, H, keepAlpha){
   });
 }
 
-/* ══════════════════════════════ MP4 export ══════════════════════════════
-   Same deal as the GIF: no libraries, so the container is written here. The
-   H.264 itself comes from WebCodecs — `avc: {format:"avc"}` asks for length-
-   prefixed AVCC samples plus an avcC description, which is exactly what an
-   MP4 sample entry wants, so nothing has to be re-packed.
-   Frames are pushed through the encoder one at a time off the same
-   deterministic render/drawStage path the GIF uses, NOT captured off the
-   screen in real time — the piece renders far slower than 24fps here, and a
-   MediaRecorder capture would drop and duplicate frames.
-   Layout is ftyp + mdat + moov, progressive, one track, one chunk. Writing
-   mdat before moov means the chunk offset is known before moov is built. */
+/* ═════════════════════ ISO box grammar, written here ════════════════════
+   A QuickTime movie is a tree of length-prefixed boxes and there is no API
+   for one, so these six write it: a box, the integer widths its headers use,
+   a four-character code, padding, and the identity display matrix. muxMOV is
+   the only caller now — the MP4 and GIF exports these were shared with have
+   been removed, the piece having one deliverable. Layout is ftyp + mdat +
+   moov, progressive, one track, one chunk; writing mdat before moov means
+   the chunk offset is known before moov is built. */
 function bx(type, ...parts){
   let n = 8;
   const ps = parts.map(p => p instanceof Uint8Array ? p : new Uint8Array(p));
@@ -3166,147 +2837,15 @@ const MATRIX = new Uint8Array([0,1,0,0, 0,0,0,0, 0,0,0,0,
                                0,0,0,0, 0,1,0,0, 0,0,0,0,
                                0,0,0,0, 0,0,0,0, 0x40,0,0,0]);
 
-function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
-  const n = samples.length, dur = n * delta;
-  const ftyp = bx("ftyp", str4("isom"), b32(0x200),
-                  str4("isom"), str4("iso2"), str4("avc1"), str4("mp41"));
-  let mdatLen = 8; for (const s of samples) mdatLen += s.length;
-  const mdatHdr = new Uint8Array(8);
-  new DataView(mdatHdr.buffer).setUint32(0, mdatLen);
-  mdatHdr.set(str4("mdat"), 4);
-  const chunkOffset = ftyp.length + 8;          // first sample's byte offset
-
-  const mvhd = bx("mvhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
-                  b32(0x00010000), b16(0x0100), zeros(10), MATRIX, zeros(24), b32(2));
-  const tkhd = bx("tkhd", new Uint8Array([0,0,0,3]), b32(0), b32(0), b32(1),
-                  zeros(4), b32(dur), zeros(8), b16(0), b16(0), b16(0), b16(0),
-                  MATRIX, b32(W << 16), b32(H << 16));
-  const mdhd = bx("mdhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
-                  b16(0x55c4), b16(0));
-  const hdlr = bx("hdlr", zeros(4), zeros(4), str4("vide"), zeros(12),
-                  new Uint8Array([...str4("VideoHandler"), 0]));
-  const vmhd = bx("vmhd", new Uint8Array([0,0,0,1]), zeros(8));
-  const dinf = bx("dinf", bx("dref", zeros(4), b32(1),
-                             bx("url ", new Uint8Array([0,0,0,1]))));
-  const avc1 = bx("avc1", zeros(6), b16(1), zeros(16), b16(W), b16(H),
-                  b32(0x00480000), b32(0x00480000), zeros(4), b16(1),
-                  zeros(32), b16(0x0018), new Uint8Array([0xFF, 0xFF]),
-                  bx("avcC", avcC));
-  const stsd = bx("stsd", zeros(4), b32(1), avc1);
-  const stts = bx("stts", zeros(4), b32(1), b32(n), b32(delta));
-  const stss = bx("stss", zeros(4), b32(syncList.length),
-                  ...syncList.map(i => b32(i)));
-  const stsc = bx("stsc", zeros(4), b32(1), b32(1), b32(n), b32(1));
-  const stsz = bx("stsz", zeros(4), b32(0), b32(n),
-                  ...samples.map(s => b32(s.length)));
-  const stco = bx("stco", zeros(4), b32(1), b32(chunkOffset));
-  const moov = bx("moov", mvhd,
-                  bx("trak", tkhd,
-                     bx("mdia", mdhd, hdlr,
-                        bx("minf", vmhd, dinf,
-                           bx("stbl", stsd, stts, stss, stsc, stsz, stco)))));
-
-  const out = new Uint8Array(ftyp.length + mdatLen + moov.length);
-  let o = 0;
-  out.set(ftyp, o); o += ftyp.length;
-  out.set(mdatHdr, o); o += 8;
-  for (const s of samples){ out.set(s, o); o += s.length; }
-  out.set(moov, o);
-  return out;
-}
 
 const $gs = document.getElementById("gstat");
 let busy = false;
-document.getElementById("gexport").onclick = async () => {
-  if (busy) return;
-  const W = +document.getElementById("gw").value;
-  const H = Math.round(W * 1080 / 1920);
-  const fps = +document.getElementById("gfps").value;
-  /* A GIF's delay is in whole centiseconds, so it cannot express every rate:
-     the shortest frame it can ask for is 2cs, which is 50fps, and 30 rounds
-     to 3cs, which is 33.3. Sample at the rate it can actually hold rather
-     than at the one asked for, so the piece still runs 6.757s instead of
-     playing 17% slow with the right number of frames in it.               */
-  const delayCs = Math.max(2, Math.round(100 / fps));
-  const step = FPS / (100 / delayCs);
-  const segA = segStart();                    // the chosen half
-  const n = Math.ceil((segEnd() - segA) / step);
-  busy = true;
-  const wasHold = hold;
-  const cvs = document.createElement("canvas");
-  cvs.width = W; cvs.height = H;
-  const ctx = cvs.getContext("2d", { willReadFrequently: true });
-  try {
-    /* The GIF is opaque whatever the stage is set to. It used to reserve an
-       index for transparency when the transparent mode was on, but one
-       all-or-nothing index is a poor matte — the scrim and every soft edge
-       have to round to on or off — and the PNG sequence is the answer for
-       that now. So this composites onto the background like any other
-       frame and spends all 256 entries on colour.
-       Two passes, and the reason is the palette: it is sampled across the
-       whole animation, so it cannot be settled until every frame has been
-       seen. This used to hold each frame as raw RGBA to come back to —
-       frames x W x H x 4, which is 3.4 GB at 1920 and 60fps and takes the tab
-       with it rather than failing politely. Rendering twice spends time
-       instead, and removes the ceiling: every size works at every rate.
-       The sample stride is chosen from the total rather than fixed, so the
-       list the median cut runs on stays about the same size whatever the
-       export is — 400k colours is far more than 256 buckets need.        */
-    const hist = new Hist();
-    for (let k = 0; k < n; k++){
-      hold = (segA + k * step) / FPS;
-      render(hold);
-      await bgSeek(hold);
-      await drawStage(ctx, W, H);
-      hist.add(ctx.getImageData(0, 0, W, H).data);
-      $gs.textContent = `colours ${k + 1}/${n}…`;
-      await new Promise(r => setTimeout(r, 0));
-    }
-    $gs.textContent = "palette…";
-    await new Promise(r => setTimeout(r, 16));
-    const pal = paletteOf(hist, 256);
-    const gif = new GifWriter(W, H, pal, delayCs);      /* opaque, by request */
-    for (let k = 0; k < n; k++){
-      hold = (segA + k * step) / FPS;
-      render(hold);
-      await bgSeek(hold);
-      await drawStage(ctx, W, H);
-      gif.frame(ctx.getImageData(0, 0, W, H).data);
-      $gs.textContent = `frame ${k + 1}/${n}…`;
-      await new Promise(r => setTimeout(r, 0));
-    }
-    const out = gif.done();
-    const blob = new Blob([out], { type: "image/gif" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "search-motion.gif";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    $gs.textContent = `${n} frames · ${(out.length/1048576).toFixed(1)} MB`;
-  } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
-  } finally {
-    hold = wasHold; busy = false;
-    if (hold === null) window.play();
-  }
-};
 
 /* ── the transparent mode ────────────────────────────────────────────────
    The same treatment footage mode gives the bar, with nothing behind it. Both
    exports that can carry a matte follow it: the MOV always has an alpha
    channel and simply fills it in when this is off, and the GIF reserves a
    palette entry for it and says so on the button.                        */
-/* Which alpha convention the MOV is written in. Straight is the format's own
-   and the one that reproduces the preview; premultiplied is for a reader that
-   assumes it, Google AI Studio being the one this piece has met. Only the MOV
-   has the question — PNG is straight by definition and the browser's encoder
-   writes it, the MP4 and GIF have no real alpha channel to disagree about. */
-let PREMUL = false;
-const $pm = document.getElementById("premulbtn");
-$pm.onclick = () => {
-  PREMUL = !PREMUL;
-  $pm.textContent = "MOV alpha: " + (PREMUL ? "premultiplied" : "straight");
-};
 let alphaOn = false;
 const $ab = document.getElementById("alphabtn");
 $ab.onclick = () => {
@@ -3318,92 +2857,6 @@ $ab.onclick = () => {
   render(hold !== null ? hold : 0);
 };
 
-document.getElementById("mexport").onclick = async () => {
-  if (busy) return;
-  if (typeof VideoEncoder === "undefined"){
-    $gs.textContent = "no WebCodecs in this browser";
-    return;
-  }
-  busy = true;
-  const W = +document.getElementById("gw").value;
-  const H = Math.round(W * 1080 / 1920);      // even at every offered width
-  const fps = +document.getElementById("gfps").value;
-  const step = FPS / fps;
-  const wasHold = hold;
-  const cvs = document.createElement("canvas");
-  cvs.width = W; cvs.height = H;
-  const ctx = cvs.getContext("2d", { willReadFrequently: false });
-  const samples = [], sync = [];
-  let avcC = null, failed = null;
-  try {
-    /* 90000 is the usual video timescale and divides all three offered rates
-       exactly — 3750, 7500, 11250 ticks per frame                          */
-    const timescale = 90000, delta = Math.round(timescale / fps);
-    const enc = new VideoEncoder({
-      output: (chunk, meta) => {
-        if (!avcC && meta && meta.decoderConfig && meta.decoderConfig.description)
-          avcC = new Uint8Array(meta.decoderConfig.description);
-        const b = new Uint8Array(chunk.byteLength);
-        chunk.copyTo(b);
-        samples.push(b);
-        if (chunk.type === "key") sync.push(samples.length);   // stss is 1-based
-      },
-      error: e => { failed = e; }
-    });
-    /* Baseline 3.0 tops out around 720x576, so it cannot carry 1080p at all
-       and 4.0 cannot carry it at 60. Rather than hard-code a level and hope,
-       ask the encoder which of these it will take for THIS size and rate and
-       use the first that answers yes — lowest profile first, so a small
-       export still comes out as widely playable as it was.               */
-    const want = { width: W, height: H, framerate: fps,
-      bitrate: Math.round(clamp(W * H * fps * 0.25, 2e6, 24e6)),
-      avc: { format: "avc" } };                // AVCC + avcC, not Annex-B
-    let codec = null;
-    for (const c of ["avc1.42E01E", "avc1.42E028", "avc1.42E033",
-                     "avc1.4D0033", "avc1.640033"]){
-      try {
-        const r = await VideoEncoder.isConfigSupported({ ...want, codec: c });
-        if (r && r.supported){ codec = c; break; }
-      } catch (e){ /* an unsupported string throws rather than answering */ }
-    }
-    if (!codec) throw new Error(`no H.264 level for ${W}x${H} at ${fps}fps`);
-    enc.configure({ ...want, codec });
-    const segA = segStart(), segN = Math.ceil((segEnd() - segA) / step);
-    for (let k = 0; k < segN; k++){
-      if (failed) throw failed;
-      hold = (segA + k * step) / FPS;
-      render(hold);
-      await bgSeek(hold);          // exact frame, not wherever it had played to
-      await drawStage(ctx, W, H);
-      const frame = new VideoFrame(cvs, {
-        timestamp: Math.round(k * 1e6 / fps),
-        duration:  Math.round(1e6 / fps)
-      });
-      enc.encode(frame, { keyFrame: k % fps === 0 });   // ~1s GOP, and k=0
-      frame.close();
-      $gs.textContent = `frame ${k + 1}…`;
-      await new Promise(r => setTimeout(r, 0));
-    }
-    $gs.textContent = "encoding…";
-    await enc.flush();
-    enc.close();
-    if (failed) throw failed;
-    if (!avcC) throw new Error("no avcC from the encoder");
-    const mp4 = muxMP4(samples, sync, W, H, timescale, delta, avcC);
-    const blob = new Blob([mp4], { type: "video/mp4" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "search-motion.mp4";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    $gs.textContent = `${samples.length} frames · ${(mp4.length/1048576).toFixed(1)} MB`;
-  } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
-  } finally {
-    hold = wasHold; busy = false;
-    if (hold === null) window.play();
-  }
-};
 
 /* ══════════════════ ProRes 4444 — the encoder, written here ═══════════════
    Nothing produces ProRes in a browser, so this does: DCT, quantiser, the
@@ -3687,25 +3140,24 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    Alpha goes 8 -> 16 bit as v * 257, so opaque is exactly 65535 rather than
    the 65343 a trip through a 10-bit plane leaves behind.
 
-   STRAIGHT by default, which is what 4444 means and what every editor that
-   opens one assumes. It had been premultiplying unconditionally, and that is
-   what put a dark edge on everything semi-transparent: measured on this
-   piece's own glow, a canvas pixel of (45,130,255) at alpha 57 was stored as
-   (10,29,57) at alpha 57, so a straight reader scaled it by that alpha a
-   SECOND time and drew it about four times too dark. The box's 35% face and
-   the context line's 60/40/20 rows went the same way, which is the other
-   half of the report — the colour and opacity of the type not matching the
-   preview. Opaque exports were never affected, and are not now: at alpha 255
-   the two conventions are the same arithmetic, and a frame round-trips
-   (10,29,57) -> (10,29,57) either way.
+   STRAIGHT, which is what 4444 means and what every editor that opens one
+   assumes. It had been premultiplying, and that is what put a dark edge on
+   everything semi-transparent: measured on this piece's own glow, a canvas
+   pixel of (45,130,255) at alpha 57 was stored as (10,29,57) at alpha 57, so
+   a straight reader scaled it by that alpha a SECOND time and drew it about
+   four times too dark. The box's 35% face and the context line's 60/40/20
+   rows went the same way, which is the other half of that report — the
+   colour and opacity of the type not matching the preview. Opaque exports
+   were never affected, and are not now: at alpha 255 the two conventions are
+   the same arithmetic, and a frame round-trips (10,29,57) -> (10,29,57)
+   either way.
 
-   `premul` is there because the other convention is also real. A reader that
-   expects premultiplied and is handed straight data ADDS the stored colour
-   instead of scaling it, so semi-transparent ink blooms — that is what "the
-   gradient is too thick" looked like when this export went into Google AI
-   Studio, and premultiplying is what fixed it there. One file cannot satisfy
-   both readers, so the panel picks. Straight is the default because it is
-   the format's own convention and the one that reproduces the preview.
+   The other convention is real too, and this file no longer offers it. A
+   reader that expects premultiplied and is handed straight data ADDS the
+   stored colour instead of scaling it, so semi-transparent ink blooms —
+   which is what "the gradient is too thick" looked like in Google AI Studio.
+   One file cannot satisfy both readers and straight is the format's own, so
+   straight is what this writes. Back: multiply r, g and b by alpha/255 here.
 
    The noise argument for premultiplying does not need premultiplied storage.
    A canvas keeps premultiplied bytes and divides on the way out, so at low
@@ -3713,8 +3165,10 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    1 and 31 spanning the full range per channel. But a straight reader
    multiplies by that same small alpha when it composites, which scales the
    error back down itself. It only shows in something that reads the colour
-   without the alpha, like a thumbnail. */
-function prPlanes(rgba, W, H, premul){
+   without the alpha, like a thumbnail, and it costs size rather than
+   accuracy: a straight frame runs about 63% larger, 893KB against 549KB on
+   frame 20 at 1920x1080. */
+function prPlanes(rgba, W, H){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   const stride = mbW * 16, rows = mbH * 16, n = stride * rows;
   const Y = new Uint16Array(n), U = new Uint16Array(n),
@@ -3722,8 +3176,7 @@ function prPlanes(rgba, W, H, premul){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      const k = premul ? rgba[p + 3] / 255 : 1;
-      const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
+      const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
       U[q] = (512 + 896 * (b - l) / (255 * 1.8556) + 0.5) | 0;
@@ -3819,7 +3272,7 @@ document.getElementById("vexport").onclick = async () => {
       render(hold);
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
-      const p = prPlanes(ctx.getImageData(0, 0, W, H).data, W, H, PREMUL);
+      const p = prPlanes(ctx.getImageData(0, 0, W, H).data, W, H);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
       frames.push(fr); bytes += fr.length;
       $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
@@ -3827,8 +3280,14 @@ document.getElementById("vexport").onclick = async () => {
     }
     $gs.textContent = "writing…";
     await new Promise(r => setTimeout(r, 16));
-    /* 90000 divides every rate on offer exactly */
-    const blob = new Blob(muxMOV(frames, W, H, 90000, Math.round(90000 / fps)),
+    /* 90000 divides every rate on offer exactly EXCEPT the source one, which
+       is not a whole number of anything: 23.976 is 24000/1001, and 90000 over
+       it is 3753.75, which rounded to 3754 declares 23.9744fps. Small — half a
+       millisecond across the whole piece — but it is a wrong number written
+       into the file, and the fix is to use the rate's own denominator. */
+    const [ts, dt] = fps === 23.976 ? [24000, 1001]
+                                    : [90000, Math.round(90000 / fps)];
+    const blob = new Blob(muxMOV(frames, W, H, ts, dt),
                           { type: "video/quicktime" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -3844,60 +3303,6 @@ document.getElementById("vexport").onclick = async () => {
   }
 };
 
-/* ══════════════════ PNG sequence, out and back in ═══════════════════════
-   A GIF carries 256 colours and one all-or-nothing transparent index, which
-   is what a transparent GIF of this piece runs into: the bar's scrim and
-   every antialiased edge have to fall one side of a threshold. A PNG has
-   the full channel and 8 bits of alpha per pixel, so the sequence is what
-   the canvas actually drew rather than an approximation of it. Same
-   deterministic render path as every other export.                       */
-document.getElementById("pexport").onclick = async () => {
-  if (busy) return;
-  const W = +document.getElementById("gw").value;
-  const H = Math.round(W * 1080 / 1920);
-  const fps = +document.getElementById("gfps").value;
-  const step = FPS / fps;
-  const segA = segStart();
-  const n = Math.ceil((segEnd() - segA) / step);
-  busy = true;
-  const wasHold = hold;
-  const cvs = document.createElement("canvas");
-  cvs.width = W; cvs.height = H;
-  const ctx = cvs.getContext("2d", { alpha: true });
-  const files = [];
-  let bytes = 0;
-  try {
-    for (let k = 0; k < n; k++){
-      hold = (segA + k * step) / FPS;
-      render(hold);
-      await bgSeek(hold);
-      await drawStage(ctx, W, H, alphaOn);
-      /* the browser's own PNG encoder — lossless, and it keeps the alpha */
-      const blob = await new Promise(r => cvs.toBlob(r, "image/png"));
-      const buf = new Uint8Array(await blob.arrayBuffer());
-      files.push({ name: `search-motion_${String(k + 1).padStart(4, "0")}.png`,
-                   bytes: buf });
-      bytes += buf.length;
-      $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
-      await new Promise(r => setTimeout(r, 0));
-    }
-    $gs.textContent = "packing…";
-    await new Promise(r => setTimeout(r, 16));
-    const zip = zipOf(files);
-    const blob = new Blob([zip], { type: "application/zip" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = alphaOn ? "search-motion-png-alpha.zip" : "search-motion-png.zip";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    $gs.textContent = `${n} PNGs · ${(zip.length / 1048576).toFixed(1)} MB`;
-  } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
-  } finally {
-    hold = wasHold; busy = false;
-    if (hold === null) window.play();
-  }
-};
 
 document.getElementById("seg").addEventListener("change", e => {
   setSeg(e.target.value);
