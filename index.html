@@ -404,61 +404,41 @@
      upward into the past, so a longer one has to grow up and out of frame
      rather than down into the box; #stage2's overflow does the leaving.
 
-     The ink is the design file's own, off "Common Confusion….svg": a group
-     carrying a LINEAR FILL and a LAYER BLUR. The fill is a gradient in user
-     space, (619.343,249.316) to (611.843,-114.184) across a 1433x138.4 block
-     — 363.58 long and 2.06% off vertical, which rounds to straight up — with
-     white at 50% for its first stop and #666666 at 50% at 62.706% along.
-     Resolved against that block's own edges, white sits 110.89px BELOW the
-     bottom and #666 117.04px above it: 180.6 ink at the bottom row, 102 at
-     117.04 up, a ratio of .565. The type is WHITE by request and its ceiling
-     60%, so that ratio is what survives of the file rather than its tones —
-     the ramp runs 1.0 at the bottom to .565 at 117.04, and then stops dead
-     at 155.40 — THREE ROWS, 3 x 51.8 — so a fourth line and anything above
-     it is not drawn. By request, and a hard edge rather than a fade, since
-     hiding is what was asked for.
-     It costs nothing below it, because 155.40 lands in clear space: measured
-     in an export at four lines, row 3's ink tops out 147 up from the bottom
-     and row 4's begins at 162, so the cut sits in the 15px gap between them
-     with 8px of clearance either side. Row 3 keeps the .469 the old ramp
-     gave it there and is otherwise untouched.
-     No count-based rule was needed. The ramp is px from the bottom and the
-     block hangs off the bottom, so a cut at three rows simply never reaches
-     a block that has three or fewer. It also ends the old worry about
-     leaving the frame: nothing is drawn above y=27.6 now, 28px inside it.
-     Back: `transparent 342.86px` as the last stop.
+     The ink starts from the design file, off "Common Confusion….svg" — a
+     group carrying a LINEAR FILL and a LAYER BLUR — but both have since been
+     specified per row, and per-row values are what the file's gradient has
+     given way to. What survives of it is the shape of the idea: white type
+     that recedes upward, dimmer and softer the further into the past it is.
+     For the record, its fill ran (619.343,249.316) to (611.843,-114.184)
+     across a 1433x138.4 block, white at 50% to #666666 at 50% at 62.706%
+     along, and its blur was declared at `stdDeviation="0"`.
 
-     The file's blur is `stdDeviation="0"` — the effect declared and switched
-     off — and it is asked for here, PER ROW: .5 on the bottom row, 1 on the
-     second, 2 on the third, 3 on a fourth. A CSS blur is uniform, so the line is drawn
-     once per row and each copy is masked to its own band. Bands rather than
-     a crossfade because the amounts are now specified per row rather than as
-     a gradient, and disjoint bands also mean the three simply sum to the
-     fill — no correction for layers compositing as 1-(1-a)(1-b).
+     OPACITY is now flat per row: 60% on the bottom, 40% on the second, 20%
+     on the third and above. The element carries the 60 — which is also the
+     ceiling asked for, and the bottom row is what reaches it — so each band
+     only has to scale it: 1, .6667, .3333.
 
-     The band edges go in the gaps BETWEEN rows, where a hard mask edge has
-     no ink to cut. Measured up from the block's bottom, the rows ink at
-     7..42, 58..94, 110..147 and 162..198. Blur widens each reach — to
-     5.5..43.5, 55..97, 104..153 and 153..207 at three sigma — and the edges
-     are then placed between consecutive reaches rather than at the middle of
-     the gaps: 73.25, 124.5 and 177 in the box's own coordinates. At these
-     gentler amounts the reaches separate cleanly, where 4px did not: rows 3
-     and 4 met exactly at 153 there, which is why an edge could clip one or
-     admit the other. Here they still meet at 153, so that last edge is put
-     precisely on it and each side keeps everything
-     else. A fourth row never reaches a band, because the copy is trimmed to
+     BLUR is per row too: .5 on the bottom, 1 on the second, 1.5 on the
+     third, 2 on a fourth. A CSS blur is uniform, so the line is drawn once
+     per row and each copy masked to its own band. Bands rather than a
+     crossfade: the amounts are per row rather than a gradient, and being
+     disjoint they simply sum, with no correction for layers compositing as
+     1-(1-a)(1-b).
+
+     The band edges go where consecutive rows' BLURRED REACHES part, which is
+     inside the gaps between them. The rows ink at 7..42, 58..94, 110..147
+     and 162..198 up from the block's bottom, and reach 5.5..43.5, 55..97,
+     105.5..151.5 and 156..204 at three sigma — so the edges sit at 73.25,
+     125.25 and 177.75 in the box's own coordinates, each with clear air on
+     both sides. That last one only has air at these amounts: at 2 and 3 the
+     third and fourth reaches met exactly at 153, and at 4 and 5 they
+     overlapped, so no edge could avoid clipping one or admitting the other.
+
+     A fourth row never reaches a band anyway, because the copy is trimmed to
      three rows before it is set — see `n2CtxLines`. Masking one away is not
-     enough: it would still be drawn and still blurred, and at 4px its ink
-     reaches 12px below its own box, which surfaced as a sliver under the
-     third band on a six-row turn. Nor is there a mask edge that fixes it,
-     since at 4px row 3 reaches up to 159 and row 4 down to 150 — they
-     overlap, so any cut between them clips one or admits the other. With the
-     copy cut instead, the third band's own top can fade out over 165-180
-     rather than stop dead, there being nothing above it to hold back.
-
-     Each band also carries the fill's value across it, so the three masks
-     add up to the ramp: 1.0 at the bottom, .8253 at 47, .6320 at 99 and
-     .565 from the knee at 117.04 on.
+     enough: it would still be drawn and still blurred, and its ink reaches
+     below its own box, which surfaced as a sliver at y18-24 on a six-row
+     turn back when the third row carried 4px.
 
      And the whole thing sits in 24px of padding, which is what the visible
      limit was. A mask ends at its element's box and the box was exactly the
@@ -467,7 +447,7 @@
      down the left of the block. The padding is given back through `left`,
      `width` and `bottom`, so the type has not moved; every mask stop is
      quoted 24 higher because the box's bottom is now 24 lower.
-     Back: `padding:0`, the three stop sets 24 lower, and one layer. */
+     Back: `padding:0`, the stop sets 24 lower, and one layer. */
   .n-ctx{position:absolute;left:234px;width:1440px;padding:24px;
          bottom:calc(1080px - var(--ctx-bot) - 24px);
          opacity:.6;
@@ -475,31 +455,31 @@
          font-size:37px;line-height:1.4;font-weight:400;color:#fff;
          white-space:pre-wrap}
   .n-ctx.r1{filter:blur(.5px);
-         -webkit-mask-image:linear-gradient(to top,#000 24px,
-             rgba(0,0,0,.81695) 73.25px,transparent 73.25px);
-         mask-image:linear-gradient(to top,#000 24px,
-             rgba(0,0,0,.81695) 73.25px,transparent 73.25px)}
+         -webkit-mask-image:linear-gradient(to top,#000 73.25px,transparent 73.25px);
+         mask-image:linear-gradient(to top,#000 73.25px,transparent 73.25px)}
   .n-ctx.r2{filter:blur(1px);
          -webkit-mask-image:linear-gradient(to top,transparent 73.25px,
-             rgba(0,0,0,.81695) 73.25px,rgba(0,0,0,.62647) 124.5px,
-             transparent 124.5px);
+             rgba(0,0,0,.6667) 73.25px,rgba(0,0,0,.6667) 125.25px,
+             transparent 125.25px);
          mask-image:linear-gradient(to top,transparent 73.25px,
-             rgba(0,0,0,.81695) 73.25px,rgba(0,0,0,.62647) 124.5px,
-             transparent 124.5px)}
-  .n-ctx.r3{filter:blur(2px);
-         -webkit-mask-image:linear-gradient(to top,transparent 124.5px,
-             rgba(0,0,0,.62647) 124.5px,rgba(0,0,0,.565) 141.04px,
-             rgba(0,0,0,.565) 177px,transparent 177px);
-         mask-image:linear-gradient(to top,transparent 124.5px,
-             rgba(0,0,0,.62647) 124.5px,rgba(0,0,0,.565) 141.04px,
-             rgba(0,0,0,.565) 177px,transparent 177px)}
+             rgba(0,0,0,.6667) 73.25px,rgba(0,0,0,.6667) 125.25px,
+             transparent 125.25px)}
+  .n-ctx.r3{filter:blur(1.5px);
+         -webkit-mask-image:linear-gradient(to top,transparent 125.25px,
+             rgba(0,0,0,.3333) 125.25px,rgba(0,0,0,.3333) 177.75px,
+             transparent 177.75px);
+         mask-image:linear-gradient(to top,transparent 125.25px,
+             rgba(0,0,0,.3333) 125.25px,rgba(0,0,0,.3333) 177.75px,
+             transparent 177.75px)}
   /* Drawn only if N2_CTX_ROWS is raised past 3; at 3 the copy never has a
      fourth row for this band to hold. Kept so that constant alone decides. */
-  .n-ctx.r4{filter:blur(3px);
-         -webkit-mask-image:linear-gradient(to top,transparent 177px,
-             rgba(0,0,0,.565) 177px,rgba(0,0,0,.565) 231px,transparent 246px);
-         mask-image:linear-gradient(to top,transparent 177px,
-             rgba(0,0,0,.565) 177px,rgba(0,0,0,.565) 231px,transparent 246px)}
+  .n-ctx.r4{filter:blur(2px);
+         -webkit-mask-image:linear-gradient(to top,transparent 177.75px,
+             rgba(0,0,0,.3333) 177.75px,rgba(0,0,0,.3333) 228px,
+             transparent 243px);
+         mask-image:linear-gradient(to top,transparent 177.75px,
+             rgba(0,0,0,.3333) 177.75px,rgba(0,0,0,.3333) 228px,
+             transparent 243px)}
   .n-act{position:absolute;fill:#fff;opacity:.6}
   /* the rail's two glyphs are the design file's own paths, kept in page
      coordinates so the viewBox is the measurement */
