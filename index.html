@@ -431,8 +431,24 @@
      1-(1-a)(1-b), not a+b, and the plain product would leave a dip through
      the handover. Verified in an export instead of trusted — the ramp comes
      out monotonic top to bottom with the bottom row at the 60% ceiling. */
+  /* Regular, and now drawn as Regular. The weight was never wrong — the axis
+     default is 400, the advance measures 971.02 whether wght is pinned or
+     left alone, and rasterised coverage matches a 400 probe — but the type
+     still read a step heavy, because SUBPIXEL SMOOTHING fattens light ink on
+     a dark ground. Measured in an export: greyscale antialiasing takes the
+     mean stem from 6.63 to 4.69 and 21% of the ink out, at an unchanged peak
+     of 143 against 144, so it is thinning the strokes back to the outline
+     rather than dimming them. For scale, dropping the weight to 350 removed
+     only 7% — the rasteriser was worth more than a whole step of weight, and
+     lowering the weight to compensate would have been correcting the wrong
+     number.
+     Scoped to this line, which is where it was noticed. Everything else white
+     on dark in this piece — the query in the box, act 3's wall and phrase —
+     is still on the default, because those were measured against the plate
+     with it. Back: drop the two smoothing lines. */
   .n-ctx{position:absolute;left:258px;bottom:calc(1080px - var(--ctx-bot));
          width:1392px;opacity:.6;
+         -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
          font-size:37px;line-height:1.4;font-weight:400;color:#fff;
          -webkit-mask-image:linear-gradient(to top,#000 0,
              rgba(0,0,0,.45) 58.52px,transparent 117.04px);
