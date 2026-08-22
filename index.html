@@ -423,9 +423,15 @@
      What it costs: the file is dimmer than the plate. Its own numbers predict
      72 at the bottom row and 46 at the top against the measured 120 and 86.
      Back: `color:#787878` with the mask, which is the measured pair. */
+  /* 1.4 by request, against the 48px pitch the plate measures — 51.8 at this
+     size, so each row sits 3.8 further from the one below it. Written as the
+     ratio rather than the product, since the ratio is what was asked for and
+     it then survives a change of size. The block is bottom-anchored, so the
+     extra leading pushes the TOP up and leaves the bottom row where it is;
+     the fill is unaffected too, its stops being px from that same bottom. */
   .n-ctx{position:absolute;left:258px;bottom:calc(1080px - var(--ctx-bot));
          width:1392px;opacity:.8;
-         font-size:37px;line-height:48px;font-weight:400;color:transparent;
+         font-size:37px;line-height:1.4;font-weight:400;color:transparent;
          background:linear-gradient(to top,
              rgba(255,255,255,.5) -110.89px,
              rgba(102,102,102,.5)  117.04px,
