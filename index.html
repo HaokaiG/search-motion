@@ -413,10 +413,29 @@
      across a 1433x138.4 block, white at 50% to #666666 at 50% at 62.706%
      along, and its blur was declared at `stdDeviation="0"`.
 
-     OPACITY is now flat per row: 60% on the bottom, 40% on the second, 20%
-     on the third and above. The element carries the 60 — which is also the
-     ceiling asked for, and the bottom row is what reaches it — so each band
-     only has to scale it: 1, .6667, .3333.
+     COLOUR is the file's gradient, and it is a gradient rather than a value
+     per row so that both ends of it show inside a single line: #ffffff at
+     the block's bottom to #666666 at its top, clipped to the type. Over our
+     155.4 of three rows that moves about 35 levels across each line's own
+     height — 248 to 214 down row 1, 198 to 162 down row 2, 147 to 110 down
+     row 3 — so the transition reads within a line and not only between them.
+     White is anchored AT the bottom rather than where the file puts it. Its
+     own vector starts white 110.89px BELOW the block, so the block never
+     samples anything brighter than 181; that works on the light artboard the
+     file is drawn on, where near-white is near-invisible, and inverts on the
+     black this runs over, where white at the bottom is the whole point. The
+     two colours and the direction are the file's; only that offset is not.
+
+     OPACITY is flat per row on top of it: 60% on the bottom, 40% on the
+     second, 20% on the third and above. The element carries the 60 — which
+     is also the ceiling asked for, and the bottom row is what reaches it —
+     so each band only has to scale it: 1, .6667, .3333. The two compound,
+     which is the intent: a row further up is both greyer and fainter.
+
+     `background-clip:text` is what carries the gradient, and the objection to
+     it earlier — that it drops subpixel antialiasing — no longer applies,
+     because this line is explicitly on greyscale antialiasing anyway. Both
+     paths now render the same weight.
 
      BLUR is per row too: .5 on the bottom, 1 on the second, 1.5 on the
      third, 2 on a fourth. A CSS blur is uniform, so the line is drawn once
@@ -452,8 +471,10 @@
          bottom:calc(1080px - var(--ctx-bot) - 24px);
          opacity:.6;
          -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
-         font-size:37px;line-height:1.4;font-weight:400;color:#fff;
-         white-space:pre-wrap}
+         font-size:37px;line-height:1.4;font-weight:400;white-space:pre-wrap;
+         color:transparent;
+         background:linear-gradient(to top,#ffffff 24px,#666666 179.4px);
+         -webkit-background-clip:text;background-clip:text}
   .n-ctx.r1{filter:blur(.5px);
          -webkit-mask-image:linear-gradient(to top,#000 73.25px,transparent 73.25px);
          mask-image:linear-gradient(to top,#000 73.25px,transparent 73.25px)}
