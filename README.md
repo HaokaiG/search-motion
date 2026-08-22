@@ -415,24 +415,52 @@ redistribution question if the file leaves this machine.
   red at the top, blue right, green bottom, yellow left, all four hues matching.
 - Everything is driven by one `render(t)` function off `requestAnimationFrame`.
 
-## The MOV's alpha is premultiplied
+## The MOV's alpha convention is a choice, and straight is the default
 
-`prPlanes` multiplies each channel by its alpha before packing the planes, and
-that is deliberate. Straight and premultiplied hold the same bytes and mean two
-different pictures: a reader expecting premultiplied and handed straight data
-*adds* the stored colour where it should scale it, so everything semi-transparent
-blooms. Measured on this piece's glow at f160 — stored straight, its partial
-pixels average RGB (212,253,226) at alpha 0.143 and 99.9% break the invariant
-`RGB <= alpha*255`; premultiplied they average (16,22,18) and none do.
+ProRes 4444 carries an alpha channel and does not say anywhere in the file which
+convention its colour is in. Straight and premultiplied are the same bytes meaning
+two different pictures, and the two readers this piece has met disagree.
 
-It also removes the canvas's own noise. A canvas stores premultiplied and divides
-on the way out, so at low alpha it hands back the division's rounding error —
-which the encoder was faithfully spending bits on. One slice of frame 1 used to
-overrun its declared size on that garbage (`ac tex damaged 2050, 2048`); the same
-export now decodes without a warning.
+`prPlanes` had been premultiplying **unconditionally**, and that is what put a dark
+edge on everything semi-transparent. Measured on the glow at act 1's f20: a canvas
+pixel of `(45,130,255)` at alpha 57 was stored as `(10,29,57)` at the same alpha,
+so an editor — which assumes straight, because that is what 4444 means — scaled it
+by that alpha a *second* time and drew `(2,6,13)`. Four to five times too dark.
+The box's 35% face and the context line's 60/40/20 rows went the same way, which is
+the other half of it: the colour and opacity of the type not matching the preview.
 
-Composited over black — which for premultiplied data is just the stored RGB —
-the file reads **1.41 rms** against the plate.
+Straight now, and it reproduces the preview exactly. Same frame, same points, what
+a straight reader composites over black against what the preview shows there:
+
+| | stored | α | reader over black | preview |
+|---|---|---|---|---|
+| glow, left | (45,130,255) | 57 | **(10,29,57)** | (10,29,57) |
+| glow, top | (64,131,230) | 72 | **(18,37,65)** | (18,37,65) |
+| box face | (9,9,9) | 89 | **(3,3,3)** | (3,3,3) |
+| send pill | (255,255,255) | 255 | **(255,255,255)** | (255,255,255) |
+
+**Opaque exports were never affected and are not now** — at alpha 255 the two
+conventions are the same arithmetic, and a frame round-trips `(10,29,57)` →
+`(10,29,57)` either way. Only *Transparent: on* ever had the question.
+
+A **MOV alpha** button keeps the other convention available, because it is also
+real: a reader expecting premultiplied and handed straight data *adds* the stored
+colour instead of scaling it, so semi-transparent ink blooms — that is what "the
+gradient is too thick" looked like in Google AI Studio, and premultiplying is what
+fixed it there. One file cannot satisfy both. Straight is the default because it is
+the format's convention and the one that matches the preview.
+
+Two things worth knowing. The noise argument for premultiplying does not need
+premultiplied *storage*: a canvas keeps premultiplied bytes and divides on the way
+out, so at low alpha it returns the division's rounding error, but a straight reader
+multiplies by that same small alpha when it composites and scales the error back
+down itself. It only shows in something that reads colour without alpha, like a
+thumbnail. And that noise does not compress, so a straight alpha frame runs about
+**63% larger** — 893KB against 549KB on frame 20 at 1920×1080.
+
+The other exports never had the question. PNG is straight by definition and the
+browser's own encoder writes it; the MP4 and GIF have no real alpha channel to
+disagree about.
 
 ## Verifying it
 

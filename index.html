@@ -1288,6 +1288,7 @@
         <option value="60">60 fps</option>
       </select>
     </div>
+    <button id="premulbtn">MOV alpha: straight</button>
     <button id="vexport">Export MOV · ProRes 4444</button>
     <button id="pexport">Export PNG sequence</button>
     <button id="gexport">Export GIF</button>
@@ -3295,6 +3296,17 @@ document.getElementById("gexport").onclick = async () => {
    exports that can carry a matte follow it: the MOV always has an alpha
    channel and simply fills it in when this is off, and the GIF reserves a
    palette entry for it and says so on the button.                        */
+/* Which alpha convention the MOV is written in. Straight is the format's own
+   and the one that reproduces the preview; premultiplied is for a reader that
+   assumes it, Google AI Studio being the one this piece has met. Only the MOV
+   has the question — PNG is straight by definition and the browser's encoder
+   writes it, the MP4 and GIF have no real alpha channel to disagree about. */
+let PREMUL = false;
+const $pm = document.getElementById("premulbtn");
+$pm.onclick = () => {
+  PREMUL = !PREMUL;
+  $pm.textContent = "MOV alpha: " + (PREMUL ? "premultiplied" : "straight");
+};
 let alphaOn = false;
 const $ab = document.getElementById("alphabtn");
 $ab.onclick = () => {
@@ -3673,9 +3685,36 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
 /* -- RGBA -> the four planes ---------------------------------------------
    BT.709, video range, which is what ProRes means everywhere it is opened.
    Alpha goes 8 -> 16 bit as v * 257, so opaque is exactly 65535 rather than
-   the 65343 a trip through a 10-bit plane leaves behind. Straight, not
-   premultiplied: canvas hands back straight RGBA and 4444 wants straight. */
-function prPlanes(rgba, W, H){
+   the 65343 a trip through a 10-bit plane leaves behind.
+
+   STRAIGHT by default, which is what 4444 means and what every editor that
+   opens one assumes. It had been premultiplying unconditionally, and that is
+   what put a dark edge on everything semi-transparent: measured on this
+   piece's own glow, a canvas pixel of (45,130,255) at alpha 57 was stored as
+   (10,29,57) at alpha 57, so a straight reader scaled it by that alpha a
+   SECOND time and drew it about four times too dark. The box's 35% face and
+   the context line's 60/40/20 rows went the same way, which is the other
+   half of the report — the colour and opacity of the type not matching the
+   preview. Opaque exports were never affected, and are not now: at alpha 255
+   the two conventions are the same arithmetic, and a frame round-trips
+   (10,29,57) -> (10,29,57) either way.
+
+   `premul` is there because the other convention is also real. A reader that
+   expects premultiplied and is handed straight data ADDS the stored colour
+   instead of scaling it, so semi-transparent ink blooms — that is what "the
+   gradient is too thick" looked like when this export went into Google AI
+   Studio, and premultiplying is what fixed it there. One file cannot satisfy
+   both readers, so the panel picks. Straight is the default because it is
+   the format's own convention and the one that reproduces the preview.
+
+   The noise argument for premultiplying does not need premultiplied storage.
+   A canvas keeps premultiplied bytes and divides on the way out, so at low
+   alpha it returns the division's rounding error — every pixel between alpha
+   1 and 31 spanning the full range per channel. But a straight reader
+   multiplies by that same small alpha when it composites, which scales the
+   error back down itself. It only shows in something that reads the colour
+   without the alpha, like a thumbnail. */
+function prPlanes(rgba, W, H, premul){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   const stride = mbW * 16, rows = mbH * 16, n = stride * rows;
   const Y = new Uint16Array(n), U = new Uint16Array(n),
@@ -3683,22 +3722,7 @@ function prPlanes(rgba, W, H){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      /* Premultiplied, and for two separate reasons.
-         The convention: the same bytes are two different pictures depending on
-         which one the reader assumes. A reader expecting premultiplied and
-         handed straight data ADDS the stored colour instead of scaling it, so
-         everything semi-transparent blooms — a glow at 14% alpha carrying a
-         253 green comes back as though it were opaque. That is what "the
-         gradient is too thick" looks like, and it has been reported twice now
-         against this export.
-
-         The noise: a canvas stores premultiplied internally and divides on the
-         way out, so at low alpha it hands back the division's rounding error.
-         At alpha 20 that multiplies the error by about 12; measured on this
-         piece's own glow, every pixel between alpha 1 and 31 spanned the full
-         0-255 range in each channel. Multiplying it back discards that for
-         free, because noise times a small alpha is a small number. */
-      const k = rgba[p + 3] / 255;
+      const k = premul ? rgba[p + 3] / 255 : 1;
       const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
@@ -3795,7 +3819,7 @@ document.getElementById("vexport").onclick = async () => {
       render(hold);
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
-      const p = prPlanes(ctx.getImageData(0, 0, W, H).data, W, H);
+      const p = prPlanes(ctx.getImageData(0, 0, W, H).data, W, H, PREMUL);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
       frames.push(fr); bytes += fr.length;
       $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
