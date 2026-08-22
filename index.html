@@ -445,18 +445,32 @@
   #stage2.box-white .nface{background:#fff}
   #stage2.box-white #nq{color:#000}
   #stage2.box-white .nmic{fill:#0A0A0A;opacity:1}
-  #stage2.box-white .nplus{background:#F0F2F5}
+  #stage2.box-white .nplus{opacity:1}
   #stage2.box-white #ncaret{background:#000}
   /* The halo is the box shape blurred and then cut off at the box's own
      edge, so none of it washes into the face — which is why the plate reads
      pure black inside. The cut is a mask rather than an opaque face, because
-     the face is only 35% and would otherwise let the blur through. */
-  .nglow{position:absolute;inset:-70px;border-radius:127px;padding:70px;
+     the face is only 35% and would otherwise let the blur through.
+
+     The OUTER edge used to be a cut as well, and that was the ring you could
+     see. A mask ends where its element does, so a 70px halo around a 34px
+     blur ended the glow at 70px whatever was left of it — profiled out from
+     the box the level ran 8.7, 5.7, 3.7, 2.0 and then a flat 0 from 71,
+     up, left and along the corner diagonal alike. A step of 2 is small but
+     it is a step, at a fixed distance, all the way round: an edge, not a
+     falloff, and full opacity made it plainer.
+     140 is the room the blur actually wants. A CSS blur(34px) is sigma 34
+     and carries to about 3 sigma, 102px, so at 140 the glow reaches nothing
+     of its own accord and there is no boundary left to see.
+     Everything inside is unchanged: `b` is still exactly the box's rect, so
+     the halo's shape, its 57px radius and the wheel centred in it all sit
+     where they did. Back: 70 / 127 / 70 / 70. */
+  .nglow{position:absolute;inset:-140px;border-radius:197px;padding:140px;
          box-sizing:border-box;opacity:1;
          -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
          mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
          -webkit-mask-composite:xor;mask-composite:exclude}
-  .nglow b{position:absolute;inset:70px;border-radius:57px;overflow:hidden;
+  .nglow b{position:absolute;inset:140px;border-radius:57px;overflow:hidden;
            filter:blur(34px)}
   /* The wheel is not a screen-space sweep. It is drawn on a SQUARE and then
      squashed — which is why the whole top edge comes out one blue while the
@@ -493,7 +507,8 @@
   .nglow i{position:absolute;left:50%;top:50%;
            width:1067.86px;height:1067.86px;margin:-533.93px 0 0 -533.93px;
            transform:scale(-1,0.436)}
-  #nq{position:absolute;left:45.58px;top:32px;width:960px;
+  /* 39, not the design file's 32: down 7px by request */
+  #nq{position:absolute;left:45.58px;top:39px;width:960px;
       font-size:44px;line-height:1.2;font-weight:400;color:#fff;
       white-space:pre-wrap;overflow-wrap:break-word}
   /* 40.128 is the design file's own caret — it draws it from y 434.73 to
@@ -508,12 +523,20 @@
      design puts them at — 30.41, 47.21 and 30.38 below it. They were written
      from the top, which is the same thing at the resting height and pins them
      under the text once the box grows a line. */
+  /* Add.svg, used as it is drawn: a 94.2012x70.6509 pill on a 35.3254 radius
+     in #F0F2F5, with the file's own + path over it in #0A0A0A. The path is
+     kept in the file's coordinates and the viewBox is set to the pill's rect,
+     so the viewBox IS the measurement — the same way the mic and the rail
+     glyphs are carried. It replaces two CSS bars that reproduced the same
+     plus to within a tenth of a pixel; the file is simply the better source.
+     The 50% is on the WHOLE button rather than on the pill's fill, which is
+     how box_dark.svg groups it — <g opacity="0.5"> around both the rect and
+     the glyph — and it means the + dims with its pill instead of staying a
+     hard black over a half-strength ground. */
   .nplus{position:absolute;left:30px;bottom:30.41px;
-         width:94.2px;height:70.65px;border-radius:35.33px;
-         background:rgba(240,242,245,.5)}
-  .nplus::before,.nplus::after{content:"";position:absolute;background:#0A0A0A}
-  .nplus::before{left:33.07px;top:33.66px;width:28.06px;height:3.34px}
-  .nplus::after{left:45.43px;top:21.3px;width:3.34px;height:28.06px}
+         width:94.2012px;height:70.6509px;border-radius:35.3254px;
+         background:#F0F2F5;opacity:.5}
+  .nplus svg{position:absolute;inset:0;width:100%;height:100%;fill:#0A0A0A}
   .nmic{position:absolute;left:882.91px;bottom:47.21px;
         width:27.5px;height:36.32px;fill:#F8F9FA;opacity:.5}
   /* pale until the query lands, then the design's blue — the plate goes
@@ -601,7 +624,25 @@
      the plate against the 156px type, which is the 500 act 2 sets it in, not
      the 400 of the copy around it. At 400 the phrase's ink came out a fifth
      short of the plate's. */
-  .n3page .lit{display:inline-block;padding:0 70px;margin:0 -70px;font-weight:500}
+  /* The same cut, for the same reason. The hue handover is a mask on this
+     box, and a mask ends where its element does — so the phrase's own glow
+     was clipped at whatever padding it had: 70px sideways, and NOTHING
+     vertically, where the line box was the whole of it. Profiled up from the
+     lit rows the halo ran 2.29, 2.19, 2.14 and then 0.38, 0, 0 — a step to
+     nothing, 17px below the phrase, where the line box ended.
+     The widest shadow is `0 0 88px`, and a text-shadow's blur radius is two
+     sigma, so that one carries to about 3 x 44 = 132px. 140 covers it, and
+     the negative margin gives every pixel of it back so the wall still wraps
+     to identical lines and act 3's row bands do not move.
+     VERTICALLY ONLY, though. Sideways 70 was already enough — profiled out
+     from the phrase's end the largest step in 200px is the glyph edge itself,
+     with nothing at the padding — and the horizontal figure is not free to
+     change: the hue handover is a `90deg` gradient in PERCENT, so widening
+     this box moves where the two hues cross. At 140 each side the far hue
+     began fading in 15px into the phrase instead of 74.
+     Back: `padding:0 70px;margin:0 -70px`. */
+  .n3page .lit{display:inline-block;padding:140px 70px;margin:-140px -70px;
+               font-weight:500}
   /* The wall is WHITE INK AT LOW ALPHA rather than the flat #252525 it was,
      and both of its numbers are now asked for rather than measured: 35%, and
      a blur tuned down from 15 to 8 so the copy can be read.
@@ -896,7 +937,7 @@
       <div class="nface"></div>
       <div class="nglow" id="nglow"><b><i></i></b></div>
       <div id="nq"><span id="nqt"></span><span id="ncaret"></span></div>
-      <div class="nplus"></div>
+      <div class="nplus"><svg viewBox="0 11.7754 94.2012 70.6509"><path d="M45.4313 48.6689H33.0674V45.3327H45.4313V32.9688H48.7676V45.3327H61.1315V48.6689H48.7676V61.0329H45.4313V48.6689Z"/></svg></div>
       <svg class="nmic" viewBox="1308.92 606.29 27.5 36.32"><path d="M1322.67 627.781C1321.26 627.781 1320.06 627.273 1319.08 626.258C1318.13 625.243 1317.66 623.999 1317.66 622.526V611.249C1317.66 609.874 1318.15 608.712 1319.13 607.762C1320.11 606.78 1321.29 606.289 1322.67 606.289C1324.04 606.289 1325.22 606.78 1326.2 607.762C1327.18 608.712 1327.68 609.874 1327.68 611.249V622.526C1327.68 623.999 1327.18 625.243 1326.2 626.258C1325.25 627.273 1324.07 627.781 1322.67 627.781ZM1321.19 642.611V635.933C1317.72 635.572 1314.81 634.116 1312.45 631.562C1310.1 629.008 1308.92 625.996 1308.92 622.526H1311.91C1311.91 625.505 1312.96 628.01 1315.06 630.04C1317.15 632.069 1319.69 633.084 1322.67 633.084C1325.65 633.084 1328.18 632.069 1330.28 630.04C1332.37 628.01 1333.42 625.505 1333.42 622.526H1336.42C1336.42 625.996 1335.24 629.008 1332.88 631.562C1330.52 634.116 1327.61 635.572 1324.14 635.933V642.611H1321.19Z"/></svg>
       <div class="nsend" id="nsend"><i class="nenergy" id="nenergy"></i>
         <svg viewBox="1401.24 608.22 31.43 31.43"><path d="M1415.48 639.648V613.866L1403.3 626.045L1401.24 623.933L1416.95 608.219L1432.67 623.933L1430.61 626.045L1418.43 613.866V639.648H1415.48Z"/></svg>
@@ -908,16 +949,16 @@
       <div class="n-g"></div>
       <div class="n-ctx" id="nctx"></div>
       <!-- the supplied action sheet, each glyph at the box the plate
-           measures for it: copy 270,231 · share 374,233 · like 469,236 ·
-           dislike 571,240, and the file's own white at 60% is what the
+           measures for it, each moved down 7 by request: copy 270,238 ·
+           share 374,240 · like 469,243 · dislike 571,247, and the file's own white at 60% is what the
            plate reads there too (brightest 152) -->
-      <svg class="n-act" style="left:270px;top:231px;width:31.79px;height:37.32px"
+      <svg class="n-act" style="left:270px;top:238px;width:31.79px;height:37.32px"
            viewBox="0 0 31.79 37.32"><path d="M4.14746 6.91016C4.91054 6.91036 5.52907 7.52891 5.5293 8.29199C5.5293 9.00747 4.98578 9.59691 4.28906 9.66797L4.00488 9.68164C3.30837 9.75281 2.76479 10.3414 2.76465 11.0566V30.4072C2.76496 32.6976 4.62193 34.5554 6.91113 34.5557H20.7344C21.4498 34.5555 22.0384 34.0112 22.1094 33.3145L22.123 33.0312C22.194 32.3344 22.7835 31.791 23.499 31.791C24.2622 31.7912 24.8808 32.4096 24.8809 33.1729C24.8809 35.463 23.0244 37.3192 20.7344 37.3193H6.91113C3.09397 37.3191 0.000315938 34.2232 0 30.4072V11.0566C0.000146115 8.76658 1.85736 6.91016 4.14746 6.91016ZM29.0264 5.5293C29.0264 4.0025 27.7885 2.76465 26.2617 2.76465H12.4395L12.1572 2.7793C10.8558 2.9113 9.82139 3.94565 9.68945 5.24707L9.6748 5.5293V26.2627C9.6748 26.9781 10.2184 27.5675 10.915 27.6387L11.0576 27.6455H26.2617C27.7884 27.6455 29.0262 26.4075 29.0264 24.8809V5.5293ZM31.791 24.8809C31.7908 27.9343 29.3152 30.4092 26.2617 30.4092H11.0576C8.76743 30.4092 6.91016 28.5529 6.91016 26.2627V5.5293C6.91016 2.47572 9.38588 1.93917e-05 12.4395 0H26.2617C29.3153 6.67799e-07 31.791 2.47571 31.791 5.5293V24.8809Z"/></svg>
-      <svg class="n-act" style="left:374px;top:233px;width:24.8px;height:37.32px"
+      <svg class="n-act" style="left:374px;top:240px;width:24.8px;height:37.32px"
            viewBox="104.17 2 24.8 37.32"><path d="M110.367 15.5312C111.052 15.5312 111.607 16.1481 111.607 16.9091C111.607 17.6702 111.052 18.2871 110.367 18.2871H107.887C107.202 18.2871 106.647 18.9041 106.646 19.665V35.1874C106.646 35.9485 107.202 36.5663 107.887 36.5664H125.25C125.935 36.5664 126.49 35.9485 126.49 35.1874V19.665C126.49 18.9041 125.935 18.2871 125.25 18.2871H122.77C122.085 18.287 121.529 17.6702 121.529 16.9091C121.529 16.1481 122.085 15.5312 122.77 15.5312H125.25C127.305 15.5312 128.971 17.3819 128.971 19.665V35.1874C128.971 37.4707 127.305 39.3222 125.25 39.3222H107.887C105.832 39.3222 104.166 37.4707 104.166 35.1874V19.665C104.166 17.3819 105.832 15.5312 107.887 15.5312H110.367ZM114.368 2.84955C115.501 1.71688 117.338 1.71675 118.471 2.84955L124.699 9.07807C125.265 9.64452 125.265 10.5624 124.699 11.1289C124.133 11.6954 123.214 11.6953 122.647 11.1289L117.869 6.35053V26.0595C117.869 26.8607 117.219 27.5106 116.418 27.5107C115.617 27.5105 114.968 26.8606 114.968 26.0595V6.35248L110.191 11.1289C109.625 11.6954 108.706 11.6953 108.14 11.1289C107.573 10.5624 107.573 9.64457 108.14 9.07807L114.368 2.84955Z"/></svg>
-      <svg class="n-act" style="left:469px;top:236px;width:36.57px;height:31.92px"
+      <svg class="n-act" style="left:469px;top:243px;width:36.57px;height:31.92px"
            viewBox="199.17 4.84 36.57 31.92"><path d="M216.431 4.83594C219.079 4.83629 221.113 7.18141 220.739 9.80273L220.234 13.335C220.11 14.2088 220.787 14.9909 221.67 14.9912H228.48C232.486 14.9914 235.733 18.2391 235.733 22.2451V23.6055C235.733 24.8676 235.403 26.1083 234.777 27.2041L230.575 34.5596C229.8 35.9154 228.358 36.7528 226.796 36.7529H209.619V36.7539H203.521C201.117 36.7539 199.168 34.805 199.168 32.4014V19.3447C199.168 16.941 201.117 14.9922 203.521 14.9922H207.365C207.459 14.7856 207.562 14.5827 207.675 14.3848L211.877 7.0293C212.652 5.67324 214.095 4.83594 215.657 4.83594H216.431ZM203.521 17.8936C202.719 17.8936 202.069 18.5435 202.069 19.3447V32.4014C202.069 33.2025 202.719 33.8516 203.521 33.8516H206.718V17.8936H203.521ZM215.657 7.7373C215.137 7.7373 214.655 8.01673 214.396 8.46875L210.194 15.8242C209.819 16.4818 209.62 17.2261 209.62 17.9834V33.8506H226.796C227.316 33.8505 227.798 33.572 228.057 33.1201L232.259 25.7646C232.634 25.1072 232.832 24.3626 232.832 23.6055V22.2451C232.832 19.8416 230.884 17.8928 228.48 17.8926H221.67C219.022 17.8923 216.987 15.5472 217.361 12.9258L217.866 9.39355C217.991 8.51982 217.313 7.73766 216.431 7.7373H215.657Z"/></svg>
-      <svg class="n-act" style="left:571px;top:240px;width:36.56px;height:31.92px"
+      <svg class="n-act" style="left:571px;top:247px;width:36.56px;height:31.92px"
            viewBox="300.67 9.58 36.56 31.92"><path d="M319.971 41.4922C317.323 41.4918 315.288 39.1467 315.662 36.5254L316.167 32.9932C316.292 32.1194 315.614 31.3372 314.731 31.3369L307.921 31.3369C303.915 31.3367 300.668 28.089 300.668 24.083L300.668 22.7227C300.668 21.4605 300.998 20.2199 301.624 19.124L305.826 11.7686C306.601 10.4127 308.044 9.57532 309.605 9.57519L329.683 9.57519L329.683 9.57812L332.88 9.57812C335.284 9.57812 337.232 11.527 337.232 13.9307L337.232 26.9873C337.232 29.391 335.284 31.3398 332.88 31.3398L329.034 31.3398C328.941 31.5451 328.839 31.7467 328.727 31.9434L324.524 39.2988C323.75 40.6549 322.306 41.4922 320.744 41.4922L319.971 41.4922ZM320.744 38.5908C321.265 38.5908 321.747 38.3114 322.005 37.8594L326.207 30.5039C326.583 29.8464 326.781 29.102 326.781 28.3447L326.781 12.4775L309.605 12.4775C309.085 12.4777 308.603 12.7561 308.345 13.208L304.143 20.5635C303.767 21.2209 303.569 21.9655 303.569 22.7227L303.569 24.083C303.569 26.4866 305.517 28.4353 307.921 28.4355L314.731 28.4355C317.379 28.4358 319.414 30.7809 319.04 33.4023L318.535 36.9346C318.41 37.8083 319.088 38.5905 319.971 38.5908L320.744 38.5908ZM332.88 28.4385C333.681 28.4385 334.331 27.7885 334.331 26.9873L334.331 13.9307C334.331 13.1295 333.681 12.4805 332.88 12.4805L329.683 12.4805L329.683 28.4385L332.88 28.4385Z"/></svg>
       <!-- the supplied icon.svg and edit_square.svg, at the boxes the plate
            measures: 36x32 at (84,292) and 39x39 at (84,402) -->
@@ -4231,7 +4272,14 @@ function render2(t){
     nface.style.opacity = (FA0 + (1 - FA0) * sat(mt * 4)).toFixed(3);
     const ring = sat(1 - (f - 48.3) / 1.9);   /* the halo leaves with the box */
     nglow.style.opacity = ring.toFixed(3);
-    for (const el of [nplus, nmicEl, nsend]) el.style.opacity = (1 - sat(mt * 2)).toFixed(3);
+    /* Multiply, do not overwrite. The mic rests at 50% and the + at 50% on the
+       dark look, and writing a flat 1 here outranked both classes for the whole
+       of act 1 — the mic has been rendering opaque against a stylesheet that
+       said .5 since it was written. Only the send rests at full. */
+    const leave = 1 - sat(mt * 2), dim = boxWhite ? 1 : 0.5;
+    nplus.style.opacity  = (leave * dim).toFixed(3);
+    nmicEl.style.opacity = (leave * dim).toFixed(3);
+    nsend.style.opacity  = leave.toFixed(3);
 
     /* the query rides the box down into the chip */
     nq.style.fontSize = lerp(44, 36).toFixed(2) + "px";
@@ -4244,7 +4292,7 @@ function render2(t){
        inset, whatever the row count. The 27.5 this used to lerp to was the
        same landing worked out for the box's tighter 1.2 leading and one row;
        both put the first glyph within half a pixel of 318. */
-    nq.style.top = lerp(32, 24).toFixed(2) + "px";
+    nq.style.top = lerp(39, 24).toFixed(2) + "px";
     nq.style.left = lerp(45.58, 45).toFixed(2) + "px";
     /* The query does not fade from white to dark, it flips: the plate's text is
        255 against a black face on f48 and 0 against a 151 face on f49, and
