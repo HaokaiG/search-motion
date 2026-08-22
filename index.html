@@ -430,11 +430,29 @@
 
      The file's blur is `stdDeviation="0"` — the effect declared and switched
      off — and it is asked for here, heavier toward the TOP. A CSS blur is
-     uniform, so the line is drawn twice and cross-faded: a sharp copy that
-     is all of the ink at the bottom and none of it by 117.04 up, and a
-     blurred one that is the complement. Each row is then softer than the one
-     below it, which is the point — the further into the past, the less in
-     focus. Same construction as act 3's wall and the bar's beam.
+     uniform, so the line is drawn twice and cross-faded: a NEAR copy that is
+     all of the ink at the bottom and none of it by 117.04 up, and a FAR one
+     that is the complement. Each row is then softer than the one below it,
+     which is the point — the further into the past, the less in focus. Same
+     construction as act 3's wall and the bar's beam.
+
+     Neither copy is sharp, and that is the correction the supplied crop
+     forced. It was drawn with the near layer at blur 0, and measured on ink
+     spread — the area over a tenth of peak against the area over half — the
+     bottom row came out at 1.34 against an unblurred reference's 1.33. Dead
+     sharp. Nothing in the crop is: its own bottom line, "come loose.",
+     carries a visible edge. Scaling that crop by its line pitch (245px
+     against the design's 46.14) puts it at 5.31x, and its stroke edges at
+     roughly 4.1px on the bottom row and 7.2 on the top — a blur of about
+     1.6 and 2.8 sigma, both upper bounds, since an upscaled screenshot is
+     softer than what it was made from.
+     So the near layer takes the 1.6 the crop asks for, which moves the
+     bottom row's spread 1.34 -> 2.25, and the far one keeps a 5 rather than
+     the crop's 2.8, because the gradation was asked to be obvious. The cost
+     is peak: a blurred stroke spreads, so the bottom row reads 112 where the
+     sharp one read 143. The 60% is the layer's opacity and still is; what
+     falls is only what a spread stroke can reach. Back: `blur(0)` and
+     `blur(4px)`.
 
      The two masks are the product of the fill ramp and the crossfade, so
      they sum to the fill wherever both are present. .45 rather than .3915 at
@@ -458,14 +476,14 @@
      is still on the default, because those were measured against the plate
      with it. Back: drop the two smoothing lines. */
   .n-ctx{position:absolute;left:258px;bottom:calc(1080px - var(--ctx-bot));
-         width:1392px;opacity:.6;
+         width:1392px;opacity:.6;filter:blur(1.6px);
          -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
          font-size:37px;line-height:1.4;font-weight:400;color:#fff;
          -webkit-mask-image:linear-gradient(to top,#000 0,
              rgba(0,0,0,.45) 58.52px,transparent 117.04px);
          mask-image:linear-gradient(to top,#000 0,
              rgba(0,0,0,.45) 58.52px,transparent 117.04px)}
-  .n-ctx-soft{filter:blur(4px);
+  .n-ctx-soft{filter:blur(5px);
          -webkit-mask-image:linear-gradient(to top,transparent 0,
              rgba(0,0,0,.45) 58.52px,rgba(0,0,0,.565) 117.04px,
              rgba(0,0,0,.469) 155.4px,transparent 155.4px);
