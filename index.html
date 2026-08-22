@@ -429,8 +429,8 @@
      Back: `transparent 342.86px` as the last stop.
 
      The file's blur is `stdDeviation="0"` — the effect declared and switched
-     off — and it is asked for here, PER ROW: none on the bottom row, 2 on
-     the second, 4 on the third. A CSS blur is uniform, so the line is drawn
+     off — and it is asked for here, PER ROW: .5 on the bottom row, 1 on the
+     second, 2 on the third, 3 on a fourth. A CSS blur is uniform, so the line is drawn
      once per row and each copy is masked to its own band. Bands rather than
      a crossfade because the amounts are now specified per row rather than as
      a gradient, and disjoint bands also mean the three simply sum to the
@@ -438,10 +438,14 @@
 
      The band edges go in the gaps BETWEEN rows, where a hard mask edge has
      no ink to cut. Measured up from the block's bottom, the rows ink at
-     7..42, 58..94 and 110..147, so the gaps are 42..58, 94..110 and 147..162
-     and the edges sit at 47, 99 and 165. Blur widens each row's reach —
-     52..100 at 2, 98..159 at 4 — so the second and third bands each lose
-     about a pixel of the faintest tail at one edge and clear everything
+     7..42, 58..94, 110..147 and 162..198. Blur widens each reach — to
+     5.5..43.5, 55..97, 104..153 and 153..207 at three sigma — and the edges
+     are then placed between consecutive reaches rather than at the middle of
+     the gaps: 73.25, 124.5 and 177 in the box's own coordinates. At these
+     gentler amounts the reaches separate cleanly, where 4px did not: rows 3
+     and 4 met exactly at 153 there, which is why an edge could clip one or
+     admit the other. Here they still meet at 153, so that last edge is put
+     precisely on it and each side keeps everything
      else. A fourth row never reaches a band, because the copy is trimmed to
      three rows before it is set — see `n2CtxLines`. Masking one away is not
      enough: it would still be drawn and still blurred, and at 4px its ink
@@ -470,23 +474,32 @@
          -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
          font-size:37px;line-height:1.4;font-weight:400;color:#fff;
          white-space:pre-wrap}
-  .n-ctx.r1{filter:none;
+  .n-ctx.r1{filter:blur(.5px);
          -webkit-mask-image:linear-gradient(to top,#000 24px,
-             rgba(0,0,0,.8253) 71px,transparent 71px);
+             rgba(0,0,0,.81695) 73.25px,transparent 73.25px);
          mask-image:linear-gradient(to top,#000 24px,
-             rgba(0,0,0,.8253) 71px,transparent 71px)}
-  .n-ctx.r2{filter:blur(2px);
-         -webkit-mask-image:linear-gradient(to top,transparent 71px,
-             rgba(0,0,0,.8253) 71px,rgba(0,0,0,.6320) 123px,transparent 123px);
-         mask-image:linear-gradient(to top,transparent 71px,
-             rgba(0,0,0,.8253) 71px,rgba(0,0,0,.6320) 123px,transparent 123px)}
-  .n-ctx.r3{filter:blur(4px);
-         -webkit-mask-image:linear-gradient(to top,transparent 123px,
-             rgba(0,0,0,.6320) 123px,rgba(0,0,0,.565) 141.04px,
-             rgba(0,0,0,.565) 189px,transparent 204px);
-         mask-image:linear-gradient(to top,transparent 123px,
-             rgba(0,0,0,.6320) 123px,rgba(0,0,0,.565) 141.04px,
-             rgba(0,0,0,.565) 189px,transparent 204px)}
+             rgba(0,0,0,.81695) 73.25px,transparent 73.25px)}
+  .n-ctx.r2{filter:blur(1px);
+         -webkit-mask-image:linear-gradient(to top,transparent 73.25px,
+             rgba(0,0,0,.81695) 73.25px,rgba(0,0,0,.62647) 124.5px,
+             transparent 124.5px);
+         mask-image:linear-gradient(to top,transparent 73.25px,
+             rgba(0,0,0,.81695) 73.25px,rgba(0,0,0,.62647) 124.5px,
+             transparent 124.5px)}
+  .n-ctx.r3{filter:blur(2px);
+         -webkit-mask-image:linear-gradient(to top,transparent 124.5px,
+             rgba(0,0,0,.62647) 124.5px,rgba(0,0,0,.565) 141.04px,
+             rgba(0,0,0,.565) 177px,transparent 177px);
+         mask-image:linear-gradient(to top,transparent 124.5px,
+             rgba(0,0,0,.62647) 124.5px,rgba(0,0,0,.565) 141.04px,
+             rgba(0,0,0,.565) 177px,transparent 177px)}
+  /* Drawn only if N2_CTX_ROWS is raised past 3; at 3 the copy never has a
+     fourth row for this band to hold. Kept so that constant alone decides. */
+  .n-ctx.r4{filter:blur(3px);
+         -webkit-mask-image:linear-gradient(to top,transparent 177px,
+             rgba(0,0,0,.565) 177px,rgba(0,0,0,.565) 231px,transparent 246px);
+         mask-image:linear-gradient(to top,transparent 177px,
+             rgba(0,0,0,.565) 177px,rgba(0,0,0,.565) 231px,transparent 246px)}
   .n-act{position:absolute;fill:#fff;opacity:.6}
   /* the rail's two glyphs are the design file's own paths, kept in page
      coordinates so the viewBox is the measurement */
@@ -1023,6 +1036,7 @@
     <div id="n1">
       <div id="nscrim"></div>
       <div class="n-g"></div>
+      <div class="n-ctx r4" id="nctxd"></div>
       <div class="n-ctx r3" id="nctxc"></div>
       <div class="n-ctx r2" id="nctxb"></div>
       <div class="n-ctx r1" id="nctx"></div>
@@ -4038,7 +4052,7 @@ const nsmear2T = [...document.querySelectorAll('#nsmear2 feOffset')];
 const nsmear2M = document.getElementById("nsmear2M");
 const n3pages = [n3wall, n3tip, n3lit, n3ink];
 const nctx = document.getElementById("nctx"), nctxb = document.getElementById("nctxb"),
-      nctxc = document.getElementById("nctxc"),
+      nctxc = document.getElementById("nctxc"), nctxd = document.getElementById("nctxd"),
       nscrim = document.getElementById("nscrim");
 const n2chrome = document.getElementById("n2chrome");
 const n2nav = document.querySelector("#n2 .n2nav");
@@ -4158,7 +4172,8 @@ function n2Build(){
   n2Schedule();
   /* the last three rows, not the first: the block hangs off its bottom */
   const ctxRows = n2CtxLines(N2_CTX).slice(-N2_CTX_ROWS).join("\n");
-  nctx.textContent = nctxb.textContent = nctxc.textContent = ctxRows;
+  nctx.textContent = nctxb.textContent =
+    nctxc.textContent = nctxd.textContent = ctxRows;
   /* The bubble takes the BOX's line breaks. The other piece mirrors the panel's
      field because that is where its query is typed; here the field is on screen
      — the prompt box is the thing being typed into — so the bubble echoes it.
