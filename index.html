@@ -413,9 +413,20 @@
      bottom and #666 117.04px above it: 180.6 ink at the bottom row, 102 at
      117.04 up, a ratio of .565. The type is WHITE by request and its ceiling
      60%, so that ratio is what survives of the file rather than its tones —
-     the ramp runs 1.0 at the bottom to .565 at 117.04, and its last stop
-     takes it to nothing at 342.86, the dissolve folded in so a turn long
-     enough to climb toward the frame's top edge goes rather than being cut.
+     the ramp runs 1.0 at the bottom to .565 at 117.04, and then stops dead
+     at 155.40 — THREE ROWS, 3 x 51.8 — so a fourth line and anything above
+     it is not drawn. By request, and a hard edge rather than a fade, since
+     hiding is what was asked for.
+     It costs nothing below it, because 155.40 lands in clear space: measured
+     in an export at four lines, row 3's ink tops out 147 up from the bottom
+     and row 4's begins at 162, so the cut sits in the 15px gap between them
+     with 8px of clearance either side. Row 3 keeps the .469 the old ramp
+     gave it there and is otherwise untouched.
+     No count-based rule was needed. The ramp is px from the bottom and the
+     block hangs off the bottom, so a cut at three rows simply never reaches
+     a block that has three or fewer. It also ends the old worry about
+     leaving the frame: nothing is drawn above y=27.6 now, 28px inside it.
+     Back: `transparent 342.86px` as the last stop.
 
      The file's blur is `stdDeviation="0"` — the effect declared and switched
      off — and it is asked for here, heavier toward the TOP. A CSS blur is
@@ -457,10 +468,10 @@
   .n-ctx-soft{filter:blur(4px);
          -webkit-mask-image:linear-gradient(to top,transparent 0,
              rgba(0,0,0,.45) 58.52px,rgba(0,0,0,.565) 117.04px,
-             transparent 342.86px);
+             rgba(0,0,0,.469) 155.4px,transparent 155.4px);
          mask-image:linear-gradient(to top,transparent 0,
              rgba(0,0,0,.45) 58.52px,rgba(0,0,0,.565) 117.04px,
-             transparent 342.86px)}
+             rgba(0,0,0,.469) 155.4px,transparent 155.4px)}
   .n-act{position:absolute;fill:#fff;opacity:.6}
   /* the rail's two glyphs are the design file's own paths, kept in page
      coordinates so the viewBox is the measurement */
