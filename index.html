@@ -413,30 +413,38 @@
      vertical, which rounds to straight up — with white at 50% for its first
      stop and #666666 at 50% at 62.706% along. Resolved against that block's
      own edges, white sits 110.89px BELOW the bottom and #666 117.04px above
-     it, which is where the two px offsets here come from. Kept in px from the
-     bottom rather than in percent for the same reason the block hangs off its
-     bottom: a longer turn grows upward, and the tone at the bottom must not
-     change when it does.
-     The third stop is the old mask's job folded into the same ramp — one fade
-     instead of two stacked — so a turn long enough to climb toward the frame's
-     top edge dissolves rather than being cut by it.
-     What it costs: the file is dimmer than the plate. Its own numbers predict
-     72 at the bottom row and 46 at the top against the measured 120 and 86.
-     Back: `color:#787878` with the mask, which is the measured pair. */
-  /* 1.4 by request, against the 48px pitch the plate measures — 51.8 at this
-     size, so each row sits 3.8 further from the one below it. Written as the
-     ratio rather than the product, since the ratio is what was asked for and
-     it then survives a change of size. The block is bottom-anchored, so the
-     extra leading pushes the TOP up and leaves the bottom row where it is;
-     the fill is unaffected too, its stops being px from that same bottom. */
+     it. At the bottom row that lands on 180.6 ink, and at 117.04 up on 102.
+
+     It is drawn as REGULAR TEXT carrying that ramp in a mask, by request,
+     rather than as transparent text with the gradient clipped into it. That
+     is a difference in construction more than in pixels: measured on the same
+     70 strokes across three scanlines, mean stem width comes out 6.85 with
+     the mask, 6.87 with nothing, and 7.07 at full strength — the same glyphs
+     within a quarter of a pixel however the ink is delivered. (A single
+     scanline's MEDIAN run says 4 against 5, which reads like thinning and is
+     not: a fixed threshold over dimmer ink simply loses more of each edge.
+     Worth knowing before trusting that number again.) The tone is held to
+     within a level too — 71 at the bottom row and 57 at the top, against the
+     clipped version's 71 and 56.
+     So the colour is the file's bottom tone stated outright, 181, and the two
+     alphas over it — the fill's 50% and the group's 80% — are folded into the
+     single .4 on the element.
+     The mask then carries the ramp down to 102/180.6 = .565 by 117.04px up,
+     and its last stop takes it to nothing at 342.86 — the old dissolve folded
+     into the same ramp, so a turn long enough to climb toward the frame's top
+     edge goes rather than being cut by it.
+     What it costs: the file is dimmer than the plate, which reads 120 at the
+     bottom row and 86 at the top against these 71 and 57.
+     Back: `color:#787878` with a plain upward mask, which is the measured
+     pair. */
   .n-ctx{position:absolute;left:258px;bottom:calc(1080px - var(--ctx-bot));
-         width:1392px;opacity:.8;
-         font-size:37px;line-height:1.4;font-weight:400;color:transparent;
-         background:linear-gradient(to top,
-             rgba(255,255,255,.5) -110.89px,
-             rgba(102,102,102,.5)  117.04px,
-             rgba(102,102,102,0)   342.86px);
-         -webkit-background-clip:text;background-clip:text}
+         width:1392px;opacity:.4;
+         font-size:37px;line-height:1.4;font-weight:400;
+         color:rgb(181,181,181);
+         -webkit-mask-image:linear-gradient(to top,#000 0,
+             rgba(0,0,0,.565) 117.04px,transparent 342.86px);
+         mask-image:linear-gradient(to top,#000 0,
+             rgba(0,0,0,.565) 117.04px,transparent 342.86px)}
   .n-act{position:absolute;fill:#fff;opacity:.6}
   /* the rail's two glyphs are the design file's own paths, kept in page
      coordinates so the viewBox is the measurement */
