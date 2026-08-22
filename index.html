@@ -429,67 +429,64 @@
      Back: `transparent 342.86px` as the last stop.
 
      The file's blur is `stdDeviation="0"` — the effect declared and switched
-     off — and it is asked for here, heavier toward the TOP. A CSS blur is
-     uniform, so the line is drawn twice and cross-faded: a NEAR copy that is
-     all of the ink at the bottom and none of it by 117.04 up, and a FAR one
-     that is the complement. Each row is then softer than the one below it,
-     which is the point — the further into the past, the less in focus. Same
-     construction as act 3's wall and the bar's beam.
+     off — and it is asked for here, PER ROW: none on the bottom row, 2 on
+     the second, 4 on the third. A CSS blur is uniform, so the line is drawn
+     once per row and each copy is masked to its own band. Bands rather than
+     a crossfade because the amounts are now specified per row rather than as
+     a gradient, and disjoint bands also mean the three simply sum to the
+     fill — no correction for layers compositing as 1-(1-a)(1-b).
 
-     Neither copy is sharp, and that is the correction the supplied crop
-     forced. It was drawn with the near layer at blur 0, and measured on ink
-     spread — the area over a tenth of peak against the area over half — the
-     bottom row came out at 1.34 against an unblurred reference's 1.33. Dead
-     sharp. Nothing in the crop is: its own bottom line, "come loose.",
-     carries a visible edge. Scaling that crop by its line pitch (245px
-     against the design's 46.14) puts it at 5.31x, and its stroke edges at
-     roughly 4.1px on the bottom row and 7.2 on the top — a blur of about
-     1.6 and 2.8 sigma, both upper bounds, since an upscaled screenshot is
-     softer than what it was made from.
-     So the near layer takes the 1.6 the crop asks for, which moves the
-     bottom row's spread 1.34 -> 2.25, and the far one keeps a 5 rather than
-     the crop's 2.8, because the gradation was asked to be obvious. The cost
-     is peak: a blurred stroke spreads, so the bottom row reads 112 where the
-     sharp one read 143. The 60% is the layer's opacity and still is; what
-     falls is only what a spread stroke can reach. Back: `blur(0)` and
-     `blur(4px)`.
+     The band edges go in the gaps BETWEEN rows, where a hard mask edge has
+     no ink to cut. Measured up from the block's bottom, the rows ink at
+     7..42, 58..94 and 110..147, so the gaps are 42..58, 94..110 and 147..162
+     and the edges sit at 47, 99 and 165. Blur widens each row's reach —
+     52..100 at 2, 98..159 at 4 — so the second and third bands each lose
+     about a pixel of the faintest tail at one edge and clear everything
+     else. A fourth row never reaches a band, because the copy is trimmed to
+     three rows before it is set — see `n2CtxLines`. Masking one away is not
+     enough: it would still be drawn and still blurred, and at 4px its ink
+     reaches 12px below its own box, which surfaced as a sliver under the
+     third band on a six-row turn. Nor is there a mask edge that fixes it,
+     since at 4px row 3 reaches up to 159 and row 4 down to 150 — they
+     overlap, so any cut between them clips one or admits the other. With the
+     copy cut instead, the third band's own top can fade out over 165-180
+     rather than stop dead, there being nothing above it to hold back.
 
-     The two masks are the product of the fill ramp and the crossfade, so
-     they sum to the fill wherever both are present. .45 rather than .3915 at
-     the halfway stop is the correction for stacking: two layers composite as
-     1-(1-a)(1-b), not a+b, and the plain product would leave a dip through
-     the handover. Verified in an export instead of trusted — the ramp comes
-     out monotonic top to bottom with the bottom row at the 60% ceiling. */
-  /* Regular, and now drawn as Regular. The weight was never wrong — the axis
-     default is 400, the advance measures 971.02 whether wght is pinned or
-     left alone, and rasterised coverage matches a 400 probe — but the type
-     still read a step heavy, because SUBPIXEL SMOOTHING fattens light ink on
-     a dark ground. Measured in an export: greyscale antialiasing takes the
-     mean stem from 6.63 to 4.69 and 21% of the ink out, at an unchanged peak
-     of 143 against 144, so it is thinning the strokes back to the outline
-     rather than dimming them. For scale, dropping the weight to 350 removed
-     only 7% — the rasteriser was worth more than a whole step of weight, and
-     lowering the weight to compensate would have been correcting the wrong
-     number.
-     Scoped to this line, which is where it was noticed. Everything else white
-     on dark in this piece — the query in the box, act 3's wall and phrase —
-     is still on the default, because those were measured against the plate
-     with it. Back: drop the two smoothing lines. */
-  .n-ctx{position:absolute;left:258px;bottom:calc(1080px - var(--ctx-bot));
-         width:1392px;opacity:.6;filter:blur(1.6px);
+     Each band also carries the fill's value across it, so the three masks
+     add up to the ramp: 1.0 at the bottom, .8253 at 47, .6320 at 99 and
+     .565 from the knee at 117.04 on.
+
+     And the whole thing sits in 24px of padding, which is what the visible
+     limit was. A mask ends at its element's box and the box was exactly the
+     text, so blur spilling off the first character was chopped at x=258:
+     measured across it, 0 at 257 and 6.83 at 258, a straight vertical line
+     down the left of the block. The padding is given back through `left`,
+     `width` and `bottom`, so the type has not moved; every mask stop is
+     quoted 24 higher because the box's bottom is now 24 lower.
+     Back: `padding:0`, the three stop sets 24 lower, and one layer. */
+  .n-ctx{position:absolute;left:234px;width:1440px;padding:24px;
+         bottom:calc(1080px - var(--ctx-bot) - 24px);
+         opacity:.6;
          -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
          font-size:37px;line-height:1.4;font-weight:400;color:#fff;
-         -webkit-mask-image:linear-gradient(to top,#000 0,
-             rgba(0,0,0,.45) 58.52px,transparent 117.04px);
-         mask-image:linear-gradient(to top,#000 0,
-             rgba(0,0,0,.45) 58.52px,transparent 117.04px)}
-  .n-ctx-soft{filter:blur(5px);
-         -webkit-mask-image:linear-gradient(to top,transparent 0,
-             rgba(0,0,0,.45) 58.52px,rgba(0,0,0,.565) 117.04px,
-             rgba(0,0,0,.469) 155.4px,transparent 155.4px);
-         mask-image:linear-gradient(to top,transparent 0,
-             rgba(0,0,0,.45) 58.52px,rgba(0,0,0,.565) 117.04px,
-             rgba(0,0,0,.469) 155.4px,transparent 155.4px)}
+         white-space:pre-wrap}
+  .n-ctx.r1{filter:none;
+         -webkit-mask-image:linear-gradient(to top,#000 24px,
+             rgba(0,0,0,.8253) 71px,transparent 71px);
+         mask-image:linear-gradient(to top,#000 24px,
+             rgba(0,0,0,.8253) 71px,transparent 71px)}
+  .n-ctx.r2{filter:blur(2px);
+         -webkit-mask-image:linear-gradient(to top,transparent 71px,
+             rgba(0,0,0,.8253) 71px,rgba(0,0,0,.6320) 123px,transparent 123px);
+         mask-image:linear-gradient(to top,transparent 71px,
+             rgba(0,0,0,.8253) 71px,rgba(0,0,0,.6320) 123px,transparent 123px)}
+  .n-ctx.r3{filter:blur(4px);
+         -webkit-mask-image:linear-gradient(to top,transparent 123px,
+             rgba(0,0,0,.6320) 123px,rgba(0,0,0,.565) 141.04px,
+             rgba(0,0,0,.565) 189px,transparent 204px);
+         mask-image:linear-gradient(to top,transparent 123px,
+             rgba(0,0,0,.6320) 123px,rgba(0,0,0,.565) 141.04px,
+             rgba(0,0,0,.565) 189px,transparent 204px)}
   .n-act{position:absolute;fill:#fff;opacity:.6}
   /* the rail's two glyphs are the design file's own paths, kept in page
      coordinates so the viewBox is the measurement */
@@ -1026,8 +1023,9 @@
     <div id="n1">
       <div id="nscrim"></div>
       <div class="n-g"></div>
-      <div class="n-ctx n-ctx-soft" id="nctxb"></div>
-      <div class="n-ctx" id="nctx"></div>
+      <div class="n-ctx r3" id="nctxc"></div>
+      <div class="n-ctx r2" id="nctxb"></div>
+      <div class="n-ctx r1" id="nctx"></div>
       <!-- the supplied action sheet, each glyph at the box the plate
            measures for it, now hung off the ctx-bot / ctx-gap pair so the
            space under the context line is fixed however long that line runs.
@@ -4040,6 +4038,7 @@ const nsmear2T = [...document.querySelectorAll('#nsmear2 feOffset')];
 const nsmear2M = document.getElementById("nsmear2M");
 const n3pages = [n3wall, n3tip, n3lit, n3ink];
 const nctx = document.getElementById("nctx"), nctxb = document.getElementById("nctxb"),
+      nctxc = document.getElementById("nctxc"),
       nscrim = document.getElementById("nscrim");
 const n2chrome = document.getElementById("n2chrome");
 const n2nav = document.querySelector("#n2 .n2nav");
@@ -4085,6 +4084,14 @@ const NSEND_L = 943.8, NSEND_W = 94.29;      // the send pill's resting rect
    element makes the bubble's line breaks depend on which frame was rendered
    last — inside the morph it measured a 36px line and broke a 68-character
    prompt twelve characters late. */
+/* the context line's own metrics, stated rather than read for the same
+   reason the prompt box's are, and the row cap that trims the copy */
+const N2_CTX_SIZE = 37, N2_CTX_W = 1392, N2_CTX_ROWS = 3;
+function n2CtxLines(str){
+  const cs = getComputedStyle(nctx);
+  return wrapAt(str, `${cs.fontWeight} ${N2_CTX_SIZE}px ${cs.fontFamily}`,
+                cs.letterSpacing, N2_CTX_W);
+}
 const NQ_SIZE = 44, NQ_W = 960;
 const NQ_LH = NQ_SIZE * 1.2;                 // #nq's 44px at 1.2
 function n2PromptLines(str){
@@ -4149,7 +4156,9 @@ function n2Schedule(){
 }
 function n2Build(){
   n2Schedule();
-  nctx.textContent = nctxb.textContent = N2_CTX;
+  /* the last three rows, not the first: the block hangs off its bottom */
+  const ctxRows = n2CtxLines(N2_CTX).slice(-N2_CTX_ROWS).join("\n");
+  nctx.textContent = nctxb.textContent = nctxc.textContent = ctxRows;
   /* The bubble takes the BOX's line breaks. The other piece mirrors the panel's
      field because that is where its query is typed; here the field is on screen
      — the prompt box is the thing being typed into — so the bubble echoes it.
