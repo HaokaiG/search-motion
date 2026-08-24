@@ -356,6 +356,16 @@
 
   .w{color:#000}                       /* answer word, post-reveal */
 
+  /* ── the wordmark in flat white ──────────────────────────────────────
+     The logo's five letters are drawn as glyph outlines filled from the
+     brand variables, so white is a scoped redefinition of those four rather
+     than a fill on the paths: the outlines are untouched and the ring, the
+     beam and everything else that reads the same variables keep their own
+     colours. Worth knowing before reaching for it — act 1 stands on a white
+     card unless there is footage under it, and a white wordmark on white is
+     nothing at all. It is for the footage and transparent modes. */
+  #stage.logo-white .logo{--blue:#fff;--red:#fff;--yellow:#fff;--green:#fff}
+
 
 
   /* ══════════════ PIECE 2 — the prompt/response spot ═══════════════════
@@ -833,11 +843,50 @@
   #hud textarea{resize:vertical;line-height:1.5;font-family:var(--font)}
   #hud input:focus,#hud select:focus,#hud textarea:focus{outline:none;
        border-color:#4a4a58}
-  #hud button{width:100%;font:inherit;letter-spacing:inherit;
-       text-transform:inherit;background:#1b1b20;color:#c9c9d1;
+  /* Title case, not the panel's caps. #hud sets uppercase and .06em for its
+     section headings and the buttons used to inherit both, which read as a
+     different kind of control from the dropdowns beside them — those carry
+     text-transform:none and land on their own literal casing. Matching them
+     means the group is one set of rows. Headings keep the caps: they are
+     labels for a group, not things you press. */
+  /* 12px, the same as the dropdowns. `font:inherit` took the panel's own
+     500 11px/1, which is sized for the section headings — invisible while the
+     buttons were uppercase and tracked out, obvious once they were not. */
+  #hud button{width:100%;font:500 12px/1 var(--font);letter-spacing:0;
+       text-transform:none;background:#1b1b20;color:#c9c9d1;
        border:1px solid #2c2c34;border-radius:999px;padding:8px 12px;
        cursor:pointer}
   #hud button:hover{background:#24242c;color:#fff}
+  /* Dimmed and inert, but still hoverable — a disabled button stops firing
+     pointer events in some engines and the tooltip goes with it, so the
+     reason it is off would be unreachable exactly when it is wanted. The
+     wrapper keeps receiving the hover and carries the title. */
+  #hud button:disabled{opacity:.4;cursor:not-allowed}
+  #hud button:disabled:hover{background:#1b1b20;color:#c9c9d1}
+  /* A real tooltip rather than the `title` attribute. A native one waits a
+     second or two before appearing, shows wherever the pointer happens to be
+     and is easy to miss entirely — which is no good for the only explanation
+     of why a control has gone dead. This one is immediate, sits over the
+     button it belongs to, and only exists while there is something to say:
+     the rule keys off [data-why], and syncGifAvailability removes the
+     attribute when the button is live again.
+     pointer-events:none so the tooltip cannot swallow the hover that is
+     showing it, which would make it flicker on and off at its own edge. */
+  #hud .why{display:block;position:relative}
+  #hud .why[data-why]:hover::after{
+       content:attr(data-why);
+       position:absolute;left:0;right:0;bottom:calc(100% + 7px);z-index:6;
+       background:#26262e;color:#e8e8ef;
+       border:1px solid #3a3a44;border-radius:8px;padding:9px 11px;
+       font:500 11px/1.5 var(--font);letter-spacing:0;text-transform:none;
+       text-align:left;white-space:normal;pointer-events:none;
+       box-shadow:0 8px 22px rgba(0,0,0,.5)}
+  /* the little nib, pointing down at the button */
+  #hud .why[data-why]:hover::before{
+       content:"";position:absolute;left:50%;margin-left:-5px;
+       bottom:calc(100% + 2px);z-index:7;
+       border:5px solid transparent;border-top-color:#3a3a44;
+       pointer-events:none}
   #hud input[type=file]{padding:6px 8px;cursor:pointer}
   #hud input[type=file]::file-selector-button{font:inherit;letter-spacing:inherit;
        text-transform:inherit;background:#1b1b20;color:#c9c9d1;
@@ -1199,8 +1248,8 @@
   <div class="grp">
     <h3>Piece</h3>
     <select id="piece">
-      <option value="1" selected>AI Mode search</option>
-      <option value="2">Prompt / response</option>
+      <option value="1" selected>AI Mode Search</option>
+      <option value="2">Prompt / Highlight</option>
     </select>
   </div>
 
@@ -1231,26 +1280,20 @@
     <h3 class="sub">Look</h3>
     <div class="row">
       <select id="n2spin">
-        <option value="0.5">Wheel half</option>
-        <option value="1" selected>Wheel measured</option>
-        <option value="2">Wheel double</option>
-      </select>
-      <select id="n2box">
-        <option value="dark" selected>Box: dark blur</option>
-        <option value="white">Box: white</option>
-      </select>
-      <select id="n2blur">
-        <option value="on" selected>Backdrop blur: on</option>
-        <option value="off">Backdrop blur: off</option>
+        <option value="0.5">Glow Motion 0.5x</option>
+        <option value="1" selected>Glow Motion 1x</option>
+        <option value="2">Glow Motion 2x</option>
       </select>
     </div>
     <div class="row">
       <select id="n2size">
-        <option value="120">Wall 120px</option>
-        <option value="156" selected>Wall 156px</option>
-        <option value="192">Wall 192px</option>
+        <option value="120">Highlight Text Size 120px</option>
+        <option value="156" selected>Highlight Text Size 156px</option>
+        <option value="192">Highlight Text Size 192px</option>
       </select>
     </div>
+    <button id="n2box">Box: Dark Blur</button>
+    <button id="n2blur">Backdrop Blur: On</button>
   </div>
 
   <div class="grp p1only">
@@ -1267,9 +1310,13 @@
 
   <div class="grp p1only">
     <h3>Look</h3>
-    <button id="mb">Motion blur: on</button>
-    <button id="lg">Logo: on</button>
-    <button id="pg">Bar icon: +</button>
+    <select id="lg">
+      <option value="on" selected>Google Wordmark On</option>
+      <option value="white">Google Wordmark White</option>
+      <option value="off">Google Wordmark Off</option>
+    </select>
+    <button id="pg">Bar Icon: +</button>
+    <button id="mb">Motion Blur: On</button>
   </div>
 
   <div class="grp p1only">
@@ -1285,14 +1332,14 @@
     <input id="cspd" type="range" min="0.2" max="4" step="0.05" value="1">
     <h3 class="sub">Easing</h3>
     <canvas id="bzc" width="252" height="252"></canvas>
-    <button id="bzreset">Reset curve</button>
+    <button id="bzreset">Reset Curve</button>
   </div>
 
   <div class="grp">
     <h3>Footage</h3>
     <input id="bgin" type="file" accept="video/*,image/*">
-    <button id="bgclr" hidden>Clear footage</button>
-    <button id="alphabtn">Transparent: off</button>
+    <button id="bgclr" hidden>Clear Footage</button>
+    <button id="alphabtn">Transparent: Off</button>
   </div>
 
   <div class="grp">
@@ -1301,7 +1348,7 @@
          is live: segStart/segEnd already ignore it on the other one, and a
          control that silently does nothing is worse than no control -->
     <select id="seg" class="p1only">
-      <option value="all" selected>Whole piece</option>
+      <option value="all" selected>Whole Piece</option>
       <option value="query">Search Query Only</option>
       <option value="chat">AI Mode Chat Only</option>
     </select>
@@ -1326,8 +1373,8 @@
       </select>
     </div>
     <button id="vexport">Export MOV · ProRes 4444</button>
-    <button id="pexport">Export PNG sequence</button>
-    <button id="gexport">Export GIF</button>
+    <button id="pexport">Export PNG Sequence</button>
+    <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
     <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
   </div>
@@ -1660,6 +1707,12 @@ function wrapAs(ta, str){
                                - parseFloat(cs.paddingRight));
 }
 function wrapAt(str, font, letterSpacing, width){
+  /* A hidden element measures 0 wide, and width minus its padding then goes
+     NEGATIVE — which the mirror silently ignores, leaving it auto-width and
+     wrapping nothing. That is the answer we want here (a caller measuring a
+     field that is not on screen should not invent line breaks), but it should
+     be said rather than fallen into: return the hard breaks only. */
+  if (!(width > 0)) return str.split("\n").map(l => l.replace(/[ \t]+$/, ""));
   if (!qMirror){
     qMirror = document.createElement("div");
     document.body.appendChild(qMirror);
@@ -2022,7 +2075,7 @@ const $t = document.getElementById("tt"), $p = document.getElementById("px"),
 let useBlur = true;
 document.getElementById("mb").onclick = e => {
   useBlur = !useBlur;
-  e.target.textContent = "Motion blur: " + (useBlur ? "on" : "off");
+  e.target.textContent = "Motion Blur: " + (useBlur ? "On" : "Off");
 };
 
 /* ── the wordmark, on or off ───────────────────────────────────────────────
@@ -2032,21 +2085,30 @@ document.getElementById("mb").onclick = e => {
    the white, which is what the close-up looks like without the logo.
    Carried in the hash as #logo=0 so it survives a reload and rides along
    into the headless stills and the GIF export, same as #q= and #a=.       */
+/* Three states on one select, the same shape the glow-motion and highlight
+   controls have: the label and the current value read as one line, so the
+   group is four rows of the same thing rather than a tab strip among
+   dropdowns. The hash keeps its old contract — #logo=0 is still off and
+   still what an older link means — and #logo=white is the new one. */
 const logoEl = document.querySelector(".logo");
 const $lg    = document.getElementById("lg");
-let showLogo = Q.get("logo") !== "0";
+let logoMode = Q.get("logo") === "0" ? "off"
+             : Q.get("logo") === "white" ? "white" : "on";
 function applyLogo(){
-  logoEl.style.display = showLogo ? "" : "none";
-  $lg.textContent = "Logo: " + (showLogo ? "on" : "off");
+  logoEl.style.display = logoMode === "off" ? "none" : "";
+  stage.classList.toggle("logo-white", logoMode === "white");
+  if ($lg.value !== logoMode) $lg.value = logoMode;
 }
-$lg.onclick = () => {
-  showLogo = !showLogo;
+$lg.addEventListener("change", () => {
+  logoMode = $lg.value;
   applyLogo();
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-  showLogo ? h.delete("logo") : h.set("logo", "0");
+  logoMode === "on"    ? h.delete("logo")
+  : logoMode === "off" ? h.set("logo", "0")
+  :                      h.set("logo", "white");
   const s = h.toString();                    // no bare "#" when nothing is left
   history.replaceState(null, "", s ? "#" + s : location.pathname);
-};
+});
 applyLogo();
 
 /* ── uploaded footage behind act 1 ─────────────────────────────────────────
@@ -2215,7 +2277,7 @@ function applyPlus(){
   plusEl.classList.toggle("as-g", plusAsG);
   stage.classList.toggle("icon-g", plusAsG);   // the bar and button scale on it
   iconGeom(plusAsG);
-  $pg.textContent = "Bar icon: " + (plusAsG ? "G" : "+");
+  $pg.textContent = "Bar Icon: " + (plusAsG ? "G" : "+");
   TEXT_LEFT = plusAsG ? TEXT_LEFT_G : TEXT_LEFT_REF;
   queryEl.style.left = TEXT_LEFT + "px";
 }
@@ -2642,7 +2704,24 @@ function setSpeed(v, from){
   history.replaceState(null, "", s ? "#" + s : location.pathname);
 }
 $ts.addEventListener("input",  () => setSpeed($ts.value,  "range"));
-$tsn.addEventListener("change", () => setSpeed($tsn.value, "number"));
+/* Normalise what was typed once it is committed: 1 reads back as 1.00 and 1.2
+   as 1.20, so the field matches the two decimals it is given everywhere else —
+   at load, from the slider, and in the hash. On `change` rather than `input`,
+   which is the whole reason setSpeed leaves the field alone when the number is
+   where the value came from: rewriting mid-keystroke would turn "1.2" into
+   "1.20" before the 2 was typed. It also makes the clamp visible — typing 50
+   into a field that stops at 20 used to leave 50 sitting there. */
+$tsn.addEventListener("change", () => {
+  /* rounded to the two decimals it is about to show, so the field is not
+     lying: typing 3.456 used to display 3.46 while the piece ran at 3.456,
+     and the hash writes toFixed(2) either way — so a reload silently moved
+     the speed to what the field had been claiming all along. Everything else
+     that reaches setSpeed is already at two decimals or fewer: the slider
+     steps 0.05 and the hash is written toFixed(2). NaN survives to setSpeed's
+     own `+v || 1`, so a typed word still lands on 1.00. */
+  setSpeed(Math.round(+$tsn.value * 100) / 100, "number");
+  $tsn.value = TYPE_SPEED.toFixed(2);
+});
 
 /* the camera's own speed, same shape of control */
 const $cs = document.getElementById("cspd"), $csn = document.getElementById("cspdn");
@@ -2660,7 +2739,10 @@ function setCam(v, from){
   history.replaceState(null, "", q ? "#" + q : location.pathname);
 }
 $cs.addEventListener("input",  () => setCam($cs.value,  "range"));
-$csn.addEventListener("change", () => setCam($csn.value, "number"));
+$csn.addEventListener("change", () => {                    /* same, for the camera */
+  setCam(Math.round(+$csn.value * 100) / 100, "number");
+  $csn.value = CAM_SPEED.toFixed(2);
+});
 
 /* ── the easing editor ───────────────────────────────────────────────── */
 const bzc = document.getElementById("bzc");
@@ -3007,13 +3089,17 @@ function GifWriter(W, H, pal, delayCs, trans){
 /* Floyd-Steinberg: the quantiser's error goes 7/16 right, then 3/16, 5/16
    and 1/16 into the row below. On flat colour the error is zero and nothing
    happens; on a gradient it is what stops the 256 entries banding.       */
-GifWriter.prototype.frame = function(fr){
+/* `delayCs` per frame, falling back to the one the writer was made with. A
+   GIF stores the delay on each frame's own graphic-control block, so there is
+   no reason every frame has to carry the same one — see the export, which
+   uses that to hold a rate the format cannot state in a single integer. */
+GifWriter.prototype.frame = function(fr, delayCs){
   const sk = this.sk, W = this.W, H = this.H, idx = this.idx,
         pal = this.pal, near = this.near, t = this.trans;
   /* disposal 2 with a transparent index, or a hole shows the frame before it
      through rather than nothing */
   sk.u8(0x21, 0xF9, 0x04, t >= 0 ? 0x09 : 0x00);
-  sk.u16(this.delay);
+  sk.u16(delayCs === undefined ? this.delay : delayCs);
   sk.u8(t >= 0 ? t : 0, 0);
   sk.u8(0x2C); sk.u16(0); sk.u16(0); sk.u16(W); sk.u16(H); sk.u8(0);
   let cur = this.e0, nxt = this.e1;
@@ -3258,13 +3344,27 @@ document.getElementById("gexport").onclick = async () => {
   const W = +document.getElementById("gw").value;
   const H = Math.round(W * 1080 / 1920);
   const fps = +document.getElementById("gfps").value;
-  /* A GIF's delay is in whole centiseconds, so it cannot express every rate:
-     the shortest frame it can ask for is 2cs, which is 50fps, and 30 rounds
-     to 3cs, which is 33.3. Sample at the rate it can actually hold rather
-     than at the one asked for, so the piece still runs 6.757s instead of
-     playing 17% slow with the right number of frames in it.               */
-  const delayCs = Math.max(2, Math.round(100 / fps));
-  const step = FPS / (100 / delayCs);
+  /* A GIF's delay is in whole centiseconds, so no single integer states most
+     of these rates: 100/24 is 4.1667 and 100/30 is 3.333. Rounding it to one
+     value used to mean choosing which to get wrong — stamp the rounded delay
+     and the piece plays 17% slow, or resample to the rounded delay and the
+     duration is right while the RATE is not, 30fps running at 33.3 and 60 at
+     50.
+     Neither is necessary, because the delay lives on each frame rather than
+     on the file: sampling at the rate asked for and giving frame k the delay
+     `round((k+1)*100/rate) - round(k*100/rate)` makes the integers accumulate
+     to the real one. 24fps comes out 4,4,5,4,4,4,5… — never more than half a
+     centisecond from the ideal at any point, and exactly 100cs after 24 of
+     them. Frame count, duration and rate are then all the chosen one.
+     The exception is the floor. A viewer treats a delay under 2cs as 10, so
+     50fps is the fastest a GIF can actually be played and 60 is clamped to
+     it; the status line says so rather than quietly producing something
+     slower than asked for. */
+  const GIF_MIN_CS = 2;                       // 50fps, the fastest honoured
+  const rate = Math.min(fps, 100 / GIF_MIN_CS);
+  const delayAt = k => Math.max(GIF_MIN_CS,
+        Math.round((k + 1) * 100 / rate) - Math.round(k * 100 / rate));
+  const step = FPS / rate;
   const segA = segStart();                    // the chosen half
   const n = Math.ceil((segEnd() - segA) / step);
   busy = true;
@@ -3301,13 +3401,14 @@ document.getElementById("gexport").onclick = async () => {
     $gs.textContent = "palette…";
     await new Promise(r => setTimeout(r, 16));
     const pal = paletteOf(hist, 256);
-    const gif = new GifWriter(W, H, pal, delayCs);      /* opaque, by request */
+    /* the fallback delay only matters if a frame is written without one */
+    const gif = new GifWriter(W, H, pal, delayAt(0));   /* opaque, by request */
     for (let k = 0; k < n; k++){
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
       await drawStage(ctx, W, H);
-      gif.frame(ctx.getImageData(0, 0, W, H).data);
+      gif.frame(ctx.getImageData(0, 0, W, H).data, delayAt(k));
       $gs.textContent = `frame ${k + 1}/${n}…`;
       await new Promise(r => setTimeout(r, 0));
     }
@@ -3318,7 +3419,13 @@ document.getElementById("gexport").onclick = async () => {
     a.download = "search-motion.gif";
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    $gs.textContent = `${n} frames · ${(out.length/1048576).toFixed(1)} MB`;
+    /* Report the rate the file actually carries, which is the chosen one
+       unless it was above the 50fps a GIF can be played at. */
+    const cs = Array.from({ length: n }, (_, k) => delayAt(k))
+                    .reduce((a, b) => a + b, 0);
+    $gs.textContent = `${n} frames · ${(n / (cs / 100)).toFixed(2)} fps · `
+                    + `${(cs / 100).toFixed(2)}s · ${(out.length/1048576).toFixed(1)} MB`
+                    + (fps > 100 / GIF_MIN_CS ? ` · capped from ${fps}` : "");
   } catch (e){
     $gs.textContent = "failed: " + (e && e.message ? e.message : e);
   } finally {
@@ -3327,21 +3434,44 @@ document.getElementById("gexport").onclick = async () => {
   }
 };
 
+/* ── the GIF cannot hold a matte, so it is off while one is wanted ───────
+   A GIF's transparency is one palette index: a pixel is either that entry or
+   it is not, and there is no channel to grade. This piece is mostly soft
+   edges — the bar's scrim, every antialiased glyph, the whole halo — so the
+   file it would write is not a worse matte than the PNGs, it is a different
+   picture. Rather than let it be exported and disappoint later, it goes off
+   while Transparent is on and says why on hover.
+   The title sits on a wrapper, not the button: a disabled control stops
+   receiving pointer events, which would take the tooltip with it. */
+function syncGifAvailability(){
+  const b = document.getElementById("gexport"),
+        w = document.getElementById("gexportwhy");
+  b.disabled = alphaOn;
+  if (alphaOn)
+    w.dataset.why = "GIF has no alpha channel — only a single fully-"
+      + "transparent palette index, which cannot hold a soft edge. "
+      + "Export a PNG sequence instead to keep the matte.";
+  else
+    delete w.dataset.why;
+}
+
 /* ── the transparent mode ────────────────────────────────────────────────
    The same treatment footage mode gives the bar, with nothing behind it. Both
-   exports that can carry a matte follow it: the MOV always has an alpha
-   channel and simply fills it in when this is off, and the GIF reserves a
-   palette entry for it and says so on the button.                        */
+   export that can carry a matte follows it: the MOV always has an alpha
+   channel and simply fills it in when this is off, and the PNG sequence
+   keeps the whole one. The GIF switches OFF instead — see above.        */
 let alphaOn = false;
 const $ab = document.getElementById("alphabtn");
 $ab.onclick = () => {
   alphaOn = !alphaOn;
   stage.classList.toggle("has-alpha", alphaOn);
-  $ab.textContent = "Transparent: " + (alphaOn ? "on" : "off");
+  $ab.textContent = "Transparent: " + (alphaOn ? "On" : "Off");
+  syncGifAvailability();
   chipGapForMode();
   applyQuery();                    // the bar re-derives from the wider gap
   render(hold !== null ? hold : 0);
 };
+syncGifAvailability();             // and set it once for the state it loads in
 
 document.getElementById("mexport").onclick = async () => {
   if (busy) return;
@@ -4635,7 +4765,25 @@ function applyPiece(){
      visible, and the prompt field's scale and height can only be measured
      once it has layout */
   if (PIECE === 2){ applyN2(); applyN2LookBoot(); }
-  render(hold !== null ? hold : 0);
+  /* Coming back to the search piece, re-derive its layout the same way the
+     other branch re-derives the prompt's. The query field is inside a p1only
+     group, so while the prompt piece is up it has no layout and measures 0
+     wide — anything that called applyQuery in that state (the Transparent
+     toggle and the footage loader both do) mirrored the field at a negative
+     width and the act-2 bubble came back unwrapped. Measuring it again now
+     that it is visible is the fix. */
+  else applyQuery();
+  /* segStart(), not 0. This painted frame 0 whatever segment was selected, so
+     switching back with "AI Mode Chat Only" on flashed the opening of act 1 —
+     mean 249 against the chat's 254 — for the one frame before the loop
+     corrected it. A short flash of the wrong act, and the reason the switch
+     looked like it had loaded wrong. */
+  const a = segStart() / FPS, b = segEnd() / FPS;
+  /* and a held time carries across, so clamp it: the prompt piece runs 8.066s
+     against this one's 6.757, and a scrub past the shorter one's end would
+     otherwise arrive stuck on its last frame */
+  if (hold !== null) hold = Math.min(Math.max(hold, a), b);
+  render(hold !== null ? hold : a);
   if (hold === null) window.play();
 }
 $piece.addEventListener("change", e => { PIECE = +e.target.value; applyPiece(); });
@@ -4724,13 +4872,19 @@ function applyN2(){
   render(hold !== null ? hold : 0);
 }
 for (const el of [$n2q, $n2ctx, $n2a, $n2q1, $n2q2, $n2tail]) el.addEventListener("input", applyN2);
+/* Two states each, so a switch: the label says what it is now, and clicking
+   it is the whole interaction. They were selects, which cost a click to open
+   and put three of them across one row narrow enough to truncate the text. */
+let boxWhiteOn = false, backdropOn = true;
 function applyN2Look(){
-  stage2.classList.toggle("box-white", $n2box.value === "white");
-  stage2.classList.toggle("blur", $n2blur.value === "on");
+  stage2.classList.toggle("box-white", boxWhiteOn);
+  stage2.classList.toggle("blur", backdropOn);
+  $n2box.textContent  = "Box: " + (boxWhiteOn ? "White" : "Dark Blur");
+  $n2blur.textContent = "Backdrop Blur: " + (backdropOn ? "On" : "Off");
   render(hold !== null ? hold : 0);
 }
-$n2box.addEventListener("change", applyN2Look);
-$n2blur.addEventListener("change", applyN2Look);
+$n2box.onclick  = () => { boxWhiteOn = !boxWhiteOn; applyN2Look(); };
+$n2blur.onclick = () => { backdropOn = !backdropOn; applyN2Look(); };
 $n2spin.addEventListener("change", () => { render(hold !== null ? hold : 0); });
 $n2size.addEventListener("change", e => {
   for (const el of n3pages){
