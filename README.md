@@ -28,7 +28,12 @@ NOTICE.md           third-party assets and trademarks — read this before repub
 
 ## Running it
 
-Open `index.html` directly, or `python3 -m http.server` and visit it. The controls sit in a side
+**Live:** <https://haokaig.github.io/search-motion/> — the repository's own `index.html`, served by
+GitHub Pages, so it is whatever is on `main`. Turning it on is one dropdown, once:
+*Settings → Pages → Source: Deploy from a branch → `main` / `root` → Save*. Until that is done the
+address 404s.
+
+Locally, open `index.html` directly, or `python3 -m http.server` and visit it. The controls sit in a side
 panel on the right — playback, query, answer, look, motion, footage, export — with the stage
 centred in the space beside it. The panel lets you:
 
