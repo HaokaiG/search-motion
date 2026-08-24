@@ -3416,11 +3416,21 @@ document.getElementById("gexport").onclick = async () => {
      to the real one. 24fps comes out 4,4,5,4,4,4,5… — never more than half a
      centisecond from the ideal at any point, and exactly 100cs after 24 of
      them. Frame count, duration and rate are then all the chosen one.
-     The exception is the floor. A viewer treats a delay under 2cs as 10, so
-     50fps is the fastest a GIF can actually be played and 60 is clamped to
-     it; the status line says so rather than quietly producing something
-     slower than asked for. */
-  const GIF_MIN_CS = 2;                       // 50fps, the fastest honoured
+     The exception is the floor, and it is higher than it looks. A correctly
+     written 24fps file is 4,4,5,4… — but a decoder that treats anything under
+     5cs as 10cs turns those 4s into 10s, and 137 frames declaring 5.71s play
+     over 12.65s instead: 10.9fps, SLOWER than the 12fps export, whose 8s and
+     9s all clear the floor untouched. That is the whole reason 12 looked
+     right and everything above it looked wrong — measured on the files
+     themselves, which carry exactly the rate they claim.
+     So the floor is 5cs, not the 2cs the browsers alone would allow. It caps
+     a GIF at 20fps, and the rates above it resample to 20 rather than
+     stamping delays a viewer will quietly round up — the motion then runs at
+     the right speed everywhere, which matters more than the frame count. The
+     status line says when it capped. For true 24fps and above, MP4 is the
+     export that can carry it. */
+  const GIF_MIN_CS = 5;                       // 20fps, the fastest played back
+                                              // at the declared rate everywhere
   const rate = Math.min(fps, 100 / GIF_MIN_CS);
   const delayAt = k => Math.max(GIF_MIN_CS,
         Math.round((k + 1) * 100 / rate) - Math.round(k * 100 / rate));

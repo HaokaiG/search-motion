@@ -190,7 +190,15 @@ centred in the space beside it. The panel lets you:
     the canvas to within the 1 code the sRGB → BT.709 video-range round trip costs, and the alpha
     exactly — and then again through macOS's own AVFoundation, which is the stricter reader of
     the two and the one an editor here would use
-  - the **GIF** is opaque whatever the stage is set to, and spends all 256 entries on colour.
+  - the **GIF** caps at **20fps**, and the higher rates resample to it rather than being stamped
+    at the rate you asked for. A GIF's delay is in whole centiseconds, so 24fps is written as
+    4,4,5,4… — correct on paper, and the file does declare 23.99fps — but a decoder that rounds
+    anything under 5cs up to 10cs turns those 4s into 10s, and the result plays at 10.9fps:
+    **slower than the 12fps export**, whose 8s and 9s clear the floor untouched. That is why the
+    trouble began exactly above 12. Capped, the delay is a flat 5cs and the motion runs at the
+    speed asked for on any viewer; the status line reports what it capped from. 24fps and above
+    belong in the MP4.
+    Otherwise it is opaque whatever the stage is set to, and spends all 256 entries on colour.
     It used to reserve one for transparency when the transparent mode was on; one all-or-nothing
     index is a poor matte and the PNG sequence is the answer for that instead.
     Its palette is built from a histogram of **every pixel of every frame** rather than a sparse
