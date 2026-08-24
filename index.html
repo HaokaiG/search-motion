@@ -1255,6 +1255,7 @@
 
   <div class="grp">
     <h3>Playback</h3>
+    <button id="pp">Stop</button>
     <button id="replay">Replay</button>
     <div class="readout">
       <div>t<b id="tt">0.000</b></div>
@@ -2137,6 +2138,12 @@ function bgWrap(t){
 let bgSeeking = false;
 function bgSync(t){
   if (!bgOn || bgStill || !bgvid.duration) return;
+  /* A <video> keeps its own clock and does not stop just because ours has.
+     It has to be told, and this is the first thing done here — ahead of the
+     in-flight-seek guard below, because a stop that lands mid-seek would
+     otherwise return early and leave the footage rolling with nothing left
+     to catch it: the rAF loop is dead by then, so there is no next call.  */
+  if (hold !== null && !bgvid.paused) bgvid.pause();
   /* Never touch currentTime while a seek is in flight. render() runs off the
      rAF loop, so a frozen frame calls this ~60x a second; re-issuing the seek
      each time restarted it before it could ever land, and the video sat at
@@ -2429,8 +2436,56 @@ function panAt(t){
 
 let t0 = performance.now();
 let hold = Q.has("t") ? parseFloat(Q.get("t")) : null;
-window.seek  = s => { hold = s; render(s); };
-window.play  = () => { hold = null; t0 = performance.now(); };
+/* `raf` is the loop's handle, and zero means nothing is scheduled. The loop
+   used to be started once at boot and left running, re-rendering the frozen
+   frame sixty times a second whenever it was held — invisible, but render()
+   is not cheap and a transport turns that from a moment into a habit. Now
+   the loop only runs while the piece is playing and play() primes it.
+   It also fixes booting on #t=… , which set hold and then never started the
+   loop at all: Replay cleared hold, but there was nothing running to notice. */
+let raf = 0;
+const pump  = () => { if (!raf) raf = requestAnimationFrame(frame); };
+window.seek  = s => { hold = s; render(s); syncPP(); };
+/* play() starts the segment over — it is Replay's handler, and it is what a
+   piece switch and the end of an export want too. Resuming is a different
+   thing and needs its own: the clock is read as `now - t0`, so carrying on
+   from a held frame means back-dating t0 by how far into the segment that
+   frame is, rather than setting it to now and landing back at the start. */
+window.play  = () => { hold = null; t0 = performance.now(); pump(); syncPP(); };
+window.resume = () => {
+  if (hold === null) return;
+  const a = PIECE === 2 ? 0 : segStart() / FPS,
+        b = PIECE === 2 ? N2_DUR : segEnd() / FPS;
+  /* clamped because the held frame can predate a segment change that moved
+     the range out from under it */
+  t0 = performance.now() - (Math.min(Math.max(hold, a), b) - a) * 1000;
+  hold = null;
+  pump();
+  syncPP();
+};
+/* Stop freezes where the eye is, not where the clock began: it reads the same
+   expression frame() would have used for this instant, so the frame you were
+   looking at is the frame you keep. Clamped into the segment because the loop
+   turns over on the frame AFTER the last one — an unclamped read can land a
+   few ms past b, outside the range the scrub bar and the export agree on.
+   Piece 2 runs its clock from zero and its own a is zero, so one expression
+   covers both. */
+window.pause = () => {
+  if (hold !== null) return;
+  const a = PIECE === 2 ? 0 : segStart() / FPS,
+        b = PIECE === 2 ? N2_DUR : segEnd() / FPS;
+  hold = Math.min(Math.max(a + (performance.now() - t0) / 1000, a), b);
+  render(hold);
+  syncPP();
+};
+/* Both the button and the key come through here, which is also where the
+   export is locked out. An export walks `hold` frame by frame itself; a play
+   in the middle of that would null it and set the loop running against it,
+   and the run would be drawing one thing while the clock said another. */
+window.toggle = () => {
+  if (busy) return;
+  hold === null ? window.pause() : window.resume();
+};
 /* ── the two halves ──────────────────────────────────────────────────────
    The piece is one move, but it is really two: the search bar up to the
    button being pressed, and the answer that comes out of it. The seam is
@@ -2454,11 +2509,16 @@ const segEnd   = () => PIECE === 2 ? N2_NF + Math.round(N2_HOLD)
                      : SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
 
 function frame(now){
+  raf = 0;
+  /* Held means stopped, so the loop ends here instead of redrawing the same
+     frame forever. Everything that clears `hold` goes through play(), which
+     starts it again. */
+  if (hold !== null) return;
   if (PIECE === 2){
-    let t = hold !== null ? hold : (now - t0) / 1000;
-    if (hold === null && t > N2_DUR){ t0 = now; t = 0; }
+    let t = (now - t0) / 1000;
+    if (t > N2_DUR){ t0 = now; t = 0; }
     render(t);
-    requestAnimationFrame(frame);
+    pump();
     return;
   }
   const a = segStart() / FPS, b = segEnd() / FPS;
@@ -2469,10 +2529,10 @@ function frame(now){
      is gone. It still cannot run PAST b: the loop turns over on the frame
      after the last one, which is what keeps a half from playing the half
      after it.                                                           */
-  let t = hold !== null ? hold : a + (now - t0) / 1000;
-  if (hold === null && t > b){ t0 = now; t = a; }
+  let t = a + (now - t0) / 1000;
+  if (t > b){ t0 = now; t = a; }
   render(t);
-  requestAnimationFrame(frame);
+  pump();
 }
 function render(t){
   if (PIECE === 2) return render2(t);
@@ -4894,7 +4954,37 @@ $n2size.addEventListener("change", e => {
   render(hold !== null ? hold : 0);
 });
 
+/* One button for both states rather than two, half of them always dead. It is
+   labelled with what pressing it will do, the way a transport reads. Stop
+   holds the frame where it is rather than rewinding: Replay is already the
+   control that goes back to the top, and a stop that jumped to zero would
+   leave no way to sit on a frame and look at it. */
+function syncPP(){
+  const b = document.getElementById("pp");
+  if (!b) return;
+  const s = hold === null ? "Stop" : "Play";
+  if (b.textContent !== s) b.textContent = s;
+}
+document.getElementById("pp").onclick = () => window.toggle();
 document.getElementById("replay").onclick = window.play;
+
+/* Space is the transport key everywhere else, so it is one here too. It is
+   only taken when the focus has no use for it: inside the prompt and answer
+   fields a space is a space, and on a focused button, dropdown or slider the
+   browser's own handling is the right one — including on this very button,
+   where native activation already does the same thing, so intercepting would
+   just fire it twice. preventDefault matters because the panel scrolls and
+   space would page it out from under you. */
+addEventListener("keydown", e => {
+  if (e.code !== "Space" && e.key !== " ") return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target;
+  if (t && (t.isContentEditable ||
+            /^(INPUT|TEXTAREA|SELECT|BUTTON|OPTION)$/.test(t.tagName))) return;
+  if (busy) return;                  // don't swallow the key during an export
+  e.preventDefault();
+  window.toggle();
+});
 
 function boot(){
   refit();                                   // text metrics must be final first
@@ -4926,7 +5016,7 @@ function boot(){
 }
 boot();
 document.fonts.ready.then(boot);             // again once webfonts settle
-if (hold === null) { t0 = performance.now(); requestAnimationFrame(frame); }
+if (hold === null) window.play(); else syncPP();
 </script>
 </body>
 </html>

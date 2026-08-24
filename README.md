@@ -37,6 +37,10 @@ Locally, open `index.html` directly, or `python3 -m http.server` and visit it. T
 panel on the right — playback, query, answer, look, motion, footage, export — with the stage
 centred in the space beside it. The panel lets you:
 
+- **run the piece** — **Stop** freezes on the frame you are looking at, footage and all, and
+  turns into **Play**, which picks up from there; **Replay** is the one that goes back to the top. **Space** does the
+  same as the Stop/Play button, except while the focus is in a field or on a control that wants
+  the key itself. The clock only runs while the piece is playing, so a stopped frame costs nothing
 - **edit the query** — always lower case, as the plate's is. Its **length sets the length of the
   act**: the plate types 43 characters across frames 18-108, so 2.093 frames each, and the run is
   that rate times whatever you type. Everything after the typing rides on it, so the whole piece
