@@ -705,7 +705,14 @@
   .n2body p{margin:0}
   .n2body p + p{margin-top:42px}
   .n2body b{font-weight:500}          /* 4px stems against the text's 3 */
-  .n2body .tail{color:#9a9a9a}
+  /* The plate greys this last line — measured (154,154,154) against the
+     paragraphs above it reading 0, because on the reference it is still
+     arriving. Black by request, so the answer is one colour throughout:
+     every paragraph, the heading in the other piece and the revealed words
+     all sit on #000 and this now does too. It keeps its class, which is what
+     the trailing-line field writes into and what act 3 skips when it builds
+     the wall. Back: color:#9a9a9a. */
+  .n2body .tail{color:#000}
   /* the same rect off AIM Chat_White.svg — 713..1080, white 0 to white 1.
      A sibling of the body rather than a child, because the body is what
      scales and smears out of frame at f80 and this belongs to the frame.
