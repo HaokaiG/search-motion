@@ -333,6 +333,26 @@
      other way, so this is a departure rather than a correction.          */
   .body h2{font-size:46.22px;font-weight:500;line-height:1;margin:50.7px 0 0}
   .body h2 + p{margin-top:49.3px}
+  /* ── the page fades out at its foot ──────────────────────────────────
+     AIM Chat_White.svg draws one rect over everything it has already
+     painted: 0..1920 by 713..1080, filled with a vertical gradient from
+     white at zero alpha to white at full — `x1 960 y1 713, x2 960 y2 1080,
+     stop white/0 -> stop white/1`. It is the affordance that says the answer
+     carries on below the frame, and both pieces' chat wants it.
+     Frame-fixed, not part of the copy: it is tied to the viewport's foot
+     rather than to the text, so it neither rises in with the answer nor
+     scales out with it. In this piece that only means keeping it off `.row`;
+     in the other it matters more, since the body there scales and smears on
+     the way out and the fade must not go with it.
+     The white carries --a2bg so the fade tops out wherever the card does.
+     Over nothing that is 1 and this is the file's own rect; over footage or
+     a matte the card is only partly there through the join, and a fade to
+     solid white would have been the one opaque thing in a frame that is
+     otherwise still letting the plate through. */
+  .a2fade{position:absolute;left:0;top:713px;width:1920px;height:367px;
+          pointer-events:none;
+          background:linear-gradient(rgba(255,255,255,0),
+                                     rgba(255,255,255,var(--a2bg,1)))}
 
   .w{color:#000}                       /* answer word, post-reveal */
 
@@ -686,6 +706,14 @@
   .n2body p + p{margin-top:42px}
   .n2body b{font-weight:500}          /* 4px stems against the text's 3 */
   .n2body .tail{color:#9a9a9a}
+  /* the same rect off AIM Chat_White.svg — 713..1080, white 0 to white 1.
+     A sibling of the body rather than a child, because the body is what
+     scales and smears out of frame at f80 and this belongs to the frame.
+     Plain white here: this page covers the footage completely, so there is
+     no --a2bg to follow. */
+  .n2fade{position:absolute;left:0;top:713px;width:1920px;height:367px;
+          pointer-events:none;
+          background:linear-gradient(rgba(255,255,255,0),#fff)}
 
   /* ── act 3, the words come back huge ───────────────────────
      Measured on the plate's settled frame: the lit line's x-height is 82px and
@@ -881,6 +909,7 @@
       <div class="row qchip" data-rise="44" data-t=".03" data-f0="5.672" data-fd=".29"><span id="qq">what is the most popular sport in the world</span></div>
 
       <div class="row body" data-rise="48" data-t=".07"></div>
+      <div class="a2fade"></div>
     </div>
 
     <!-- ─────────────────────── ACT 1 ─────────────────────── -->
@@ -1095,6 +1124,7 @@
         <div class="n2chip" id="n2chip"></div>
       </div>
       <div class="n2body" id="n2body"></div>
+      <div class="n2fade"></div>
     </div>
 
     <!-- the swap's smear. A filter referenced by url() only resolves if its
