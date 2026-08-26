@@ -45,6 +45,14 @@ Nothing here is judged by eye. Every change goes through the same loop:
   so the caret came back for every frame from f35 to the morph, and again for a
   frame inside it. Two things writing one property, one of them louder. The
   caret is not the morph's business at all; the line is gone.
+- **A double hyphen inside an HTML comment kills the export, not the page.**
+  Writing a CSS custom property's full name in a comment put `--` inside it. HTML
+  is fine with that and the piece rendered normally; the export died with `frame
+  render failed`, because it serialises the DOM into a `<foreignObject>` and the
+  result is re-parsed as XML, where `--` inside a comment is fatal. So a comment
+  can break a build while the thing it comments on still works. The em dashes
+  throughout this file are the convention that avoids it. Audit with
+  `re.finditer(r'<!--(.*?)-->', s, re.S)` and look for `--` in the group.
 - **A revert can undo a fix in a file nobody was looking at.** The premultiply
   in `prPlanes` was put there to cure a blooming glow in the ProRes export, and
   a later full reset — asked for, and about something else entirely — took it
