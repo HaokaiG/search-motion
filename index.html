@@ -29,6 +29,14 @@
        footage. Editing this value will NOT move the line — the alpha in
        .rule is what to change, and 255 x (1 - a) is the colour it gives. */
     --rule:#ebebeb;
+    /* The AI Mode bubble's alpha is these two multiplied. --chip-a0 is what
+       the MODE measures — opaque on white, 0.75 over footage or under a
+       matte (below) — and --chip-k is the panel's Button bubble control,
+       which is a multiplier so that 1.00 means "as measured" in whichever
+       mode you are in and changes nothing anywhere. An absolute alpha here
+       could not do that: one number cannot be both the opaque white pill
+       and the 0.75 one at the same time. */
+    --chip-a0:1; --chip-k:1;
     /* the supplied G mark, shared by act 2's header icon and the search
        bar's own icon when it is switched over from the plus */
     --gmark: url(data:image/webp;base64,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);
@@ -151,7 +159,14 @@
      (#f5f6f8) at 75%. Sampling the reference's own pill gives ~202/207/212
      over dark footage, which back-solves to roughly 0.78, so 75% sits right
      next to what that clip does.                                         */
-  #stage.has-bg .aichip, #stage.has-alpha .aichip{background:rgba(245,246,248,.75)}
+  /* rgba is --chip at --chip-a. Two notes. The colour was 245,246,248 here
+     while --chip itself had moved to the design file's 244,246,247, so the
+     pill was a shade off its own colour in these modes; it is the file's now.
+     And the alpha is a variable because the panel drives it — see the Button
+     bubble control. This is the RESTING fill only: from the press the value
+     is written inline per frame, and that path honours the same alpha. The
+     two must agree at litK 0, and they do — both are rgba(244,246,247,A). */
+  #stage.has-bg .aichip, #stage.has-alpha .aichip{--chip-a0:.75}
   /* The query steps up to Medium here, but the chip's label does NOT — it is
      Regular in every mode, by request. It was 500 over footage and alpha on
      the reasoning that the pill is only 75% there and the label needed the
@@ -427,8 +442,13 @@
      The GAP is the one that was really wrong — 41% out, and the comment that
      used to sit here said so: it was "an eyeball read of a pasted image, not
      a measurement off a frame". This file is that measurement. */
+  /* --chip at --chip-a, so the resting pill honours the Button bubble control
+     in every mode. It reads as no change on white until the press, where the
+     blue arrives and the alpha starts to matter. The has-bg / has-alpha rule
+     below overrides only the DEFAULT alpha, not this construction. */
   .aichip{position:absolute;left:2375px;top:459px;width:432.8px;height:158px;
-          background:var(--chip);border-radius:79px;
+          background:rgba(244,246,247,calc(var(--chip-a0) * var(--chip-k)));
+          border-radius:79px;
           box-shadow:0 2px 10px rgba(32,33,36,.10);
           display:flex;align-items:center;gap:26.8px;padding-left:52.9px;
           transform-origin:50% 50%;will-change:transform,filter}
@@ -1207,9 +1227,26 @@
   #hud input[type=range]{padding:0;height:20px;background:none;border:none;
        accent-color:#7f9cff;cursor:pointer}
   /* the easing editor: a square curve preview over the four handle fields */
-  #hud canvas#bzc{width:100%;height:auto;aspect-ratio:1;display:block;
+  #hud canvas.bez{width:100%;height:auto;aspect-ratio:1;display:block;
        background:#0e0e11;border:1px solid #212127;border-radius:7px;
        cursor:crosshair;touch-action:none}
+  /* The fold row. It is a button because it is a thing you press, but it is
+     dressed as the section heading it replaces — left aligned, no pill, the
+     headings' caps and tracking — so the panel still reads as labelled groups
+     rather than growing two more buttons. The chevron is a CSS triangle that
+     turns, which keeps the state readable without a second glyph to keep in
+     sync with aria-expanded. */
+  #hud button.fold{display:flex;align-items:center;gap:6px;width:100%;
+       background:none;border:0;border-radius:0;padding:4px 0 2px;
+       font:600 10px/1 var(--font);letter-spacing:.15em;color:#56565f;
+       text-transform:uppercase;text-align:left;cursor:pointer}
+  #hud button.fold:hover{background:none;color:#9a9aa6}
+  #hud button.fold i{width:0;height:0;flex:none;
+       border:4px solid transparent;border-left-color:currentColor;
+       border-right:0;transition:transform .12s ease;transform-origin:2px 50%}
+  #hud button.fold[aria-expanded="true"] i{transform:rotate(90deg)}
+  #hud .foldbody{display:flex;flex-direction:column;gap:8px;padding-top:2px}
+  #hud .foldbody[hidden]{display:none}
   #hud h3.sub{margin:2px 0 0}
   #hud .warn{text-transform:none;letter-spacing:0;min-height:14px;
        line-height:1.25;font-size:11px}
@@ -1589,6 +1626,11 @@
     </div>
     <input id="scrim" type="range" min="0" max="1" step="0.01" value="0.2">
     <span class="warn" id="scrimw"></span>
+    <div class="lbl"><label for="bub">Button bubble</label>
+      <input id="bubn" type="number" min="0" max="1" step="0.01" value="1.00">
+    </div>
+    <input id="bub" type="range" min="0" max="1" step="0.01" value="1">
+    <span class="warn" id="bubw"></span>
   </div>
 
   <div class="grp p1only">
@@ -1602,14 +1644,30 @@
       <input id="cspdn" type="number" min="0.2" max="8" step="0.05" value="1.00">
     </div>
     <input id="cspd" type="range" min="0.2" max="4" step="0.05" value="1">
-    <div class="lbl"><label for="gspd">Glow speed</label>
-      <input id="gspdn" type="number" min="0" max="20" step="0.05" value="1.00">
+    <button class="fold" id="bzfold" aria-expanded="false" aria-controls="bzwrap"
+            ><i></i>Camera Easing</button>
+    <div class="foldbody" id="bzwrap" hidden>
+      <canvas id="bzc" class="bez" width="252" height="252"></canvas>
+      <button id="bzreset">Reset Curve</button>
     </div>
-    <input id="gspd" type="range" min="0" max="4" step="0.05" value="1">
+    <div class="lbl"><label for="gspd">Glow speed</label>
+      <input id="gspdn" type="number" min="0" max="20" step="0.05" value="2.60">
+    </div>
+    <!-- the readout sits ABOVE the slider here, where the other speeds put
+         theirs below. Measured: Camera speed's fold row is 9px under its
+         slider, and with a readout in between this one's was 32px — the
+         reserved line plus a gap either side. Moved up, the slider and the
+         fold below it are the same 9px apart as the camera's, and the readout
+         keeps its line, elaborating the number in the field it now sits under
+         rather than floating between two rows. -->
     <span class="warn" id="gwarn"></span>
-    <h3 class="sub">Easing</h3>
-    <canvas id="bzc" width="252" height="252"></canvas>
-    <button id="bzreset">Reset Curve</button>
+    <input id="gspd" type="range" min="0" max="4" step="0.05" value="2.6">
+    <button class="fold" id="gbzfold" aria-expanded="false" aria-controls="gbzwrap"
+            ><i></i>Glow Easing</button>
+    <div class="foldbody" id="gbzwrap" hidden>
+      <canvas id="gbzc" class="bez" width="252" height="252"></canvas>
+      <button id="gbzreset">Reset Curve</button>
+    </div>
   </div>
 
   <div class="grp">
@@ -1628,6 +1686,18 @@
       <option value="all" selected>Whole Piece</option>
       <option value="query">Search Query Only</option>
       <option value="chat">AI Mode Chat Only</option>
+    </select>
+    <!-- the same split for the other piece, on its own seam. Two selects
+         rather than one that changes its wording, because each piece's halves
+         are named after what is actually in them and the hidden one keeps its
+         own choice while the other is live -->
+    <!-- `hidden` in the markup, like the other p2only group: applyPiece
+         only runs on a change of piece, so at boot on piece 1 nothing
+         would have hidden this yet and it showed under the wrong one -->
+    <select id="seg2" class="p2only" hidden>
+      <option value="all" selected>Whole Piece</option>
+      <option value="prompt">Prompt Only</option>
+      <option value="response">Response Only</option>
     </select>
     <div class="row">
       <select id="gw">
@@ -1755,6 +1825,23 @@ const BEAM_TAIL = [31.09, 310];
    STARTS at it, which is what `track` implements. The two curves it names are
    the standard-decelerate and emphasized-accelerate from the same file. */
 const CB_STD_DECEL  = [0, 0, 0, 1];
+/* The glow's opening rides this, and it is editable from the panel — the same
+   four handles CSS and After Effects use. Only the ANGLE reads it: the burst's
+   opacity and border tracks keep CB_STD_DECEL, because those are separate
+   measured ramps and are not what "the glow's easing" means.
+   LINEAR by request, where it was the source's own standard-decelerate
+   (0,0,0,1). That is a real change to how the opening reads, not a tidy-up.
+   The decelerate curve is violently front-loaded — most of its travel happens
+   in the first moments however long the burst is given — which is why
+   stretching BAR_BURST_MS never slowed the opening proportionally, and why
+   its rate at a fixed frame barely moved when the whole thing was scaled.
+   Linear takes that away: the opening now turns at one rate throughout, so
+   BAR_BURST_MS finally means what it looks like it means, and Glow speed
+   scales the opening in proportion rather than sliding along a curve whose
+   slope was already falling.
+   Back: CB_STD_DECEL.slice() for the source's curve. */
+const GLOW_BEZ_REF = [0, 0, 1, 1];
+let   GLOW_BEZ     = GLOW_BEZ_REF.slice();
 const CB_EMPH_ACCEL = [0.3, 0, 0.8, 0.15];
 /* 15636, not the source's 650. BY REQUEST — slowed twice and then taken 10%
    back the other way — against the 4300 the clip's own sweep measures, so
@@ -1820,7 +1907,18 @@ const BAR_SPIN_DPS = 13.2;
    passed, so the burst has not begun — and it means the bar sits with its
    grey border on and no gradient at all, which is the plate before any of
    this arrives. */
-let GLOW_SPEED = 1;
+/* 2.6 by request, where this was 1. It is a multiplier on the two measured
+   dials above, so 1 means "as they were measured" and this is a departure
+   from that — stated here rather than buried, since every other number in
+   this block is the source's.
+   Two things worth knowing at 2.6. The opening finally COMPLETES inside act 1:
+   the burst is 374.9 frames at 1x and 144.2 at 2.6, so starting on 18 it lands
+   on 162.2 against act 1's 162, which it never did before. And because the
+   easing is linear now, the rate really is 2.6x throughout rather than sliding
+   along a decelerating curve — 3.44 deg a frame against 1.32.
+   Back: GLOW_DEFAULT = 1 for the measured pair. */
+const GLOW_DEFAULT = 2.6;
+let GLOW_SPEED = GLOW_DEFAULT;
 const GRAD_A0 = 170, GRAD_A1 = 225;                // --gradient-angle
 const MASK_A0 = -90, MASK_A1 = 200;                // --mask-angle
 const BURST_OPACITY = [[0, 0, CB_STD_DECEL], [0.25, 1, null],
@@ -2040,6 +2138,11 @@ const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
    Worth knowing it cannot finish: act 1 is gone by frame 136, about 9 frames
    in, so roughly a third of the second actually plays and the rest is
    carried off by the cut. Shortening it is a matter of RING_PRESS_FADE.  */
+/* The bubble's base colour and the three samples the clip gives down its face
+   at the press, kept as numbers because the fill is now MIXED rather than
+   layered — see where the background is written. CHIP_RGB is --chip. */
+const CHIP_RGB  = [244, 246, 247];
+const CHIP_BLUE = [[51, 115, 244], [64, 115, 240], [88, 117, 209]];
 const PRESS_F0 = PRESS[0][0];
 /* 8 frames, not the measured second. At FPS the fade cannot finish inside
    act 1 — it is still at 0.13 when the cut comes at 136 — so the halo sat on
@@ -2322,9 +2425,35 @@ function scrimHint(v){
     : val === 0     ? "off — the glow only, no plate behind the query"
     : `${Math.round(val * 100)}% black behind the bar`;
 }
+/* Same shape as scrimHint, and hoisted for the same reason. */
+function bubbleHint(v){
+  const w = document.getElementById("bubw"),
+        f = document.getElementById("bubn");
+  if (!w || !f) return;
+  const val = v === undefined ? parseFloat(f.value) : v;
+  const on = stage.classList.contains("has-bg")
+          || stage.classList.contains("has-alpha");
+  const eff = (on ? 0.75 : 1) * val;      // the mode's own alpha, times this
+  w.textContent = val === 0 ? "invisible — only the label, lens and glow"
+    : val === 1 ? (on ? "75% as measured over footage" : "solid, as measured")
+    : `${Math.round(eff * 100)}% at rest \u00b7 solid as it turns blue`;
+}
+/* The bubble's alpha as the MODE measures it, before the panel's multiplier.
+   Read off the CSS rather than duplicated here, so `--chip-a0` in the
+   stylesheet stays the single place that number is written. Cached on each
+   change of mode instead of read per frame — getComputedStyle in a render
+   loop would flush layout every frame for a value that changes twice. */
+let CHIP_A0 = 1;
+function readChipA0(){
+  const el = document.getElementById("aichip");
+  if (!el) return;
+  CHIP_A0 = parseFloat(getComputedStyle(el).getPropertyValue("--chip-a0")) || 1;
+}
 function chipGapForMode(){
   CHIP_GAP = (bgOn || alphaOn) ? CHIP_GAP_BG : CHIP_GAP_REF;
-  scrimHint();          // the hint names the mode it applies in
+  readChipA0();
+  scrimHint();          // the hints name the mode they apply in
+  bubbleHint();
 }
 const BAR_MIN_RIGHT = 1700;      // keeps a plausible box for a short question
 const PARK_X = 1236;             // where the plate parks the bar's right cap
@@ -2979,8 +3108,8 @@ window.seek  = s => { hold = s; render(s); syncPP(); };
 window.play  = () => { hold = null; t0 = performance.now(); pump(); syncPP(); };
 window.resume = () => {
   if (hold === null) return;
-  const a = PIECE === 2 ? 0 : segStart() / FPS,
-        b = PIECE === 2 ? N2_DUR : segEnd() / FPS;
+  const a = segStart() / FPS,
+        b = PIECE === 2 ? Math.min(segEnd() / FPS, N2_DUR) : segEnd() / FPS;
   /* clamped because the held frame can predate a segment change that moved
      the range out from under it */
   t0 = performance.now() - (Math.min(Math.max(hold, a), b) - a) * 1000;
@@ -2997,8 +3126,8 @@ window.resume = () => {
    covers both. */
 window.pause = () => {
   if (hold !== null) return;
-  const a = PIECE === 2 ? 0 : segStart() / FPS,
-        b = PIECE === 2 ? N2_DUR : segEnd() / FPS;
+  const a = segStart() / FPS,
+        b = PIECE === 2 ? Math.min(segEnd() / FPS, N2_DUR) : segEnd() / FPS;
   hold = Math.min(Math.max(a + (performance.now() - t0) / 1000, a), b);
   render(hold);
   syncPP();
@@ -3029,8 +3158,19 @@ function setSeg(v){
   SEG = v;
   stage.classList.toggle("seg-query", v === "query");
 }
-const segStart = () => (PIECE === 2 || SEG !== "chat")  ? 0 : SPLIT_FP + TAIL;
-const segEnd   = () => PIECE === 2 ? N2_NF + Math.round(N2_HOLD)
+/* The other piece's, kept separate. It needs no class on the stage the way
+   seg-query does: that one exists because act 2's card is already bleeding
+   through before the search piece's split, so the half has to hide it. Here
+   the seam is the frame the flash STARTS on, so nothing of the response is
+   drawn before it and there is nothing to suppress. */
+let SEG2 = "all";
+function setSeg2(v){ SEG2 = v; }
+const segStart = () => PIECE === 2
+                       ? (SEG2 === "response" ? N2_SPLIT_SEG : 0)
+                     : SEG !== "chat" ? 0 : SPLIT_FP + TAIL;
+const segEnd   = () => PIECE === 2
+                       ? (SEG2 === "prompt" ? N2_SPLIT_SEG
+                                            : N2_NF + Math.round(N2_HOLD))
                      : SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
 
 function frame(now){
@@ -3040,8 +3180,13 @@ function frame(now){
      starts it again. */
   if (hold !== null) return;
   if (PIECE === 2){
-    let t = (now - t0) / 1000;
-    if (t > N2_DUR){ t0 = now; t = 0; }
+    /* Loops inside the chosen half, the way the other piece's does. It used to
+       run the whole 192 unconditionally, which was right while this piece had
+       no halves and is not now — a half that played past its end would just be
+       the whole piece with a different starting point. */
+    const a = segStart() / FPS, b = Math.min(segEnd() / FPS, N2_DUR);
+    let t = a + (now - t0) / 1000;
+    if (t > b){ t0 = now; t = a; }
     render(t);
     pump();
     return;
@@ -3144,7 +3289,7 @@ function render(t){
      inside the bar's own visibility test, because the chip's halo reads the
      SAME pair — it is not a second rotation running alongside, it is the
      same one, so the two can never drift apart or disagree about phase. */
-  const BURST_E = cbez(CB_STD_DECEL, burst);
+  const BURST_E = cbez(GLOW_BEZ, burst);
   const BURST_SPUN = glowF / FPS * BAR_SPIN_DPS;
   const GRAD_A = (GRAD_A0 + (GRAD_A1 - GRAD_A0) * BURST_E
         + BURST_SPUN * (GRAD_A1 - GRAD_A0) / (MASK_A1 - MASK_A0)).toFixed(2) + "deg";
@@ -3256,10 +3401,40 @@ function render(t){
      62,115,240, landing on the clip's measured middle sample within a
      count. */
   const litK = sat((fp - PRESS_F0) / 3);
-  chip.style.background = litK > 0.002
-    ? `linear-gradient(rgba(51,115,244,${litK.toFixed(3)}),`
-      + `rgba(64,115,240,${litK.toFixed(3)}) 55%,`
-      + `rgba(88,117,209,${litK.toFixed(3)})), var(--chip)`
+  /* The bubble's own alpha, and ONLY the bubble's: the label, the lens and the
+     halo are separate elements, so nothing here reaches them. Opacity on the
+     chip itself would have taken all three, which is why this is written as
+     the fill's alpha rather than as an element opacity.
+     The blue is BLENDED INTO the base colour and the result carries one alpha,
+     rather than being laid over it as a second translucent layer. That is not
+     a stylistic choice — two stacked layers composite to a + b(1-a), so at
+     alpha 0.5 a fully lit button would have come out at 0.75 and the bubble
+     would have grown more opaque as it filled, which is the one thing this
+     control must not do. Blended, the alpha is exactly what was asked for on
+     every frame of the press. It also reproduces the old behaviour exactly at
+     alpha 1: laying blue at litK over an opaque base IS the same mix. */
+  /* Every mode, not just over footage — a translucent NEAR-WHITE pill on a
+     white page has nothing to show through to at rest, but the blue is the one
+     part of this button that is not close to its background anywhere.
+     CHIP_A0 is the mode's own measured alpha, cached off the CSS on each
+     change of mode so the stylesheet stays the one place it is written.
+     THE CONTROL LETS GO AS THE BLUE ARRIVES, by request. Its influence is
+     lerped out on litK, so the pill carries the setting while it is pale and
+     lands on the mode's own alpha once it is blue — solid on white, the
+     measured 0.75 over footage — whatever the slider says. Note this reverses
+     an earlier request that the setting DO reach the blue, and it gives up the
+     property that made that version safe: with the setting below 1 the bubble
+     now gains opacity across the press, 127 to 130, because that is precisely
+     what "not impacted when blue" asks for. It is one ramp rather than a
+     switch so the hand-off happens with the fill instead of popping on the
+     frame it starts. Back: `CHIP_A0 * BUBBLE_K` for the setting throughout. */
+  const bubA = CHIP_A0 * (BUBBLE_K + (1 - BUBBLE_K) * litK);
+  const stop = c => c.map((v, i) =>
+        Math.round(CHIP_RGB[i] + (v - CHIP_RGB[i]) * litK)).join(",");
+  chip.style.background = (litK > 0.002 || bubA < 0.999)
+    ? `linear-gradient(rgba(${stop(CHIP_BLUE[0])},${bubA.toFixed(3)}),`
+      + `rgba(${stop(CHIP_BLUE[1])},${bubA.toFixed(3)}) 55%,`
+      + `rgba(${stop(CHIP_BLUE[2])},${bubA.toFixed(3)}))`
     : "";
   chip.style.setProperty("--chip-ink",
     litK > 0.002 ? `rgb(${Math.round(31 + 224 * litK)},`
@@ -3460,23 +3635,31 @@ const $glw = document.getElementById("gwarn");
 const GLOW_MIN = 0, GLOW_MAX = 20;
 function setGlow(v, from){
   const n = +v;
-  GLOW_SPEED = clamp(isFinite(n) ? n : 1, GLOW_MIN, GLOW_MAX);
+  GLOW_SPEED = clamp(isFinite(n) ? n : GLOW_DEFAULT, GLOW_MIN, GLOW_MAX);
   if (from !== "range")  $gls.value  = GLOW_SPEED;
   if (from !== "number") $glsn.value = GLOW_SPEED.toFixed(2);
-  /* No rebuild: the glow owns no geometry and the burst runs 374.9 frames,
-     far past act 1, so its speed cannot change the piece's length the way
-     the typing's can. Nor does this restart the clock, which is what the
+  /* No rebuild: the glow owns no geometry, and nothing downstream reads its
+     progress, so its speed cannot change the piece's length the way the
+     typing's can. (The old reason given here was that the burst runs 374.9
+     frames, far past act 1 — true at 1x and not at the 2.6 default, where it
+     is 144.2 and lands on 162.2 against act 1's 162. The conclusion holds
+     either way; the reason had to stop depending on the rate.) Nor does this restart the clock, which is what the
      other two do — they change how long the piece runs, so starting over is
      the honest thing there; here it would fling the piece back to frame 0 on
      every tick of a drag. A held frame is repainted; a playing one is
      already being repainted by the loop. */
+  /* Always says something. It used to go blank at exactly 1, which left the
+     reserved line empty; and 1 is no longer the default anyway, so blanking
+     there would have said nothing about the state the piece actually loads
+     in. Measured to fit one line at every value from 0.05 to 20. */
+  const dps = BAR_SPIN_DPS * GLOW_SPEED;
   $glw.textContent = GLOW_SPEED === 0 ? "frozen — the bar keeps its border"
-    : GLOW_SPEED === 1 ? ""
-    : `${(BAR_SPIN_DPS * GLOW_SPEED).toFixed(1)} deg/s after the opening`
-      + ` · a lap every ${(360 / (BAR_SPIN_DPS * GLOW_SPEED)).toFixed(1)}s`;
+    : `${dps.toFixed(1)} deg/s after the opening`
+      + ` · a lap every ${(360 / dps).toFixed(1)}s`;
   if (hold !== null) render(hold);
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-  GLOW_SPEED === 1 ? h.delete("glow") : h.set("glow", GLOW_SPEED.toFixed(2));
+  GLOW_SPEED === GLOW_DEFAULT ? h.delete("glow")
+                              : h.set("glow", GLOW_SPEED.toFixed(2));
   const g = h.toString();
   history.replaceState(null, "", g ? "#" + g : location.pathname);
 }
@@ -3523,6 +3706,43 @@ function setScrim(v, from){
   const q = h.toString();
   history.replaceState(null, "", q ? "#" + q : location.pathname);
 }
+/* ── the AI Mode bubble's own opacity ────────────────────────────────── */
+/* The PILL only. The label, the lens and the gradient halo are separate
+   elements and none of them is touched, which is why this drives the fill's
+   alpha rather than the element's opacity — opacity on .aichip would have
+   faded all four together. Like the scrim it only bites over footage or under
+   a matte, because on white a translucent near-white pill sits on a white
+   page and there is nothing to see through to. Default read from :root so the
+   measured 0.75 stays where its comment is. */
+const $bu  = document.getElementById("bub"),
+      $bun = document.getElementById("bubn");
+/* A MULTIPLIER on the mode's own alpha, not an absolute one, so 1.00 means
+   "as measured" everywhere: solid on white, 0.75 over footage, and the plate's
+   solid blue at the press. One absolute number could not be all three. */
+const BUBBLE_DEFAULT = 1;
+let BUBBLE_K = BUBBLE_DEFAULT;
+function setBubble(v, from){
+  const n = +v;
+  BUBBLE_K = clamp(isFinite(n) ? n : BUBBLE_DEFAULT, 0, 1);
+  if (from !== "range")  $bu.value  = BUBBLE_K;
+  if (from !== "number") $bun.value = BUBBLE_K.toFixed(2);
+  stage.style.setProperty("--chip-k", BUBBLE_K);
+  bubbleHint(BUBBLE_K);
+  /* the press path writes the fill inline per frame, so a held frame has to
+     be repainted for the new alpha to reach it; a playing one repaints itself */
+  if (hold !== null) render(hold);
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  BUBBLE_K === BUBBLE_DEFAULT ? h.delete("bubble")
+                              : h.set("bubble", BUBBLE_K.toFixed(2));
+  const q = h.toString();
+  history.replaceState(null, "", q ? "#" + q : location.pathname);
+}
+$bu.addEventListener("input",  () => setBubble($bu.value,  "range"));
+$bun.addEventListener("change", () => {                   /* same, for the bubble */
+  setBubble(Math.round(+$bun.value * 100) / 100, "number");
+  $bun.value = BUBBLE_K.toFixed(2);
+});
+
 $sc.addEventListener("input",  () => setScrim($sc.value,  "range"));
 $scn.addEventListener("change", () => {                    /* same, for the scrim */
   setScrim(Math.round(+$scn.value * 100) / 100, "number");
@@ -3530,93 +3750,152 @@ $scn.addEventListener("change", () => {                    /* same, for the scri
 });
 
 /* ── the easing editor ───────────────────────────────────────────────── */
-const bzc = document.getElementById("bzc");
-/* The curve is drawn on a box that runs a little past the unit square on y,
-   so a handle can be dragged into overshoot and still be visible rather than
-   disappearing off the top of its own chart.                              */
+/* ── the easing editors ───────────────────────────────────────────────
+   One implementation, two instances. It used to be written against the
+   camera's canvas and CAM_BEZ directly; the glow now has a curve of its own,
+   and two copies of a drag-and-hit-test editor is exactly the pair that drifts
+   apart. Everything an instance needs is passed in: its canvas, its reset
+   button, how to read and write its four numbers, what to do once they have
+   changed, and the hash key that carries them.                            */
 const BZ_M = 18, BZ_LO = -0.25, BZ_HI = 1.25;
-const bzX = u => BZ_M + u * (bzc.width - 2 * BZ_M);
-const bzY = v => bzc.height - BZ_M
-              - ((v - BZ_LO) / (BZ_HI - BZ_LO)) * (bzc.height - 2 * BZ_M);
-const bzU = px => sat((px - BZ_M) / (bzc.width - 2 * BZ_M));
-const bzV = py => clamp(BZ_LO + (bzc.height - BZ_M - py) /
-                        (bzc.height - 2 * BZ_M) * (BZ_HI - BZ_LO), BZ_LO, BZ_HI);
-function drawBez(){
-  const g = bzc.getContext("2d"), W = bzc.width, H = bzc.height;
-  g.clearRect(0, 0, W, H);
-  /* the unit square, so it is clear where 0 and 1 actually are */
-  g.strokeStyle = "#20202a"; g.lineWidth = 1;
-  for (let i = 0; i <= 4; i++){
-    const u = i / 4;
-    g.beginPath(); g.moveTo(bzX(u), bzY(0)); g.lineTo(bzX(u), bzY(1)); g.stroke();
-    g.beginPath(); g.moveTo(bzX(0), bzY(u)); g.lineTo(bzX(1), bzY(u)); g.stroke();
+function makeBez(o){
+  const c = document.getElementById(o.canvas);
+  /* The curve is drawn on a box that runs a little past the unit square on y,
+     so a handle can be dragged into overshoot and still be visible rather than
+     disappearing off the top of its own chart. */
+  const X = u => BZ_M + u * (c.width - 2 * BZ_M);
+  const Y = v => c.height - BZ_M
+              - ((v - BZ_LO) / (BZ_HI - BZ_LO)) * (c.height - 2 * BZ_M);
+  const U = px => sat((px - BZ_M) / (c.width - 2 * BZ_M));
+  const V = py => clamp(BZ_LO + (c.height - BZ_M - py) /
+                        (c.height - 2 * BZ_M) * (BZ_HI - BZ_LO), BZ_LO, BZ_HI);
+  function draw(){
+    const b = o.get(), g = c.getContext("2d"), W = c.width, H = c.height;
+    g.clearRect(0, 0, W, H);
+    /* the unit square, so it is clear where 0 and 1 actually are */
+    g.strokeStyle = "#20202a"; g.lineWidth = 1;
+    for (let i = 0; i <= 4; i++){
+      const u = i / 4;
+      g.beginPath(); g.moveTo(X(u), Y(0)); g.lineTo(X(u), Y(1)); g.stroke();
+      g.beginPath(); g.moveTo(X(0), Y(u)); g.lineTo(X(1), Y(u)); g.stroke();
+    }
+    const [x1, y1, x2, y2] = b;
+    g.strokeStyle = "#43434f"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(x1), Y(y1)); g.stroke();
+    g.beginPath(); g.moveTo(X(1), Y(1)); g.lineTo(X(x2), Y(y2)); g.stroke();
+    g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath();
+    for (let i = 0; i <= 160; i++){
+      const u = i / 160, v = bezAt(u, b);
+      i ? g.lineTo(X(u), Y(v)) : g.moveTo(X(u), Y(v));
+    }
+    g.stroke();
+    /* anchors small and flat, the draggable handles larger and ringed */
+    g.fillStyle = "#6a6a76";
+    for (const [a, d] of [[0,0],[1,1]]){
+      g.beginPath(); g.arc(X(a), Y(d), 3, 0, 7); g.fill();
+    }
+    for (const [a, d] of [[x1,y1],[x2,y2]]){
+      g.beginPath(); g.arc(X(a), Y(d), 6, 0, 7);
+      g.fillStyle = "#e8b93a"; g.fill();
+      g.strokeStyle = "#1b1b20"; g.lineWidth = 2; g.stroke();
+    }
   }
-  const [x1, y1, x2, y2] = CAM_BEZ;
-  g.strokeStyle = "#43434f"; g.lineWidth = 1;
-  g.beginPath(); g.moveTo(bzX(0), bzY(0)); g.lineTo(bzX(x1), bzY(y1)); g.stroke();
-  g.beginPath(); g.moveTo(bzX(1), bzY(1)); g.lineTo(bzX(x2), bzY(y2)); g.stroke();
-  g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath();
-  for (let i = 0; i <= 160; i++){
-    const u = i / 160, v = bezAt(u, CAM_BEZ);
-    i ? g.lineTo(bzX(u), bzY(v)) : g.moveTo(bzX(u), bzY(v));
+  /* ── dragging the handles ───────────────────────────────────────────
+     Pointer coordinates come in CSS pixels and the canvas has its own backing
+     size, so every event is scaled by the ratio between them — the canvas is
+     laid out at 100% width and its buffer is fixed, so the two are not equal
+     and reading clientX straight would put the handle somewhere else.    */
+  let drag = 0;                     // 0 none, 1 the first handle, 2 the second
+  /* null when the canvas has no size on screen, which is what a collapsed fold
+     leaves behind. Dividing by a zero width gives Infinity, and the clamps
+     downstream accept that quite happily — the handle jumps to a corner rather
+     than throwing, so nothing tells you it went wrong. A real pointer cannot
+     reach a display:none canvas, so this is belt and braces; it costs a line
+     and it removes the whole class. */
+  const point = e => {
+    const r = c.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    return [(e.clientX - r.left) * (c.width / r.width),
+            (e.clientY - r.top)  * (c.height / r.height)];
+  };
+  function move(e){
+    if (!drag) return;
+    const p = point(e); if (!p) return;
+    const [px, py] = p;
+    const i = (drag - 1) * 2, next = o.get().slice();
+    next[i]     = U(px);
+    next[i + 1] = V(py);
+    commit(next);
   }
-  g.stroke();
-  /* anchors small and flat, the draggable handles larger and ringed */
-  g.fillStyle = "#6a6a76";
-  for (const [a, b] of [[0,0],[1,1]]){
-    g.beginPath(); g.arc(bzX(a), bzY(b), 3, 0, 7); g.fill();
+  c.addEventListener("pointerdown", e => {
+    const p = point(e); if (!p) return;
+    const [px, py] = p, b = o.get();
+    drag = Math.hypot(px - X(b[0]), py - Y(b[1]))
+        <= Math.hypot(px - X(b[2]), py - Y(b[3])) ? 1 : 2;
+    c.setPointerCapture(e.pointerId);
+    move(e);
+  });
+  c.addEventListener("pointermove", move);
+  c.addEventListener("pointerup",     () => { drag = 0; });
+  c.addEventListener("pointercancel", () => { drag = 0; });
+  function commit(next){
+    /* A non-finite handle is dropped rather than clamped, because clamp(NaN)
+       is NaN and it would go straight into the render — this piece has already
+       had one NaN reach an exported frame, and a curve is a worse place for it
+       than a filter was. It arises when the canvas is measured at zero width,
+       which the scale in `point` then divides by. Not reachable by pointer
+       while the fold is closed, since a hidden canvas takes no events, but the
+       cost of being sure is a line. */
+    if (next && next.every(v => isFinite(v))) o.set(next.map((v, i) =>
+      i % 2 === 0 ? clamp(v, 0, 1) : clamp(v, BZ_LO, BZ_HI)));
+    draw();
+    o.after();
+    const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+    const d = o.get().map(v => v.toFixed(2)).join(",");
+    d === o.ref.map(v => v.toFixed(2)).join(",") ? h.delete(o.key) : h.set(o.key, d);
+    const q = h.toString();
+    history.replaceState(null, "", q ? "#" + q : location.pathname);
   }
-  for (const [a, b] of [[x1,y1],[x2,y2]]){
-    g.beginPath(); g.arc(bzX(a), bzY(b), 6, 0, 7);
-    g.fillStyle = "#e8b93a"; g.fill();
-    g.strokeStyle = "#1b1b20"; g.lineWidth = 2; g.stroke();
-  }
+  document.getElementById(o.reset).onclick = () => commit(o.ref.slice());
+  return { draw, commit };
 }
-/* ── dragging the handles ─────────────────────────────────────────────
-   Pointer coordinates come in CSS pixels and the canvas has its own backing
-   size, so every event is scaled by the ratio between them — the canvas is
-   laid out at 100% width and its buffer is fixed, so the two are not equal
-   and reading clientX straight would put the handle somewhere else.      */
-let bzDrag = 0;                     // 0 none, 1 the first handle, 2 the second
-function bzPoint(e){
-  const r = bzc.getBoundingClientRect();
-  const sx = bzc.width / r.width, sy = bzc.height / r.height;
-  return [(e.clientX - r.left) * sx, (e.clientY - r.top) * sy];
+/* ── open and close ───────────────────────────────────────────────────
+   The state lives on aria-expanded and the body's `hidden`, so the control
+   and what a screen reader is told cannot disagree — there is no third copy
+   of "is it open" to fall behind. Both start CLOSED, by request. The camera's
+   used to open by default, on the reasoning that it always had and nothing
+   should quietly vanish; with a second chart beside it the pair unfolded made
+   this much the longest group in the panel, and the row itself is the label
+   that says what is behind it. One press each. */
+function makeFold(btnId, bodyId){
+  const b = document.getElementById(btnId), body = document.getElementById(bodyId);
+  b.addEventListener("click", () => {
+    const open = b.getAttribute("aria-expanded") === "true";
+    b.setAttribute("aria-expanded", String(!open));
+    body.hidden = open;
+  });
 }
-function bzNearest(px, py){
-  const d1 = Math.hypot(px - bzX(CAM_BEZ[0]), py - bzY(CAM_BEZ[1]));
-  const d2 = Math.hypot(px - bzX(CAM_BEZ[2]), py - bzY(CAM_BEZ[3]));
-  return d1 <= d2 ? 1 : 2;
-}
-bzc.addEventListener("pointerdown", e => {
-  const [px, py] = bzPoint(e);
-  bzDrag = bzNearest(px, py);
-  bzc.setPointerCapture(e.pointerId);
-  bzMove(e);
+makeFold("bzfold",  "bzwrap");
+makeFold("gbzfold", "gbzwrap");
+
+const camBez = makeBez({
+  canvas: "bzc", reset: "bzreset", key: "bez", ref: CAM_BEZ_REF,
+  get: () => CAM_BEZ,
+  set: v => { CAM_BEZ = v; },
+  after: () => setCam(CAM_SPEED, "bez"),    // rebuilds, re-reads, re-renders
 });
-function bzMove(e){
-  if (!bzDrag) return;
-  const [px, py] = bzPoint(e);
-  const i = (bzDrag - 1) * 2, next = CAM_BEZ.slice();
-  next[i]     = bzU(px);
-  next[i + 1] = bzV(py);
-  setBez(next);
-}
-bzc.addEventListener("pointermove", bzMove);
-bzc.addEventListener("pointerup",   () => { bzDrag = 0; });
-bzc.addEventListener("pointercancel", () => { bzDrag = 0; });
-function setBez(next){
-  if (next) CAM_BEZ = next.map((v, i) =>
-    i % 2 === 0 ? clamp(v, 0, 1) : clamp(v, BZ_LO, BZ_HI));
-  drawBez();
-  setCam(CAM_SPEED, "bez");                 // rebuilds, re-reads, re-renders
-  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-  const d = CAM_BEZ.map(v => v.toFixed(2)).join(",");
-  d === CAM_BEZ_REF.map(v => v.toFixed(2)).join(",") ? h.delete("bez") : h.set("bez", d);
-  const q = h.toString();
-  history.replaceState(null, "", q ? "#" + q : location.pathname);
-}
-document.getElementById("bzreset").onclick = () => setBez(CAM_BEZ_REF.slice());
+const glowBez = makeBez({
+  canvas: "gbzc", reset: "gbzreset", key: "gbez", ref: GLOW_BEZ_REF,
+  get: () => GLOW_BEZ,
+  set: v => { GLOW_BEZ = v; },
+  /* nothing to rebuild — the curve is read per frame straight out of the
+     render, so a held frame just needs repainting and a playing one repaints
+     itself on the next tick */
+  after: () => { if (hold !== null) render(hold); },
+});
+/* the old name, kept because boot calls it to draw the curve and build the
+   camera once the hash has been read */
+function setBez(next){ camBez.commit(next); }
 /* ── editing the answer ─────────────────────────────────────────────────
    The blocks reflow, so the reveal re-derives its lines after every edit. */
 const $a = document.getElementById("ain"), $aw = document.getElementById("awarn");
@@ -4860,6 +5139,11 @@ document.getElementById("seg").addEventListener("change", e => {
   applyQuery();                    // the readout carries the half's own length
   window.play();                   // and playback restarts inside it
 });
+document.getElementById("seg2").addEventListener("change", e => {
+  setSeg2(e.target.value);
+  applyN2();                       // same, for the other piece
+  window.play();
+});
 
 /* ══════════════════ PIECE 2 — prompt / response ══════════════════════════
    192 frames on the same 23.976, 8.008s, and every beat below was read off
@@ -4965,6 +5249,21 @@ const N2_A3_OX = 268, N2_A3_OY = 609;            // and what it scales about
    box's face lifting on f49 — the box is 15.5% of the frame, which is the
    whole of that frame's rise. Separating the two puts the wash back on 49. */
 const N2_FLASH0 = 49, N2_FLASH1 = 52;
+/* Where this piece breaks in two, asked for as "when the button click motion
+   is finished". That lands on 49, and three separate things agree on it: the
+   press's own arithmetic ends at N2_PRESS + 350ms = 48.994, the button's
+   measured scaleX is back to exactly 1.000 by 49 (1.0008 at 48.5), and 49 is
+   N2_FLASH0, where the answer page starts washing in. Not a coincidence —
+   the move is built to wait for the click, so the click's end IS the join.
+   Quoted in the same units segStart/segEnd use, which are clock frames rather
+   than plate frames: t = seg/FPS and fRaw = t*FPS + 1, so a plate frame f
+   after the hold is f - 1 + N2_HOLD.
+   One thing this seam does not clear is the energy blob, which runs 400ms
+   against the press's 350 and is still at 0.199 on 49, gone by 50.5. Ending
+   the prompt half there instead would start the response half half-way
+   through the flash (0.5 by 50.5), which is the worse of the two. */
+const N2_SPLIT_FP  = N2_FLASH0;
+const N2_SPLIT_SEG = N2_SPLIT_FP - 1 + N2_HOLD;
 /* Act 3 starts on 87, not 88: the plate's mean drops from 245.2 to 15.6 between
    86 and 87, and its first act-3 frame is already the wall, smeared. */
 const N2_A2 = 52, N2_A3 = 87;
@@ -5420,7 +5719,17 @@ function render2(t){
   n1El.style.opacity = "1";
   n1El.style.visibility = f >= N2_A2 ? "hidden" : "visible";
 
-  const mt = sat((f - N2_MORPH0) / (N2_MORPH1 - N2_MORPH0));
+  /* In the PROMPT half the morph must not start. The half's seam is the click's
+     end, but its last exported frame lands on plate 48.60 — a fifth of the way
+     into a morph that opens on 48 — and measured there the box had already
+     gone rgb(10,10,10) at face 0.35 to rgb(99,99,101) at 0.742, with the glow
+     down to 0.841 and the send to 0.699. One frame out of 51, and a loud one
+     on a loop, since every other frame of the half is the settled look.
+     Held at zero the half stays in whichever look is on — dark or white — for
+     its whole length, which is what that half is for. The press is untouched:
+     it runs off N2_PRESS on its own clock and finishes inside the half. */
+  const promptOnly = SEG2 === "prompt";
+  const mt = promptOnly ? 0 : sat((f - N2_MORPH0) / (N2_MORPH1 - N2_MORPH0));
   const inMorph = f > N2_MORPH0 && f < N2_A2;
   /* the skin the box starts from — the morph has to lerp out of whichever look
      is on, not out of the dark one it was written against */
@@ -5433,7 +5742,8 @@ function render2(t){
        the morph instead of leaving it pointing at a baked rectangle */
     const cx = n2chip.offsetLeft, cy = n2chip.offsetTop,
           cw = n2chip.offsetWidth, ch = n2chip.offsetHeight;
-    const u = Math.pow(sat((f - N2_MOVE0) / (N2_MOVE1 - N2_MOVE0)), N2_MORPH_P);
+    const u = promptOnly ? 0
+            : Math.pow(sat((f - N2_MOVE0) / (N2_MOVE1 - N2_MOVE0)), N2_MORPH_P);
     const lerp = (a, b) => a + (b - a) * u;
     nbox.style.left   = lerp(NB_L, cx).toFixed(2) + "px";
     nbox.style.top    = lerp(nbT(), cy).toFixed(2) + "px";
@@ -5452,7 +5762,8 @@ function render2(t){
     const fc = i => (F0[i] + ([240, 241, 244][i] - F0[i]) * face).toFixed(0);
     nface.style.background = `rgb(${fc(0)},${fc(1)},${fc(2)})`;
     nface.style.opacity = (FA0 + (1 - FA0) * sat(mt * 4)).toFixed(3);
-    const ring = sat(1 - (f - 48.3) / 1.9);   /* the halo leaves with the box */
+    /* the halo leaves with the box — and stays if the box is not leaving */
+    const ring = promptOnly ? 1 : sat(1 - (f - 48.3) / 1.9);
     nglow.style.opacity = ring.toFixed(3);
     /* Multiply, do not overwrite. The mic rests at 50% and the + at 50% on the
        dark look, and writing a flat 1 here outranked both classes for the whole
@@ -5761,8 +6072,13 @@ function applyN2(){
   fitField($n2q);
   /* the box grows now, so say how far it grew rather than warning that it
      cannot — the row count is the one number that explains both shapes */
+  /* and the half's own length, the way the other piece's readout carries it */
+  const n2Whole = Math.min(segEnd() / FPS, N2_DUR);
+  const n2Half  = n2Whole - segStart() / FPS;
   $n2warn.textContent = `${N2_Q.length} chars`
-                      + (N2_ROWS > 1 ? ` \u00b7 ${N2_ROWS} rows` : "");
+                      + (N2_ROWS > 1 ? ` \u00b7 ${N2_ROWS} rows` : "")
+                      + ` \u00b7 piece ${N2_DUR.toFixed(2)}s`
+                      + (SEG2 === "all" ? "" : ` \u00b7 this half ${n2Half.toFixed(2)}s`);
   render(hold !== null ? hold : 0);
 }
 for (const el of [$n2q, $n2ctx, $n2a, $n2q1, $n2q2, $n2tail]) el.addEventListener("input", applyN2);
@@ -5846,17 +6162,34 @@ function boot(){
     /* isFinite rather than `|| 1`, for the same reason setGlow uses it: 0 is
        a real setting here and the falsy idiom cannot express it. */
     const gv = +Q.get("glow");
-    GLOW_SPEED  = clamp(isFinite(gv) ? gv : 1, GLOW_MIN, GLOW_MAX);
+    GLOW_SPEED  = clamp(isFinite(gv) ? gv : GLOW_DEFAULT, GLOW_MIN, GLOW_MAX);
     $gls.value  = GLOW_SPEED;
     $glsn.value = GLOW_SPEED.toFixed(2);
   }
+  /* and run the setter either way, the way the scrim and the bubble do. It was
+     not called at boot, so the readout under this slider stayed empty until the
+     control was first touched — invisible while the default was 1 and the hint
+     blanked there anyway, and wrong the moment either of those changed. */
+  setGlow(GLOW_SPEED, "boot");
   if (Q.has("scrim")){                       // #scrim=… the bar's plate over footage
     const sv = +Q.get("scrim");
     BAR_SCRIM = clamp(isFinite(sv) ? sv : SCRIM_DEFAULT, 0, 1);
     $sc.value  = BAR_SCRIM;
     $scn.value = BAR_SCRIM.toFixed(2);
   }
+  if (Q.has("bubble")){                      // #bubble=… the AI Mode pill's alpha
+    const bv = +Q.get("bubble");
+    BUBBLE_K   = clamp(isFinite(bv) ? bv : BUBBLE_DEFAULT, 0, 1);
+    $bu.value  = BUBBLE_K;
+    $bun.value = BUBBLE_K.toFixed(2);
+  }
   setScrim(BAR_SCRIM, "boot");               // writes it to the stage either way
+  setBubble(BUBBLE_K, "boot");
+  if (Q.has("gbez")){                        // #gbez=x1,y1,x2,y2 the glow's
+    const d = Q.get("gbez").split(",").map(Number);
+    if (d.length === 4 && d.every(isFinite)) GLOW_BEZ = d;
+  }
+  glowBez.draw();
   if (Q.has("bez")){                         // #bez=x1,y1,x2,y2
     const d = Q.get("bez").split(",").map(Number);
     if (d.length === 4 && d.every(isFinite)) CAM_BEZ = d;
