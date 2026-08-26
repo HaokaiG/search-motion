@@ -45,6 +45,14 @@ Nothing here is judged by eye. Every change goes through the same loop:
   so the caret came back for every frame from f35 to the morph, and again for a
   frame inside it. Two things writing one property, one of them louder. The
   caret is not the morph's business at all; the line is gone.
+- **A double hyphen inside an HTML comment kills the export, not the page.**
+  Writing a CSS custom property's full name in a comment put `--` inside it. HTML
+  is fine with that and the piece rendered normally; the export died with `frame
+  render failed`, because it serialises the DOM into a `<foreignObject>` and the
+  result is re-parsed as XML, where `--` inside a comment is fatal. So a comment
+  can break a build while the thing it comments on still works. The em dashes
+  throughout this file are the convention that avoids it. Audit with
+  `re.finditer(r'<!--(.*?)-->', s, re.S)` and look for `--` in the group.
 - **A revert can undo a fix in a file nobody was looking at.** The premultiply
   in `prPlanes` was put there to cure a blooming glow in the ProRes export, and
   a later full reset — asked for, and about something else entirely — took it
@@ -92,6 +100,21 @@ Nothing here is judged by eye. Every change goes through the same loop:
   smeared past use, but its left stays sharp the whole way — so the scale was
   solved on the left half's line centres, and on the vertical, which carries no
   smear at all. Correlating the whole block returned 0.5 and nonsense.
+- **A fractional power needs a non-negative base, and a guard one step away
+  does not give you one.** The prompt piece's exit smear reads its growth curve
+  half a frame either side — `(f-78.5)**2.25 - (f-79.5)**2.25` — behind a
+  `f > 79` guard. That guard keeps the leading arm positive and says nothing
+  about the trailing one, which is still negative until 79.5, and a fractional
+  power of a negative base is NaN. It went into all nine `feOffset` dx values
+  and the blur, the renderer rejected the attributes, and the smear vanished
+  for that half frame. Clamp the term (`x > 0 ? x**2.25 : 0`) rather than
+  moving the guard to 79.5 — moving it starts the smear half a frame late, and
+  79 is where the curve was measured. Worth knowing how small the blast radius
+  was: swept at 0.01-frame resolution over all 192 frames, old and new differ
+  at exactly 50 points, all in [79, 79.49], and every one of them was a NaN —
+  and **none of the 192 frames an export renders lands there**, so the plate
+  rms cannot move. It was a playback-only defect that announced itself only in
+  the console.
 - **An early return skips the reporting too.** The playback readouts — clock,
   pan, shutter — were written at the end of the search piece's render, and the
   prompt piece returns before it, so all three sat frozen on whatever the other
