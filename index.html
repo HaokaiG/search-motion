@@ -1821,11 +1821,6 @@
       </select>
     </div>
     <button id="vexport">Export MOV · ProRes 4444</button>
-    <!-- one file cannot satisfy both alpha readers, so the reader is chosen
-         here. Premultiplied is the default because the piece is delivered to
-         Google AI Studio, which reads it that way; Straight is the format's
-         own convention and what Premiere, AE and Resolve assume. -->
-    <button id="valpha">MOV Alpha: For AI Studio</button>
     <button id="pexport">Export PNG Sequence</button>
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
     <button id="mexport">Export MP4</button>
@@ -5058,39 +5053,46 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    Alpha goes 8 -> 16 bit as v * 257, so opaque is exactly 65535 rather than
    the 65343 a trip through a 10-bit plane leaves behind.
 
-   BOTH conventions, chosen by the panel's MOV Alpha button, because this
-   question has now gone three rounds and each side of it is a real reader:
+   STRAIGHT — the spec's own convention — because the acceptance test is
+   REAL TRANSPARENCY, and the readers that can show transparency at all
+   (QuickTime, Finder, Premiere, AE, Resolve) read 4444 straight. Handed
+   premultiplied data those scale by alpha a SECOND time, and what that
+   looks like on this piece is exactly "a dark glow around the glow motion":
+   measured, a canvas pixel of (45,130,255) at alpha 57 stored premultiplied
+   as (10,29,57) drew about four times too dark, the halo darkest where the
+   glow's alpha is mid-range.
 
-   PREMULTIPLIED is what Google AI Studio reads, and it is the DEFAULT
-   because that is where this piece is delivered. Handed straight data that
-   reader ADDS the stored colour instead of scaling it, so semi-transparent
-   ink blooms — "the gradient is too thick", the glow with too much radius.
+   This question has now crossed the file in both directions and lands here
+   for good reason. The other reader is Google AI Studio, whose pipeline
+   does not composite the alpha — handed straight data it shows the colour
+   planes and the low-alpha tail reads as extra radius. But a reader that
+   drops alpha cannot show a transparent export EITHER WAY, so it cannot be
+   the acceptance test for one; the MOV serves the readers where
+   transparency exists, and AI Studio gets the piece by other routes.
 
-   STRAIGHT is what 4444 means in the spec and what Premiere, AE and Resolve
-   assume. Handed premultiplied data those scale by alpha a SECOND time:
-   measured on this piece's own glow, a canvas pixel of (45,130,255) at
-   alpha 57 stored premultiplied as (10,29,57) drew about four times too
-   dark, and the box's 35% face and the context line's 60/40/20 rows went
-   with it.
+   Every round of this looked like a glow bug and none of them was: the
+   file was fine each time, and the reader assumed the other convention.
+   Opaque pixels are identical arithmetic in both, so only Transparent: on
+   ever had the question.
 
-   Opaque pixels are identical arithmetic in both conventions, so opaque
-   exports never cared. Only semi-transparent ink — the glows, the washes,
-   the fades — splits the two, which is why every round of this looked like
-   a glow bug and none of them was: the file was fine, the reader assumed
-   the other convention. The button names the reader rather than the maths
-   because the reader is the thing being chosen.
+   AND, because it was asked whether one export could be universal: it was
+   measured, and it cannot. A flattener that shows the colour planes without
+   compositing (AI Studio's pipeline) needs the plane to BE c x alpha —
+   premultiplied — while a compositing reader needs c; one plane cannot hold
+   both, and shaping only the sub-noise-floor tail moved the flattener's
+   picture 4.4%. So a TRANSPARENT export delivers one zip holding both
+   variants, each named for its reader, built from one render pass — the
+   planes are cheap next to the render. An opaque export is one .mov as
+   before, the two conventions being the same arithmetic at alpha 255.
 
-   The noise argument for premultiplying does not need premultiplied storage.
-   A canvas keeps premultiplied bytes and divides on the way out, so at low
-   alpha it returns the division's rounding error — every pixel between alpha
-   1 and 31 spanning the full range per channel. But a straight reader
-   multiplies by that same small alpha when it composites, which scales the
-   error back down itself. It only shows in something that reads the colour
-   without the alpha, like a thumbnail, and it costs size rather than
-   accuracy: a straight frame runs about 63% larger, 893KB against 549KB on
-   frame 20 at 1920x1080. */
-let PR_PREMUL = true;                 /* the MOV Alpha button drives this */
-function prPlanes(rgba, W, H){
+   Within the straight variant, one shaping that costs nothing a straight
+   reader can measure: below alpha 32 the canvas returns un-premultiply
+   rounding noise, not colour, so k eases to zero across that band —
+   bit-exact straight at alpha >= 32, and the straight composite's error
+   below it is bounded at about 8 levels of 255, on pixels whose stored
+   colour was noise. The noise also stops being stored, which is what once
+   bloated straight frames 63% and overran a slice's declared size. */
+function prPlanes(rgba, W, H, premul){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   const stride = mbW * 16, rows = mbH * 16, n = stride * rows;
   const Y = new Uint16Array(n), U = new Uint16Array(n),
@@ -5098,7 +5100,8 @@ function prPlanes(rgba, W, H){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      const k = PR_PREMUL ? rgba[p + 3] / 255 : 1;
+      const a8 = rgba[p + 3];
+      const k = premul ? a8 / 255 : (a8 >= 32 ? 1 : a8 / 32);
       const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
@@ -5174,11 +5177,6 @@ function muxMOV(frames, W, H, timescale, delta){
    qscale itself, so 1 rounds each coefficient to the nearest integer and
    nothing else. This is a mastering export — the size is the point of it. */
 const PR_QSCALE = 1;
-const $va = document.getElementById("valpha");
-$va.onclick = () => {
-  PR_PREMUL = !PR_PREMUL;
-  $va.textContent = "MOV Alpha: " + (PR_PREMUL ? "For AI Studio" : "For editors");
-};
 document.getElementById("vexport").onclick = async () => {
   if (busy) return;
   const W = +document.getElementById("gw").value;
@@ -5192,7 +5190,7 @@ document.getElementById("vexport").onclick = async () => {
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
   const ctx = cvs.getContext("2d", { willReadFrequently: true });
-  const frames = [];
+  const frames = [], framesPre = [];
   let bytes = 0;
   try {
     for (let k = 0; k < n; k++){
@@ -5200,9 +5198,17 @@ document.getElementById("vexport").onclick = async () => {
       render(hold);
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
-      const p = prPlanes(ctx.getImageData(0, 0, W, H).data, W, H);
+      const rgba = ctx.getImageData(0, 0, W, H).data;
+      const p = prPlanes(rgba, W, H, false);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
       frames.push(fr); bytes += fr.length;
+      if (alphaOn){
+        /* the same render, premultiplied, for the reader that shows colour
+           planes without compositing — see prPlanes */
+        const q = prPlanes(rgba, W, H, true);
+        const fp = proresFrame(q.Y, q.U, q.V, q.A, W, H, q.stride, PR_QSCALE);
+        framesPre.push(fp); bytes += fp.length;
+      }
       $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
       await new Promise(r => setTimeout(r, 0));
     }
@@ -5215,11 +5221,40 @@ document.getElementById("vexport").onclick = async () => {
        into the file, and the fix is to use the rate's own denominator. */
     const [ts, dt] = fps === 23.976 ? [24000, 1001]
                                     : [90000, Math.round(90000 / fps)];
-    const blob = new Blob(muxMOV(frames, W, H, ts, dt),
-                          { type: "video/quicktime" });
+    let blob, name;
+    if (alphaOn){
+      /* one zip, both readers: a file per convention plus a note saying
+         which is which, so the deliverable explains itself when unzipped */
+      const cat = parts => { let L=0; for(const x of parts) L+=x.length;
+        const u=new Uint8Array(L); let o=0;
+        for(const x of parts){ u.set(x,o); o+=x.length; } return u; };
+      const note =
+        "search-motion (editors).mov\n" +
+        "  Straight alpha. For QuickTime, Finder, Premiere, After Effects,\n" +
+        "  Resolve - anything that composites the alpha channel. Interpret\n" +
+        "  as straight (their default). Matches the preview exactly.\n\n" +
+        "search-motion (ai studio).mov\n" +
+        "  Premultiplied. For Google AI Studio and anything else that shows\n" +
+        "  the colour without compositing the alpha - the picture there\n" +
+        "  matches the preview over black. In an editor this file draws\n" +
+        "  semi-transparent ink too dark; use the other one.\n";
+      blob = new Blob([zipOf([
+        { name: "search-motion (editors).mov",
+          bytes: cat(muxMOV(frames, W, H, ts, dt)) },
+        { name: "search-motion (ai studio).mov",
+          bytes: cat(muxMOV(framesPre, W, H, ts, dt)) },
+        { name: "which file.txt",
+          bytes: new TextEncoder().encode(note) },
+      ])], { type: "application/zip" });
+      name = "search-motion-mov.zip";
+    } else {
+      blob = new Blob(muxMOV(frames, W, H, ts, dt),
+                      { type: "video/quicktime" });
+      name = "search-motion.mov";
+    }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "search-motion.mov";
+    a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`;

@@ -472,29 +472,52 @@ redistribution question if the file leaves this machine.
   red at the top, blue right, green bottom, yellow left, all four hues matching.
 - Everything is driven by one `render(t)` function off `requestAnimationFrame`.
 
-## The MOV's alpha: the panel chooses the reader
+## The MOV's alpha is straight, and why that is the end of it
 
 ProRes 4444 carries an alpha channel and does not say anywhere in the file which
 convention its colour is in. Straight and premultiplied are the same bytes meaning
-two different pictures, and the two readers this piece has met disagree — so after
-three rounds of this looking like a glow bug (it never was; the file was fine and
-the reader assumed the other convention each time), the writer offers BOTH, on the
-**MOV Alpha** button under the export. It names the reader rather than the maths,
-because the reader is the thing being chosen:
+two different pictures, this piece has met a real reader on each side, and the
+question crossed the file in both directions — every round looking like a glow
+bug, and none of them being one: the file was fine each time, and the reader
+assumed the other convention.
 
-- **For AI Studio** (premultiplied) — the DEFAULT, because that is where this piece
-  is delivered. Verified on a live transparent frame at f70: the glow's canvas
-  pixels break the premultiplied invariant 154,627 times out of 528,919
-  semi-transparent pixels — that excess colour is exactly what AI Studio's reader
-  ADDS, which is the glow coming back with too much radius — and the written planes
-  at this setting break it **0 times in 5,487 sampled**.
-- **For editors** (straight) — the format's own convention, what Premiere, AE and
-  Resolve assume. The section below is the measurement that made it the right
-  answer for those readers, and it still is: premultiplied data in a straight
-  reader is scaled by alpha a second time and lands four to five times too dark.
+The writer is STRAIGHT because the acceptance test is **real transparency**, and
+the readers that can show transparency at all — QuickTime, Finder, Premiere, AE,
+Resolve — read 4444 straight. Premultiplied data in those is scaled by alpha a
+second time, and on this piece that is exactly **"a dark glow around the glow
+motion"**: the halo darkest where the glow's alpha is mid-range, four to five
+times too dark at the measured points.
 
-Opaque pixels are identical arithmetic in both (verified byte-identical planes),
-so only *Transparent: on* ever has the question.
+The other reader is Google AI Studio, and the deciding fact about it: **its
+pipeline does not composite the alpha** — it shows the colour planes. For that
+reader the plane has to BE colour x alpha, premultiplied, while a compositing
+reader needs the colour itself; one plane cannot hold both. Measured rather than
+argued: shaping the sub-noise-floor tail (the most that can be given away without
+a straight reader noticing) moved the flattener's picture by **4.4%**. So a
+**Transparent export delivers one zip holding both variants**, built from the
+same render pass — `search-motion (editors).mov` straight, `search-motion (ai
+studio).mov` premultiplied, and a `which file.txt` that says which goes where, so
+the deliverable explains itself unzipped. An opaque export stays a single `.mov`,
+the two conventions being identical arithmetic at alpha 255. Verified end to end:
+a 14-frame transparent run builds and delivers the zip with both files and the
+note.
+
+Verified on a live transparent frame at f70, through the export's own path: the
+alpha plane carries **real transparency** (zero, semi and opaque regions all
+present — 26,848 / 10,421 / 2,146 in a stride sample), the straight signature is
+intact (1,331 of 5,487 sampled semi pixels keep colour above alpha, which
+premultiplied storage had at 0), and the plane luma round-trips the canvas's
+straight colour at every spot checked — (47,136,255)@60 lands at 125.8 against
+125.7, (0,177,89)@46 at 133.0 exact, (251,66,62)@62 at 105.1 against 105.0.
+
+Within the straight variant, one shaping that costs nothing a straight reader
+can measure: below alpha 32 the canvas returns un-premultiply rounding noise, not
+colour, so the stored colour eases to zero across that band — **bit-exact
+straight at alpha >= 32** (6,419 of 6,419 sampled pixels identical to textbook
+straight), the straight composite's worst error below it **7.0 of 255**, on
+pixels whose colour was noise to begin with. The noise also stops being stored,
+which is what once bloated straight frames 63% and overran a slice's declared
+size.
 
 The history, kept because each half of it is a measurement:
 
@@ -506,9 +529,8 @@ by that alpha a *second* time and drew `(2,6,13)`. Four to five times too dark.
 The box's 35% face and the context line's 60/40/20 rows went the same way, which is
 the other half of it: the colour and opacity of the type not matching the preview.
 
-On the *For editors* setting the file reproduces the preview exactly in a straight
-reader. Same frame, same points, what it composites over black against what the
-preview shows there:
+The file reproduces the preview exactly in a straight reader. Same frame, same
+points, what it composites over black against what the preview shows there:
 
 | | stored | α | reader over black | preview |
 |---|---|---|---|---|
@@ -521,11 +543,12 @@ preview shows there:
 conventions are the same arithmetic, and a frame round-trips `(10,29,57)` →
 `(10,29,57)` either way. Only *Transparent: on* ever had the question.
 
-A reader that expects premultiplied and is handed straight data *adds* the stored
-colour instead of scaling it, so semi-transparent ink blooms — that is what "the
-gradient is too thick" looked like in Google AI Studio both times it was reported.
-One file cannot satisfy both readers, which is exactly why it is a button now and
-not a convention.
+A reader that expects premultiplied — or, as AI Studio turned out to, one that
+shows the colour planes without compositing alpha at all — makes straight data
+bloom: "the gradient is too thick", the glow with too much radius. That pulled the
+file to premultiplied for one round, until the premultiplied file's dark halo and
+the flattener's inability to show transparency either way settled the question
+back on straight, where the readers that CAN show transparency get it right.
 
 Two things worth knowing. The noise argument for premultiplying does not need
 premultiplied *storage*: a canvas keeps premultiplied bytes and divides on the way
