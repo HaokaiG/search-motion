@@ -5077,7 +5077,8 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    planes and the low-alpha tail reads as extra radius. But a reader that
    drops alpha cannot show a transparent export EITHER WAY, so it cannot be
    the acceptance test for one; the MOV serves the readers where
-   transparency exists, and AI Studio gets the piece by other routes.
+   transparency exists, and the route into a flattener is Transparent OFF,
+   which writes alpha 255 on every pixel and so reads the same in both.
 
    Every round of this looked like a glow bug and none of them was: the
    file was fine each time, and the reader assumed the other convention.
@@ -5157,9 +5158,29 @@ function muxMOV(frames, W, H, timescale, delta){
   const ftyp = bx("ftyp", str4("qt  "), b32(0x200), str4("qt  "));
   let mdatLen = 8; for (const f of frames) mdatLen += f.length;
   const mdatHdr = new Uint8Array(8);
+  /* Both the mdat size field and stco's offsets are 32 bit, so past 4 GB the
+     first would truncate and the second would point into the middle of the
+     payload — a file that looks written and plays as garbage. The piece is
+     6.8s and a 1920 transparent export is about 205 MB, so this is nowhere
+     near reachable; it throws rather than corrupts if that ever changes,
+     since the fix then is a 64-bit mdat and co64 rather than a smaller W. */
+  if (mdatLen > 0xFFFFFFFF)
+    throw new Error("movie past 4 GB; needs 64-bit mdat and co64");
   new DataView(mdatHdr.buffer).setUint32(0, mdatLen);
   mdatHdr.set(str4("mdat"), 4);
-  const chunkOffset = ftyp.length + 8;
+  /* FASTSTART: moov BEFORE mdat. The layout was ftyp, mdat, moov, which is
+     legal and is what a progressive writer produces — but it puts the atom
+     that DESCRIBES the movie behind the whole payload, and at 1920 that is
+     hundreds of megabytes. Anything that parses while it reads — a browser,
+     a web tool, a streaming player — has to fetch to the end before it knows
+     the file's shape, and plenty of them simply refuse. Local editors do not
+     care, which is why this was invisible until the export had to travel.
+     The chicken-and-egg is that stco holds the payload's offset, which
+     depends on moov's own size: build it once with a placeholder to learn
+     that size, then again with the real number. stco is a fixed-width field,
+     so the second build is byte-identical in length — asserted below rather
+     than assumed, since a mismatch would corrupt every offset in the file. */
+  const build = chunkOffset => {
   const mvhd = bx("mvhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
                       b32(0x00010000), b16(0x0100), zeros(10), MATRIX, zeros(24), b32(2));
   const tkhd = bx("tkhd", new Uint8Array([0,0,0,3]), b32(0), b32(0), b32(1),
@@ -5192,10 +5213,16 @@ function muxMOV(frames, W, H, timescale, delta){
                              bx("mdia", mdhd, hdlr,
                                     bx("minf", vmhd, dinf,
                                            bx("stbl", stsd, stts, stsc, stsz, stco)))));
+    return moov;
+  };
+  const probe = build(0);
+  const moov  = build(ftyp.length + probe.length + 8);
+  if (moov.length !== probe.length)
+    throw new Error("moov size moved with the offset; stco would be wrong");
   /* the parts, not one buffer: at 1920 this movie runs to hundreds of
      megabytes and Blob will take the pieces, so nothing has to hold a
      second copy of all of it at once */
-  return [ftyp, mdatHdr, ...frames, moov];
+  return [ftyp, moov, mdatHdr, ...frames];
 }
 
 /* Visually lossless: with the default matrices the quantiser step is the
@@ -5245,7 +5272,18 @@ document.getElementById("vexport").onclick = async () => {
     a.download = "search-motion.mov";
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`;
+    /* Which reader this file is for, said at the moment it is written. The
+       question has come back three times as "the glow has too much radius in
+       AI Studio", and it is never the glow: a transparent frame carries a
+       soft tail of bright colour at very low alpha — measured at 320x180,
+       2383 pixels, 4.1% of the frame, under alpha 32 — which a compositing
+       reader fades to nothing and a flattening reader shows at full strength.
+       Turning Transparent off writes alpha 255 on EVERY pixel (measured: min
+       and max both 255 across a whole frame), so that file reads identically
+       in both, which is the route to a flattener. */
+    $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`
+      + (alphaOn ? " · straight alpha, for a compositing reader"
+                 : " · opaque, reads the same everywhere");
   } catch (e){
     $gs.textContent = "failed: " + (e && e.message ? e.message : e);
   } finally {
