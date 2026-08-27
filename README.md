@@ -588,6 +588,63 @@ planes without compositing sees the noise at full strength, and the noise does
 not compress, so a frame runs about 63% larger. Both are the correct price for a
 compositing reader getting the exact picture.
 
+### Making the file travel: faststart, and the route into a flattener
+
+Two separate things decide whether this export works somewhere else — whether
+the container can be **parsed** by a reader that streams, and whether the
+**pixels** mean what that reader assumes. Both were looked at, and only one of
+them turned out to be a fault.
+
+**The container was wrong for anything that parses while it reads.** The layout
+was `ftyp, mdat, moov`, which is legal and is what a progressive writer
+naturally produces — but it puts the atom that *describes* the movie behind the
+whole payload. Parsed out of a real export: `ftyp` at 20, then `mdat` at
+**204,611,301 bytes**, with `moov` last. A browser, a web tool or any streaming
+parser has to fetch past all of that before it knows the file's shape, and
+plenty simply refuse. Local editors do not care, which is why this stayed
+invisible until the export had to travel. It writes **faststart** now — `moov`
+before `mdat` — built by probing once with a placeholder offset to learn `moov`'s
+size and then rebuilding with the real one, with an assert that the second build
+is the same length, since `stco` is fixed-width and a mismatch would corrupt
+every offset in the file.
+
+Verified on the delivered bytes rather than in the writer, and then against
+Apple's own decoder:
+
+| check | result |
+|---|---|
+| box order | `ftyp@0:20`, `moov@20:623`, `mdat@643` — **moov first** |
+| `stco[0]` | **651**, and the bytes there are `icpf` — the first frame exactly |
+| `stsz` sum vs `mdat` payload | 44,129 = 44,129 |
+| frame header byte 25 | `0x02` — 16-bit alpha, reserved nibble clean |
+| `mdls` (AVFoundation) | **"Apple ProRes 4444"**, 160x90, HD (1-1-1) |
+| QuickLook thumbnail, decoded | RGBA, **68.8% fully clear**, 10.5% partial, 20.6% opaque |
+
+That last row is the strongest single result in this file: Apple's own stack
+opened the movie, decoded the ProRes 4444 alpha channel, and handed back graded
+transparency. Added with it, a guard: both the `mdat` size field and `stco`'s
+offsets are 32-bit, so past 4 GB the first would truncate and the second would
+point into the middle of the payload. The piece is 6.8s and a 1920 transparent
+export is about 205 MB, nowhere near it — it throws now rather than corrupting
+if that ever changes.
+
+**The pixels are not a fault, and there is a route that works.** A flattening
+reader like AI Studio shows the colour planes without compositing, so a
+transparent export's soft tail — measured at 320x180, **2,383 pixels, 4.1% of
+the frame, carrying bright colour under alpha 32** — arrives at full strength.
+That is the whole of "the glow has too much radius": colour the alpha would have
+faded to nothing, shown unfaded. Thresholding cannot buy it back; measured, even
+zeroing everything under alpha 32 (a visible **31 of 255** compositing error)
+removes only **14.6%** of what the flattener shows, because most of that picture
+is the real glow at moderate alpha and not the noise band at all.
+
+The route that does work is the one already on the panel. With **Transparent
+off** the export writes alpha **255 on every pixel** — measured across a whole
+frame, min and max both exactly 255, zero partial — so that file reads
+identically in a compositing reader and a flattening one, and AI Studio shows
+what the preview shows. The export's status line says which of the two it just
+wrote, because this question has come back three times and it is never the glow.
+
 The history, kept because each half of it is a measurement:
 
 `prPlanes` had been premultiplying **unconditionally**, and that is what put a dark
