@@ -1741,7 +1741,7 @@
       <button id="bzreset">Reset Curve</button>
     </div>
     <div class="lbl"><label for="gspd">Glow speed</label>
-      <input id="gspdn" type="number" min="0" max="20" step="0.05" value="2.60">
+      <input id="gspdn" type="number" min="0" max="20" step="0.05" value="1.00">
     </div>
     <!-- the readout sits ABOVE the slider here, where the other speeds put
          theirs below. Measured: Camera speed's fold row is 9px under its
@@ -1751,7 +1751,7 @@
          keeps its line, elaborating the number in the field it now sits under
          rather than floating between two rows. -->
     <span class="warn" id="gwarn"></span>
-    <input id="gspd" type="range" min="0" max="4" step="0.05" value="2.6">
+    <input id="gspd" type="range" min="0" max="4" step="0.05" value="1">
     <button class="fold" id="gbzfold" aria-expanded="false" aria-controls="gbzwrap"
             ><i></i>Glow Easing</button>
     <div class="foldbody" id="gbzwrap" hidden>
@@ -2013,17 +2013,20 @@ const BAR_SPIN_DPS = 13.2;
    passed, so the burst has not begun — and it means the bar sits with its
    grey border on and no gradient at all, which is the plate before any of
    this arrives. */
-/* 2.6 by request, where this was 1. It is a multiplier on the two measured
-   dials above, so 1 means "as they were measured" and this is a departure
-   from that — stated here rather than buried, since every other number in
-   this block is the source's.
-   Two things worth knowing at 2.6. The opening finally COMPLETES inside act 1:
-   the burst is 374.9 frames at 1x and 144.2 at 2.6, so starting on 18 it lands
-   on 162.2 against act 1's 162, which it never did before. And because the
-   easing is linear now, the rate really is 2.6x throughout rather than sliding
-   along a decelerating curve — 3.44 deg a frame against 1.32.
-   Back: GLOW_DEFAULT = 1 for the measured pair. */
-const GLOW_DEFAULT = 2.6;
+/* The 2.6 that was the default DIAL value is folded into the BASE, by
+   request — the motion is unchanged and the dial reads 1.00 for it, the same
+   rebase the prompt box's dial got. GLOW_BASE multiplies the dial, so the
+   dial's 1 now means "2.6x the measured pair", which is the piece's look;
+   the measured pair itself is the dial at 0.38 (1/2.6). A #glow= saved
+   before the rebase reads 2.6x faster than it did — the price of
+   renumbering, stated rather than hidden.
+   Two things still true at the base rate. The opening COMPLETES inside act
+   1: the burst is 374.9 frames at the measured pair and 144.2 here, so
+   starting on 18 it lands on 162.2 against act 1's 162. And because the
+   easing is linear, the rate really is uniform — 3.44 deg a frame.
+   Back: GLOW_BASE = 1 for the measured pair on a 1.00 dial. */
+const GLOW_BASE    = 2.6;
+const GLOW_DEFAULT = 1;
 let GLOW_SPEED = GLOW_DEFAULT;
 const GRAD_A0 = 170, GRAD_A1 = 225;                // --gradient-angle
 const MASK_A0 = -90, MASK_A1 = 200;                // --mask-angle
@@ -3383,7 +3386,7 @@ function render(t){
      this rather than the frame, so one number moves the angles, the opacity,
      the border cross-fade and the blur together — a playback rate, not four
      separate dials that could drift out of step. */
-  const glowF = Math.max(0, f - BAR_BURST_F0) * GLOW_SPEED;
+  const glowF = Math.max(0, f - BAR_BURST_F0) * GLOW_SPEED * GLOW_BASE;
   const burst = clamp(glowF / BAR_BURST_F, 0, 1);
   /* The chip's halo takes the blur off the burst at 1x, deliberately NOT off
      glowF. Its turn is pinned to the press and the cut (CHIP_CYCLE_F0..F1),
@@ -3763,9 +3766,10 @@ function setGlow(v, from){
   /* No rebuild: the glow owns no geometry, and nothing downstream reads its
      progress, so its speed cannot change the piece's length the way the
      typing's can. (The old reason given here was that the burst runs 374.9
-     frames, far past act 1 — true at 1x and not at the 2.6 default, where it
-     is 144.2 and lands on 162.2 against act 1's 162. The conclusion holds
-     either way; the reason had to stop depending on the rate.) Nor does this restart the clock, which is what the
+     frames, far past act 1 — true at the measured pair and not at the
+     rebased default (dial 1.00, effective 2.6), where it is 144.2 and lands
+     on 162.2 against act 1's 162. The conclusion holds either way; the
+     reason had to stop depending on the rate.) Nor does this restart the clock, which is what the
      other two do — they change how long the piece runs, so starting over is
      the honest thing there; here it would fling the piece back to frame 0 on
      every tick of a drag. A held frame is repainted; a playing one is
@@ -3774,7 +3778,7 @@ function setGlow(v, from){
      reserved line empty; and 1 is no longer the default anyway, so blanking
      there would have said nothing about the state the piece actually loads
      in. Measured to fit one line at every value from 0.05 to 20. */
-  const dps = BAR_SPIN_DPS * GLOW_SPEED;
+  const dps = BAR_SPIN_DPS * GLOW_SPEED * GLOW_BASE;   // the dial times the base
   $glw.textContent = GLOW_SPEED === 0 ? "frozen — the bar keeps its border"
     : `${dps.toFixed(1)} deg/s after the opening`
       + ` · a lap every ${(360 / dps).toFixed(1)}s`;
