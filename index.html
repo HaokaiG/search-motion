@@ -1322,6 +1322,17 @@
   #hud h3.sub{margin:2px 0 0}
   #hud .warn{text-transform:none;letter-spacing:0;min-height:14px;
        line-height:1.25;font-size:11px}
+  /* The informational readouts are OFF, by request — the char/seconds line
+     under Typing speed, the deg-per-second lines under the two glow dials,
+     the scrim and bubble hints, and the prompt piece's char count. Hidden
+     rather than removed: the code that writes them still runs and is the
+     record of what each control does, so deleting this one rule brings any
+     of them back. What stays visible is different in kind — #awarn and
+     #n2qwarn only speak when something is WRONG (copy that will not fit, a
+     lit phrase that is not in the answer), and #gstat is the export's only
+     progress feedback. Those are not captions. */
+  #hud #twarn, #hud #gwarn, #hud #g2warn,
+  #hud #scrimw, #hud #bubw, #hud #n2warn{display:none}
   #hud #awarn{color:#e0a33a}
   #hud #gstat{color:#7ac0a0;text-transform:none;letter-spacing:0;min-height:14px;
        font-size:11px}
