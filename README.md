@@ -628,6 +628,17 @@ point into the middle of the payload. The piece is 6.8s and a 1920 transparent
 export is about 205 MB, nowhere near it — it throws now rather than corrupting
 if that ever changes.
 
+**The MP4 had the identical fault, and that one matters more.** `muxMP4` shares
+the MOV's box grammar and shared its layout — `ftyp, mdat, moov`, moov last.
+H.264/MP4 is the format a web pipeline is most likely to accept, so it is the
+fallback for any reader that will not take ProRes; a fallback that is itself
+unparseable while streaming leaves nothing that works, which is what "none of
+the exports work over there" looks like from the outside. It is faststart now
+by the same probe-and-rebuild, with the same assert and the same 4 GB guard.
+Verified: `ftyp@0:32`, `moov@32:868`, `mdat@900`, `stco[0]` = **908** landing
+exactly on the payload, the first sample a length-prefixed NAL, and `mdls`
+reporting **"H.264"**, 480x270, 6.875s.
+
 **The pixels are not a fault, and there is a route that works.** A flattening
 reader like AI Studio shows the colour planes without compositing, so a
 transparent export's soft tail — measured at 320x180, **2,383 pixels, 4.1% of
@@ -638,12 +649,72 @@ zeroing everything under alpha 32 (a visible **31 of 255** compositing error)
 removes only **14.6%** of what the flattener shows, because most of that picture
 is the real glow at moderate alpha and not the noise band at all.
 
-The route that does work is the one already on the panel. With **Transparent
-off** the export writes alpha **255 on every pixel** — measured across a whole
-frame, min and max both exactly 255, zero partial — so that file reads
-identically in a compositing reader and a flattening one, and AI Studio shows
-what the preview shows. The export's status line says which of the two it just
-wrote, because this question has come back three times and it is never the glow.
+One route that works without touching the pixels is already on the panel. With
+**Transparent off** the export writes alpha **255 on every pixel** — measured
+across a whole frame, min and max both exactly 255, zero partial — so that file
+reads identically in a compositing reader and a flattening one. The export's
+status line says which of the two it just wrote.
+
+### Alpha: straight or premultiplied, as a dial
+
+Everything above was written while the question was "can ONE file serve both
+readers", and it cannot. But the failure was never actually identified until it
+was: **AI Studio decodes the ProRes 4444 and plays it — only the picture is
+wrong.** That one fact rules out the codec, the container and the file's
+validity together and leaves nothing but the convention, which has a fix, and
+the fix is one line.
+
+ProRes 4444 carries an alpha channel and states **nowhere in the file** which
+convention its colour is in, so the reader has to be told — and the two readers
+want opposite answers. `prPlanes` takes the flag now and the panel carries the
+dial:
+
+| | straight | premultiplied |
+|---|---|---|
+| colour written | as-is | colour x alpha |
+| compositing reader (AE, Premiere, Resolve, QuickTime) | correct by default | correct **if told** to interpret as premultiplied — one standard setting |
+| flattening reader (AI Studio) | glow reads far too wide | **correct** |
+
+The measurement that settles it — profiling across the glow at f40, the plane's
+luma against what the picture over black actually is:
+
+| alpha | straight writes | premultiplied writes | truth over black |
+|---|---|---|---|
+| 11 | **106.3** | 4.7 | 4.6 |
+| 82 | **119.9** | 38.7 | 38.6 |
+| 95 | **149.9** | 55.9 | 55.9 |
+
+Premultiplied tracks the truth to within **0.15 of 255** everywhere, so it is
+not an approximation of the right picture — it *is* the right picture, the same
+arithmetic a compositing reader would do over black. Straight overstates the
+glow's outer tail by more than **20x** at alpha 11, and that overstatement,
+spread round the whole soft edge, is the entire "too much radius". Note how much
+better this does than the thresholding above: **30.1%** off the flattener's lit
+pixel count against thresholding's 14.6%, and at no compositing cost rather than
+31 of 255.
+
+Verified on the delivered file rather than in the writer, by decoding a
+QuickLook thumbnail of each — the premultiplied invariant being that colour may
+never exceed alpha:
+
+| | colour > alpha | worst excess | tail (alpha < 32) shown bright |
+|---|---|---|---|
+| straight | 10.51% of pixels | **254 of 255** | **868 of 868 — 100%** |
+| premultiplied | 0.17% | 9 (chroma rounding) | **0 of 2,528 — 0%** |
+
+Alpha survives intact — the premultiplied file decodes as **"Apple ProRes
+4444"** at 74.1% clear / 20.8% partial / 5.1% opaque — and it is *smaller*, 3.6
+MB against straight's 4.2 at the same 55 frames, because zeroed colour in the
+clear regions compresses where the straight noise floor does not.
+
+**Straight stays the default**: it is what 4444 means, it is what the editors
+assume, and changing it silently would move the meaning of every file already
+made. Opaque pixels are `k = 1` and identical arithmetic either way, so the
+setting is ignored rather than obeyed when Transparent is off, and the hint on
+the control says so. `#pmul=1` carries it. It is a dial and **not a second
+file** deliberately — a premultiplied twin shipped twice before, once as an
+extra export button and once as a zip, and was removed both times by request.
+One `.mov`, written the way its destination reads it.
 
 The history, kept because each half of it is a measurement:
 
