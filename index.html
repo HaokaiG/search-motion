@@ -1820,22 +1820,6 @@
         <option value="60">60 fps</option>
       </select>
     </div>
-    <!-- Which convention the MOV's colour is written in. ProRes 4444 carries
-         an alpha channel and says NOWHERE in the file which of the two it
-         means, so this is the one thing the reader has to be told, and the
-         two readers want opposite answers. Only the MOV reads it: the PNG
-         sequence goes through the browser's own encoder, which is straight
-         by definition. -->
-    <!-- wrapped, like the GIF button: the hint is drawn with ::after on the
-         hovered element, and a <select> is replaced content that will not
-         render pseudo-elements in Chrome -->
-    <span class="why" id="pmulwhy">
-      <select id="pmul">
-        <option value="0" selected>Alpha: Straight · editors</option>
-        <option value="1">Alpha: Premultiplied · flatteners</option>
-        <option value="2">Alpha: Luma matte · any pipeline</option>
-      </select>
-    </span>
     <button id="vexport">Export MOV · ProRes 4444</button>
     <button id="pexport">Export PNG Sequence</button>
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
@@ -4511,20 +4495,9 @@ function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
                   str4("isom"), str4("iso2"), str4("avc1"), str4("mp41"));
   let mdatLen = 8; for (const s of samples) mdatLen += s.length;
   const mdatHdr = new Uint8Array(8);
-  /* 32-bit mdat size and 32-bit stco offsets, same as the MOV next door */
-  if (mdatLen > 0xFFFFFFFF)
-    throw new Error("movie past 4 GB; needs 64-bit mdat and co64");
   new DataView(mdatHdr.buffer).setUint32(0, mdatLen);
   mdatHdr.set(str4("mdat"), 4);
-  /* FASTSTART, for the same reason the MOV has it: moov before mdat, so a
-     reader that parses while it downloads knows the movie's shape from the
-     first few hundred bytes instead of having to reach the end. This one
-     matters MORE than the MOV's, not less — H.264/MP4 is the format a web
-     pipeline is most likely to accept, so it is the fallback when a reader
-     will not take ProRes, and a fallback that is itself unparseable leaves
-     nothing that works. Probe once for moov's size, rebuild with the real
-     offset, assert the length held. */
-  const build = chunkOffset => {
+  const chunkOffset = ftyp.length + 8;          // first sample's byte offset
 
   const mvhd = bx("mvhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
                   b32(0x00010000), b16(0x0100), zeros(10), MATRIX, zeros(24), b32(2));
@@ -4555,19 +4528,13 @@ function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
                      bx("mdia", mdhd, hdlr,
                         bx("minf", vmhd, dinf,
                            bx("stbl", stsd, stts, stss, stsc, stsz, stco)))));
-    return moov;
-  };
-  const probe = build(0);
-  const moov  = build(ftyp.length + probe.length + 8);
-  if (moov.length !== probe.length)
-    throw new Error("moov size moved with the offset; stco would be wrong");
 
-  const out = new Uint8Array(ftyp.length + moov.length + mdatLen);
+  const out = new Uint8Array(ftyp.length + mdatLen + moov.length);
   let o = 0;
   out.set(ftyp, o); o += ftyp.length;
-  out.set(moov, o); o += moov.length;
   out.set(mdatHdr, o); o += 8;
   for (const s of samples){ out.set(s, o); o += s.length; }
+  out.set(moov, o);
   return out;
 }
 
@@ -4711,100 +4678,11 @@ $ab.onclick = () => {
   stage.classList.toggle("has-alpha", alphaOn);
   $ab.textContent = "Transparent: " + (alphaOn ? "On" : "Off");
   syncGifAvailability();
-  syncPremulHint();                // what the alpha dial means moves with it
   chipGapForMode();
   applyQuery();                    // the bar re-derives from the wider gap
   render(hold !== null ? hold : 0);
 };
 syncGifAvailability();             // and set it once for the state it loads in
-
-/* ── straight or premultiplied ───────────────────────────────────────────
-   ProRes 4444 carries an alpha channel and states nowhere in the file which
-   convention its colour is in, and the two readers this piece has actually
-   met want opposite answers:
-
-     straight        colour as-is. A compositing reader (AE, Premiere,
-                     Resolve, QuickTime) scales it by alpha itself and gets
-                     the exact picture. A reader that IGNORES alpha shows
-                     the colour at full strength, so the glow's soft tail —
-                     bright colour at very low alpha — reads as extra radius.
-     premultiplied   colour x alpha, which is the same arithmetic a
-                     compositing reader would do over black. A flattener
-                     then shows the correct falloff. A compositing reader
-                     handed this scales by alpha a SECOND time and draws the
-                     dark halo this file has been round twice before, unless
-                     it is told to interpret as premultiplied — one setting,
-                     standard in all three editors.
-
-   Straight stays the default because it is what 4444 means and what the
-   editors assume; premultiplied is opt-in, for AI Studio and anything else
-   that flattens. This is why the choice is a dial and not a second file:
-   asked for and removed twice, once as an extra export button and once as a
-   zip with a premultiplied twin. One .mov, written the way its destination
-   reads it.                                                              */
-const $pm = document.getElementById("pmul");
-const $pmw = document.getElementById("pmulwhy");
-function syncPremulHint(){
-  if (!alphaOn)
-    $pmw.dataset.why = "Nothing to carry while the frame is opaque — every "
-      + "pixel is alpha 255, identical arithmetic in every convention and a "
-      + "solid white matte. Turn Transparent on for this to do anything.";
-  else if ($pm.value === "2")
-    $pmw.dataset.why = "One frame of double height: the picture on top, the "
-      + "alpha as grey below. The file is OPAQUE, so nothing can strip the "
-      + "matte — it is picture. Use when the destination has no alpha at "
-      + "all, such as AI Studio. Recombine by applying the lower half as a "
-      + "luma matte to the upper. Applies to the MP4 too.";
-  else if ($pm.value === "1")
-    $pmw.dataset.why = "Colour is written as colour x alpha. Correct in a "
-      + "reader that ignores the matte, such as AI Studio. In an editor, set "
-      + "the footage's alpha interpretation to Premultiplied or the soft "
-      + "edges will come out dark.";
-  else
-    $pmw.dataset.why = "Colour is written as-is, the convention 4444 means. "
-      + "Correct in AE, Premiere, Resolve and QuickTime. A reader that "
-      + "ignores the matte will show the glow wider than it is.";
-}
-$pm.onchange = syncPremulHint;
-syncPremulHint();
-
-/* ── the luma matte ──────────────────────────────────────────────────────
-   The last resort, and the only thing that gets a matte through a reader
-   which HAS no alpha. Measured, that is what AI Studio is: it converts RGBA
-   to RGB on ingest — reported against PNG, the format where alpha is least
-   ambiguous — and this browser cannot write the one other transparent video
-   format either, every VP8/VP9/AV1 config with alpha:"keep" answering
-   unsupported while alpha:"discard" answers yes on all of them. So no file
-   can carry a channel that the far end deletes.
-
-   What survives is PICTURE, so the matte is written as picture: one frame of
-   double height, the image on top and the alpha as grey below. Nothing has
-   to preserve anything — it is an ordinary opaque video — and the two halves
-   recombine in any editor (set the lower half as a luma matte on the upper).
-
-   The top half is PREMULTIPLIED rather than straight, deliberately. Straight
-   colour at very low alpha is the noise this file has measured twice: 255/a
-   quantisation, magenta where the glow should be pink, and it would be
-   carried at full strength into a half that gets recombined by division.
-   Premultiplied is the smooth value the canvas actually holds, and a
-   recombining reader multiplies by the matte rather than dividing, so the
-   noise never enters. Opaque output either way — alpha 255 on both halves,
-   since the point is a file with no alpha to lose.                       */
-function matteCompose(src, W, H, dstCtx){
-  const img = dstCtx.createImageData(W, H * 2);
-  const d = img.data, half = W * H * 4;
-  for (let p = 0; p < half; p += 4){
-    const a = src[p + 3];
-    d[p]     = src[p]     * a / 255;      /* clamped array rounds for us */
-    d[p + 1] = src[p + 1] * a / 255;
-    d[p + 2] = src[p + 2] * a / 255;
-    d[p + 3] = 255;
-    d[half + p] = d[half + p + 1] = d[half + p + 2] = a;
-    d[half + p + 3] = 255;
-  }
-  dstCtx.putImageData(img, 0, 0);         /* for anything taking a canvas */
-  return d;                               /* and the pixels, for prPlanes */
-}
 
 document.getElementById("mexport").onclick = async () => {
   if (busy) return;
@@ -4818,22 +4696,9 @@ document.getElementById("mexport").onclick = async () => {
   const fps = +document.getElementById("gfps").value;
   const step = FPS / fps;
   const wasHold = hold;
-  /* The matte belongs here more than it belongs on the MOV: a pipeline that
-     will not take ProRes is exactly the pipeline that needs the matte drawn
-     as picture, and H.264 is what such a pipeline does take. Doubling the
-     height keeps the width at the standard 1920, which the encoder levels
-     and every ingest are happier with than a 3840-wide side-by-side. */
-  const matte = alphaOn && document.getElementById("pmul").value === "2";
-  const EH = matte ? H * 2 : H;               // still even, so 4:2:0 is fine
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
-  const ctx = cvs.getContext("2d", { willReadFrequently: matte });
-  let mcvs = null, mctx = null;
-  if (matte){
-    mcvs = document.createElement("canvas");
-    mcvs.width = W; mcvs.height = EH;
-    mctx = mcvs.getContext("2d", { willReadFrequently: true });
-  }
+  const ctx = cvs.getContext("2d", { willReadFrequently: false });
   const samples = [], sync = [];
   let avcC = null, failed = null;
   try {
@@ -4856,8 +4721,8 @@ document.getElementById("mexport").onclick = async () => {
        ask the encoder which of these it will take for THIS size and rate and
        use the first that answers yes — lowest profile first, so a small
        export still comes out as widely playable as it was.               */
-    const want = { width: W, height: EH, framerate: fps,
-      bitrate: Math.round(clamp(W * EH * fps * 0.25, 2e6, 24e6)),
+    const want = { width: W, height: H, framerate: fps,
+      bitrate: Math.round(clamp(W * H * fps * 0.25, 2e6, 24e6)),
       avc: { format: "avc" } };                // AVCC + avcC, not Annex-B
     let codec = null;
     for (const c of ["avc1.42E01E", "avc1.42E028", "avc1.42E033",
@@ -4867,7 +4732,7 @@ document.getElementById("mexport").onclick = async () => {
         if (r && r.supported){ codec = c; break; }
       } catch (e){ /* an unsupported string throws rather than answering */ }
     }
-    if (!codec) throw new Error(`no H.264 level for ${W}x${EH} at ${fps}fps`);
+    if (!codec) throw new Error(`no H.264 level for ${W}x${H} at ${fps}fps`);
     enc.configure({ ...want, codec });
     const segA = segStart(), segN = Math.ceil((segEnd() - segA) / step);
     for (let k = 0; k < segN; k++){
@@ -4875,9 +4740,8 @@ document.getElementById("mexport").onclick = async () => {
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);          // exact frame, not wherever it had played to
-      await drawStage(ctx, W, H, matte);     // needs the matte to draw it
-      if (matte) matteCompose(ctx.getImageData(0, 0, W, H).data, W, H, mctx);
-      const frame = new VideoFrame(matte ? mcvs : cvs, {
+      await drawStage(ctx, W, H);
+      const frame = new VideoFrame(cvs, {
         timestamp: Math.round(k * 1e6 / fps),
         duration:  Math.round(1e6 / fps)
       });
@@ -4891,7 +4755,7 @@ document.getElementById("mexport").onclick = async () => {
     enc.close();
     if (failed) throw failed;
     if (!avcC) throw new Error("no avcC from the encoder");
-    const mp4 = muxMP4(samples, sync, W, EH, timescale, delta, avcC);
+    const mp4 = muxMP4(samples, sync, W, H, timescale, delta, avcC);
     const blob = new Blob([mp4], { type: "video/mp4" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -5215,6 +5079,8 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    the acceptance test for one; the MOV serves the readers where
    transparency exists, and the route into a flattener is Transparent OFF,
    which writes alpha 255 on every pixel and so reads the same in both.
+   The one concession a transparent file can make to a flattener for free
+   is the colour under alpha 0 — see groundFill below the planes.
 
    Every round of this looked like a glow bug and none of them was: the
    file was fine each time, and the reader assumed the other convention.
@@ -5256,7 +5122,7 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    and that the noise does not compress — a straight frame runs about 63%
    larger. Both are the correct price for a compositing reader getting the
    exact picture. */
-function prPlanes(rgba, W, H, premul){
+function prPlanes(rgba, W, H){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   const stride = mbW * 16, rows = mbH * 16, n = stride * rows;
   const Y = new Uint16Array(n), U = new Uint16Array(n),
@@ -5264,15 +5130,7 @@ function prPlanes(rgba, W, H, premul){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      /* The one line that switches convention. Straight leaves the colour
-         alone and lets the reader scale it; premultiplied bakes the alpha in,
-         which is the SAME arithmetic a compositing reader would do over
-         black — so a reader that then ignores alpha shows the correct
-         picture instead of the colour at full strength. Opaque pixels are
-         k = 1 and identical either way, which is why only Transparent: on
-         ever had this question. */
-      const k = premul ? rgba[p + 3] / 255 : 1;
-      const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
+      const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
       U[q] = (512 + 896 * (b - l) / (255 * 1.8556) + 0.5) | 0;
@@ -5290,6 +5148,33 @@ function prPlanes(rgba, W, H, premul){
     V.set(V.subarray(s, s + stride), d); A.set(A.subarray(s, s + stride), d);
   }
   return { Y, U, V, A, stride };
+}
+
+/* ── the ground under nothing ────────────────────────────────────────────
+   A fully transparent pixel has no colour of its own: the canvas stores
+   premultiplied and un-premultiplies on the way out, so 0/0 comes back 0
+   and the plane under the clear field was BLACK. A compositing reader
+   never sees it — it multiplies that colour by exactly 0 — but a reader
+   that DROPS the matte (AI Studio converts RGBA to RGB on ingest) shows
+   the planes as they are, and the piece appeared on a black ground.
+
+   The colour under alpha 0 is the one thing in a straight file that is
+   genuinely free to choose: any value at all composites identically,
+   with error exactly 0, not merely small. So it is set to the piece's
+   own ground — the same rule drawStage uses for an opaque export, black
+   for piece 2 (whose plate lives on black) and white otherwise — and a
+   flattener now shows the piece on the ground it belongs on.
+
+   ONLY a == 0 is touched. At any a > 0 the colour is the exact quotient
+   a straight reader multiplies back, and darkening it toward the ground
+   is the halo bug this file already had once, measured at up to 6.6/255
+   over the glow's soft edge. The glow reading wide in a flattener is the
+   other, unfixable half of dropping the matte: the band at moderate
+   alpha IS the real glow, at colour a straight file must keep. */
+function groundFill(rgba, ground){
+  for (let p = 0; p < rgba.length; p += 4)
+    if (rgba[p + 3] === 0)
+      rgba[p] = rgba[p + 1] = rgba[p + 2] = ground;
 }
 
 /* ══════════════════════════ the MOV around it ════════════════════════════
@@ -5381,26 +5266,11 @@ document.getElementById("vexport").onclick = async () => {
   const step = FPS / fps;
   const segA = segStart();                    // the chosen half
   const n = Math.ceil((segEnd() - segA) / step);
-  /* Only meaningful with a matte to carry — an opaque frame is k = 1 in
-     every convention and its matte would be solid white, so the setting is
-     ignored rather than obeyed when Transparent is off, and the hint on the
-     control says so. */
-  const mode   = alphaOn ? document.getElementById("pmul").value : "0";
-  const premul = mode === "1";
-  const matte  = mode === "2";
-  const EH     = matte ? H * 2 : H;           // the encoded height
   busy = true;
   const wasHold = hold;
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
   const ctx = cvs.getContext("2d", { willReadFrequently: true });
-  /* the double-height frame the matte is composed into, made once */
-  let mctx = null;
-  if (matte){
-    const mcvs = document.createElement("canvas");
-    mcvs.width = W; mcvs.height = EH;
-    mctx = mcvs.getContext("2d", { willReadFrequently: true });
-  }
   const frames = [];
   let bytes = 0;
   try {
@@ -5410,9 +5280,9 @@ document.getElementById("vexport").onclick = async () => {
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
       const img = ctx.getImageData(0, 0, W, H).data;
-      const px  = matte ? matteCompose(img, W, H, mctx) : img;
-      const p = prPlanes(px, W, EH, premul);
-      const fr = proresFrame(p.Y, p.U, p.V, p.A, W, EH, p.stride, PR_QSCALE);
+      if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
+      const p = prPlanes(img, W, H);
+      const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
       frames.push(fr); bytes += fr.length;
       $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
       await new Promise(r => setTimeout(r, 0));
@@ -5426,7 +5296,7 @@ document.getElementById("vexport").onclick = async () => {
        into the file, and the fix is to use the rate's own denominator. */
     const [ts, dt] = fps === 23.976 ? [24000, 1001]
                                     : [90000, Math.round(90000 / fps)];
-    const blob = new Blob(muxMOV(frames, W, EH, ts, dt),
+    const blob = new Blob(muxMOV(frames, W, H, ts, dt),
                           { type: "video/quicktime" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -5443,10 +5313,8 @@ document.getElementById("vexport").onclick = async () => {
        and max both 255 across a whole frame), so that file reads identically
        in both, which is the route to a flattener. */
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`
-      + (!alphaOn ? " · opaque, reads the same everywhere"
-         : matte   ? ` · ${W}x${EH} luma matte, opaque — recombine downstream`
-         : premul  ? " · premultiplied, for a flattening reader"
-                   : " · straight alpha, for a compositing reader");
+      + (alphaOn ? " · straight alpha, for a compositing reader"
+                 : " · opaque, reads the same everywhere");
   } catch (e){
     $gs.textContent = "failed: " + (e && e.message ? e.message : e);
   } finally {
@@ -6750,11 +6618,6 @@ function boot(){
   }
   glow2Bez.draw();
   setGlow2(N2_GLOW_SPEED, "boot");
-  if (Q.has("pmul")){                        // #pmul=1 premultiplied, 2 matte
-    const v = Q.get("pmul");
-    $pm.value = (v === "1" || v === "2") ? v : "0";
-  }
-  syncPremulHint();                          // and state the hint either way
   if (Q.has("bez")){                         // #bez=x1,y1,x2,y2
     const d = Q.get("bez").split(",").map(Number);
     if (d.length === 4 && d.every(isFinite)) CAM_BEZ = d;

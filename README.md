@@ -628,17 +628,6 @@ point into the middle of the payload. The piece is 6.8s and a 1920 transparent
 export is about 205 MB, nowhere near it — it throws now rather than corrupting
 if that ever changes.
 
-**The MP4 had the identical fault, and that one matters more.** `muxMP4` shares
-the MOV's box grammar and shared its layout — `ftyp, mdat, moov`, moov last.
-H.264/MP4 is the format a web pipeline is most likely to accept, so it is the
-fallback for any reader that will not take ProRes; a fallback that is itself
-unparseable while streaming leaves nothing that works, which is what "none of
-the exports work over there" looks like from the outside. It is faststart now
-by the same probe-and-rebuild, with the same assert and the same 4 GB guard.
-Verified: `ftyp@0:32`, `moov@32:868`, `mdat@900`, `stco[0]` = **908** landing
-exactly on the payload, the first sample a length-prefixed NAL, and `mdls`
-reporting **"H.264"**, 480x270, 6.875s.
-
 **The pixels are not a fault, and there is a route that works.** A flattening
 reader like AI Studio shows the colour planes without compositing, so a
 transparent export's soft tail — measured at 320x180, **2,383 pixels, 4.1% of
@@ -649,125 +638,60 @@ zeroing everything under alpha 32 (a visible **31 of 255** compositing error)
 removes only **14.6%** of what the flattener shows, because most of that picture
 is the real glow at moderate alpha and not the noise band at all.
 
-One route that works without touching the pixels is already on the panel. With
-**Transparent off** the export writes alpha **255 on every pixel** — measured
-across a whole frame, min and max both exactly 255, zero partial — so that file
-reads identically in a compositing reader and a flattening one. The export's
-status line says which of the two it just wrote.
+The route that does work is the one already on the panel. With **Transparent
+off** the export writes alpha **255 on every pixel** — measured across a whole
+frame, min and max both exactly 255, zero partial — so that file reads
+identically in a compositing reader and a flattening one, and AI Studio shows
+what the preview shows. The export's status line says which of the two it just
+wrote, because this question has come back three times and it is never the glow.
 
-### Alpha: straight or premultiplied, as a dial
+### Straight only, with the piece's ground written under nothing
 
-Everything above was written while the question was "can ONE file serve both
-readers", and it cannot. But the failure was never actually identified until it
-was: **AI Studio decodes the ProRes 4444 and plays it — only the picture is
-wrong.** That one fact rules out the codec, the container and the file's
-validity together and leaves nothing but the convention, which has a fix, and
-the fix is one line.
+**By request the export writes one convention: straight.** A dial that briefly
+offered premultiplied and a luma matte was built, measured, and then removed —
+both variants live in the history (`4e27720`, `b88bfb1`) with their numbers if a
+destination ever needs them back.
 
-ProRes 4444 carries an alpha channel and states **nowhere in the file** which
-convention its colour is in, so the reader has to be told — and the two readers
-want opposite answers. `prPlanes` takes the flag now and the panel carries the
-dial:
+What a flattener made of a straight file was two symptoms: **the background came
+out black, and the glow read too wide.** They are not the same problem. The
+background is the colour under alpha 0 — the canvas stores premultiplied and
+returns `0/0` as 0, so the plane under the clear field was black, and a reader
+that drops the matte showed it. That colour is the one thing in a straight file
+that is **free to choose**: a compositing reader multiplies it by exactly 0, so
+any value composites identically — error zero, not merely small. `groundFill`
+now writes the piece's own ground there (white; black for piece 2, whose plate
+lives on black — the same rule `drawStage` uses for an opaque export), and only
+at `a == 0`: at any `a > 0` the colour is the exact quotient a straight reader
+multiplies back, and touching it is the halo bug this file already had once.
 
-| | straight | premultiplied |
+Measured at 480x270, f40, against the piece over its true ground — what a
+flattener shows before and after:
+
+| | mean error | pixels exact |
 |---|---|---|
-| colour written | as-is | colour x alpha |
-| compositing reader (AE, Premiere, Resolve, QuickTime) | correct by default | correct **if told** to interpret as premultiplied — one standard setting |
-| flattening reader (AI Studio) | glow reads far too wide | **correct** |
+| before (black under clear) | **224.4 of 255** | 4.7% |
+| after (ground under clear) | **43.0** | **75.9%** |
 
-The measurement that settles it — profiling across the glow at f40, the plane's
-luma against what the picture over black actually is:
+Proven at the plane level on the export path: the clear field's Y goes **64 to
+940** (black to white in 10-bit video range), a semi pixel is bit-unchanged
+(492 = 492), **92,230 plane samples changed and zero of them sit outside
+alpha 0**, and the alpha plane is bit-identical. On the delivered file the
+alpha statistics are unchanged (74.1% clear / 20.8% partial / 5.1% opaque) and
+the size moves 4.24 to 4.29 MB. The opaque export is untouched at 2.89 MB —
+`groundFill` is skipped entirely when Transparent is off. One measurement
+caveat recorded for the next reader: a QuickLook thumbnail **cannot** verify
+this, because Apple's PNG round-trip un-premultiplies and `0/0` collapses to
+0 — the colour under alpha 0 never survives into a thumbnail; the plane-level
+check is the honest one.
 
-| alpha | straight writes | premultiplied writes | truth over black |
-|---|---|---|---|
-| 11 | **106.3** | 4.7 | 4.6 |
-| 82 | **119.9** | 38.7 | 38.6 |
-| 95 | **149.9** | 55.9 | 55.9 |
-
-Premultiplied tracks the truth to within **0.15 of 255** everywhere, so it is
-not an approximation of the right picture — it *is* the right picture, the same
-arithmetic a compositing reader would do over black. Straight overstates the
-glow's outer tail by more than **20x** at alpha 11, and that overstatement,
-spread round the whole soft edge, is the entire "too much radius". Note how much
-better this does than the thresholding above: **30.1%** off the flattener's lit
-pixel count against thresholding's 14.6%, and at no compositing cost rather than
-31 of 255.
-
-Verified on the delivered file rather than in the writer, by decoding a
-QuickLook thumbnail of each — the premultiplied invariant being that colour may
-never exceed alpha:
-
-| | colour > alpha | worst excess | tail (alpha < 32) shown bright |
-|---|---|---|---|
-| straight | 10.51% of pixels | **254 of 255** | **868 of 868 — 100%** |
-| premultiplied | 0.17% | 9 (chroma rounding) | **0 of 2,528 — 0%** |
-
-Alpha survives intact — the premultiplied file decodes as **"Apple ProRes
-4444"** at 74.1% clear / 20.8% partial / 5.1% opaque — and it is *smaller*, 3.6
-MB against straight's 4.2 at the same 55 frames, because zeroed colour in the
-clear regions compresses where the straight noise floor does not.
-
-**Straight stays the default**: it is what 4444 means, it is what the editors
-assume, and changing it silently would move the meaning of every file already
-made. Opaque pixels are `k = 1` and identical arithmetic either way, so the
-setting is ignored rather than obeyed when Transparent is off, and the hint on
-the control says so. `#pmul=1` carries it. It is a dial and **not a second
-file** deliberately — a premultiplied twin shipped twice before, once as an
-extra export button and once as a zip, and was removed both times by request.
-One `.mov`, written the way its destination reads it.
-
-### The luma matte, for a reader with no alpha at all
-
-Premultiplied fixed the *picture* in AI Studio and the export was still not
-transparent there, which finally pinned down what that reader is: **it has no
-alpha channel at all.** Three findings, and the last is the one that settles it:
-
-- **The file is transparent.** Apple's decoder pulls a real graded matte out of
-  the exported MOV — 74.1% fully clear, 20.8% partial — verified on the
-  delivered bytes.
-- **There is no other transparent video to offer.** Tested against this
-  browser's encoder: VP8, VP9 (two profiles) and AV1 **all report
-  `alpha:"keep"` unsupported**, while `alpha:"discard"` is supported on every
-  one of them. WebM/VP9-with-alpha, the web's only other transparent video
-  format, cannot be written from here.
-- **Google's pipeline converts RGBA to RGB on ingest** — reported against
-  **PNG**, the format where alpha is least ambiguous and universally supported.
-  A channel the far end deletes cannot be carried by any file, in any codec.
-
-So the matte is written as the one thing that always survives: **picture**. One
-frame of double height — the image on top, the alpha as grey below — and the
-file itself fully **opaque**, because a file with no alpha has no alpha to lose.
-The two halves recombine anywhere by applying the lower as a luma matte to the
-upper.
-
-The top half is **premultiplied rather than straight**, deliberately: straight
-colour at very low alpha is the 255/a quantisation noise measured twice already
-(magenta where the glow should be pink), and it would be carried at full
-strength into a half that a recombining reader divides by. Premultiplied is the
-smooth value the canvas actually holds, and recombination multiplies by the
-matte instead of dividing, so the noise never enters.
-
-**It applies to the MP4 too**, and that is the point of it — a pipeline that
-will not take ProRes is exactly the pipeline that needs the matte drawn as
-picture, and H.264 is what such a pipeline does take. Height doubles rather
-than width so the frame stays 1920 wide, which the encoder levels and every
-ingest prefer to a 3840-wide side-by-side; `2H` is always even, so 4:2:0 is
-unaffected.
-
-Verified on both delivered files, decoded by Apple's own stack:
-
-| check | result |
-|---|---|
-| codec / size | **"Apple ProRes 4444"** and **"H.264"**, both 480x540 from a 480x270 export |
-| whole frame opaque | alpha min **255**, max **255** — nothing to strip |
-| lower half is a true matte | worst channel spread **0** — `r == g == b` on every sample |
-| the matte is real, not flat | range **0..255**, 75.0% clear / 4.8% solid / 20.2% partial, matching the alpha channel's own 74.1 / 5.1 / 20.8 |
-| top half really premultiplied | **0 samples** lit where the matte reads clear |
-
-Regression-checked at the same time: with Transparent **off** the matte is
-ignored rather than obeyed (2.89 MB, byte-identical to the opaque baseline), and
-straight is unmoved at 4.24 MB. `#pmul=2` carries it, and the status line names
-the composed size — `480x540 luma matte, opaque — recombine downstream`.
+**The glow reading wide has no in-file fix at straight, and the residual is
+quantified rather than hidden:** the error that remains lives entirely in the
+partial band (24.3% of that frame, mean error 176.9), and only 16% of that band
+is the low-alpha noise — the rest is the real glow and the bar's 20% scrim,
+whose straight colour a flattener shows at full strength. The bar's plate in
+particular reads near-black there instead of 20% grey. That is what dropping
+the matte does to straight data; the faithful AI Studio view remains the
+opaque export (or the MP4), with the transparent MOV reserved for editors.
 
 The history, kept because each half of it is a measurement:
 
