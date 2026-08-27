@@ -716,6 +716,59 @@ file** deliberately — a premultiplied twin shipped twice before, once as an
 extra export button and once as a zip, and was removed both times by request.
 One `.mov`, written the way its destination reads it.
 
+### The luma matte, for a reader with no alpha at all
+
+Premultiplied fixed the *picture* in AI Studio and the export was still not
+transparent there, which finally pinned down what that reader is: **it has no
+alpha channel at all.** Three findings, and the last is the one that settles it:
+
+- **The file is transparent.** Apple's decoder pulls a real graded matte out of
+  the exported MOV — 74.1% fully clear, 20.8% partial — verified on the
+  delivered bytes.
+- **There is no other transparent video to offer.** Tested against this
+  browser's encoder: VP8, VP9 (two profiles) and AV1 **all report
+  `alpha:"keep"` unsupported**, while `alpha:"discard"` is supported on every
+  one of them. WebM/VP9-with-alpha, the web's only other transparent video
+  format, cannot be written from here.
+- **Google's pipeline converts RGBA to RGB on ingest** — reported against
+  **PNG**, the format where alpha is least ambiguous and universally supported.
+  A channel the far end deletes cannot be carried by any file, in any codec.
+
+So the matte is written as the one thing that always survives: **picture**. One
+frame of double height — the image on top, the alpha as grey below — and the
+file itself fully **opaque**, because a file with no alpha has no alpha to lose.
+The two halves recombine anywhere by applying the lower as a luma matte to the
+upper.
+
+The top half is **premultiplied rather than straight**, deliberately: straight
+colour at very low alpha is the 255/a quantisation noise measured twice already
+(magenta where the glow should be pink), and it would be carried at full
+strength into a half that a recombining reader divides by. Premultiplied is the
+smooth value the canvas actually holds, and recombination multiplies by the
+matte instead of dividing, so the noise never enters.
+
+**It applies to the MP4 too**, and that is the point of it — a pipeline that
+will not take ProRes is exactly the pipeline that needs the matte drawn as
+picture, and H.264 is what such a pipeline does take. Height doubles rather
+than width so the frame stays 1920 wide, which the encoder levels and every
+ingest prefer to a 3840-wide side-by-side; `2H` is always even, so 4:2:0 is
+unaffected.
+
+Verified on both delivered files, decoded by Apple's own stack:
+
+| check | result |
+|---|---|
+| codec / size | **"Apple ProRes 4444"** and **"H.264"**, both 480x540 from a 480x270 export |
+| whole frame opaque | alpha min **255**, max **255** — nothing to strip |
+| lower half is a true matte | worst channel spread **0** — `r == g == b` on every sample |
+| the matte is real, not flat | range **0..255**, 75.0% clear / 4.8% solid / 20.2% partial, matching the alpha channel's own 74.1 / 5.1 / 20.8 |
+| top half really premultiplied | **0 samples** lit where the matte reads clear |
+
+Regression-checked at the same time: with Transparent **off** the matte is
+ignored rather than obeyed (2.89 MB, byte-identical to the opaque baseline), and
+straight is unmoved at 4.24 MB. `#pmul=2` carries it, and the status line names
+the composed size — `480x540 luma matte, opaque — recombine downstream`.
+
 The history, kept because each half of it is a measurement:
 
 `prPlanes` had been premultiplying **unconditionally**, and that is what put a dark
