@@ -472,7 +472,57 @@ redistribution question if the file leaves this machine.
   red at the top, blue right, green bottom, yellow left, all four hues matching.
 - Everything is driven by one `render(t)` function off `requestAnimationFrame`.
 
-## The MOV's alpha is straight, and why that is the end of it
+## Checked against Apple's own description of ProRes 4444
+
+Every claim in Apple's spec sheet, against what this writer actually produces,
+measured rather than asserted:
+
+| Apple says | this export | evidence |
+|---|---|---|
+| 4:4:4:4 sources, **including alpha** | yes | `chroma_format = 3`, `alpha_channel_type = 2`, both parsed back out of a built file; AVFoundation reports the result as **Apple ProRes 4444** |
+| **full-resolution** 4:4:4:4 | yes | no subsampling anywhere — Y, Cb and Cr all written at native 1920x1080 |
+| **mastering-quality** colour, **perceptually indistinguishable** | yes, and better than that | `qscale 1` against an FDCT scaled 4x orthonormal makes the quantiser "round each coefficient to the nearest integer" and nothing more. Round-tripped through an independent orthonormal DCT/IDCT on 240 real blocks: **85.2 dB PSNR**, RMSE 0.056 of 1023 code values, worst error **0.27 of one 8-bit level**. Numerically lossless for 8-bit source, not merely perceptually |
+| **mathematically lossless alpha, up to 16 bits** | yes | 16-bit storage (`v * 257`, so 255 maps to exactly 65535, not the 65343 a 10-bit trip leaves). Run/delta coded with no transform, and **150 real slices round-tripped through an independent decoder with 0 mismatches** |
+| excellent **multigeneration** performance | follows | a re-encode quantises coefficients already at integer values, so generation two is a fixed point to within the same rounding |
+| **remarkably low data rate** vs uncompressed 4:4:4 HD | yes | uncompressed 4:4:4 10-bit is 1,864 Mbps and with a 16-bit alpha 2,859; this writes **75 Mbps opaque (24.7x smaller)** and **148 Mbps transparent (19.3x smaller)** |
+| target **~330 Mbps** at 1920x1080 / 29.97 | below it, correctly | 75 and 148 Mbps at that rate. ProRes is variable-bitrate and 330 is what Apple's encoder lands on for typical camera material; this piece is synthetic graphics — large flat fields and smooth gradients — which genuinely needs fewer bits. The quantiser is already at its finest setting, so the gap is content, not lost detail, and the PSNR row is the proof |
+| direct encode/decode to **RGB and Y'CbCr** | Y'CbCr written | RGB is converted to BT.709 Y'CbCr at 10-bit video range (64..940), which is what ProRes 4444 decoders expect; a decoder is free to hand back either pixel format |
+
+One honest gap: the alpha channel is **16-bit storage carrying 8-bit precision**,
+because the source is an 8-bit canvas. The channel is lossless and full-width —
+there is simply no more precision upstream to put in it.
+
+## The MOV's alpha channel, verified end to end
+
+"Not transparent in output" was reported against a file whose pixel data was
+fine, so the whole chain got tested rather than argued about, link by link:
+
+| link | test | result |
+|---|---|---|
+| the render | alpha in the export canvas | **68.4%** fully transparent, 25% semi, 6.6% opaque |
+| the planes | zero / semi / opaque all present | yes, all three |
+| the alpha codec | 150 real slices encoded then read back by an independent decoder | **0 mismatches**, 96 slices fully transparent |
+| the frame header | parsed out of a built movie | `alpha_channel_type = 2` (16-bit) |
+| the container | `ap4h` sample entry parsed back | `depth = 32`, the has-alpha signal |
+
+One link was wrong, and it is the kind that produces exactly this symptom.
+Frame-header byte 25 carried **`0x42`**: the low nibble is `alpha_channel_type`
+and its 2 was always right, but the **high nibble is reserved and must be
+zero** — it held a stray 4. FFmpeg reads the field as `buf[17] & 0xf` and never
+noticed, which is why the file decodes here and in everything built on FFmpeg;
+a decoder that validates reserved bits may reject the frame or fall through to
+a no-alpha path, and a reader that concludes "no alpha" is precisely a reader
+that shows the export as not transparent. It writes `0x02` now, verified in a
+parsed export.
+
+**How to tell a real failure from a viewer's ground.** QuickTime Player and
+Finder composite ProRes 4444 alpha over **black** — a black background there is
+the player's ground, not a missing alpha channel. The honest tests are dropping
+the file over other footage in Premiere, After Effects or Resolve (interpret as
+straight, their default), or exporting the same frames as a PNG sequence, which
+uses the browser's own encoder and is ground truth for what the render contains.
+
+### The convention: straight, and why that is the end of it
 
 ProRes 4444 carries an alpha channel and does not say anywhere in the file which
 convention its colour is in. Straight and premultiplied are the same bytes meaning
@@ -493,14 +543,16 @@ pipeline does not composite the alpha** — it shows the colour planes. For that
 reader the plane has to BE colour x alpha, premultiplied, while a compositing
 reader needs the colour itself; one plane cannot hold both. Measured rather than
 argued: shaping the sub-noise-floor tail (the most that can be given away without
-a straight reader noticing) moved the flattener's picture by **4.4%**. So a
-**Transparent export delivers one zip holding both variants**, built from the
-same render pass — `search-motion (editors).mov` straight, `search-motion (ai
-studio).mov` premultiplied, and a `which file.txt` that says which goes where, so
-the deliverable explains itself unzipped. An opaque export stays a single `.mov`,
-the two conventions being identical arithmetic at alpha 255. Verified end to end:
-a 14-frame transparent run builds and delivers the zip with both files and the
-note.
+a straight reader noticing) moved the flattener's picture by **4.4%**. A
+transparent export briefly delivered a zip with a premultiplied twin for that
+reader; **it is one `.mov` again, straight, by request** — transparency being the
+acceptance test, and compositing readers being where transparency exists. In AI
+Studio this file's glow will read wide; that is the flattener showing colour
+where alpha would have faded it, and `k = a8/255` in `prPlanes` is the one-line
+premultiplied variant if a flattener destination ever needs its own file.
+Verified end to end after the zip's removal: a 14-frame transparent run delivers
+the single `.mov` with a genuinely transparent alpha plane (zero, semi and
+opaque regions all present) and a worst straight-composite error of 7.0 of 255.
 
 Verified on a live transparent frame at f70, through the export's own path: the
 alpha plane carries **real transparency** (zero, semi and opaque regions all
@@ -510,14 +562,31 @@ premultiplied storage had at 0), and the plane luma round-trips the canvas's
 straight colour at every spot checked — (47,136,255)@60 lands at 125.8 against
 125.7, (0,177,89)@46 at 133.0 exact, (251,66,62)@62 at 105.1 against 105.0.
 
-Within the straight variant, one shaping that costs nothing a straight reader
-can measure: below alpha 32 the canvas returns un-premultiply rounding noise, not
-colour, so the stored colour eases to zero across that band — **bit-exact
-straight at alpha >= 32** (6,419 of 6,419 sampled pixels identical to textbook
-straight), the straight composite's worst error below it **7.0 of 255**, on
-pixels whose colour was noise to begin with. The noise also stops being stored,
-which is what once bloated straight frames 63% and overran a slice's declared
-size.
+**No shaping — pure straight, every pixel**, and the reasoning is worth keeping
+because a "harmless" shaping was tried here and produced a visible fault.
+
+Below alpha 32 the canvas hands back what looks like noise: it stores
+premultiplied and divides on the way out, so the un-premultiplied colour can
+only land on multiples of 255/a — at alpha 1 that is 0 or 255 per channel and
+nothing between, which is why the glow's outer tail reads magenta rather than
+pink. Easing that colour toward zero across the band looked free. **It was not.**
+A straight reader composites c x a, and c x a / 255 recovers the smooth
+premultiplied value the canvas actually holds — the coarse c is not error, it is
+the exact quotient, and multiplying by a puts the smooth number back. Darkening
+c therefore darkens real signal, and around the glow's whole soft edge that
+deficit is a faint dark ring: **"a weird slightly not transparent glow around the
+actual gradient glow."**
+
+Measured, over white, on 5,695 semi-transparent samples: the shaping darkened the
+composite by up to **6.6 of 255** (alpha 18 landing 244.8 where it should be
+250.8, alpha 10 landing 246.7 against 250.3). Removed, the stored planes
+composite to within **0.14 of 255** of the canvas over white and over black
+alike — bit-exact to rounding.
+
+The costs of pure straight, accepted knowingly: a reader that shows the colour
+planes without compositing sees the noise at full strength, and the noise does
+not compress, so a frame runs about 63% larger. Both are the correct price for a
+compositing reader getting the exact picture.
 
 The history, kept because each half of it is a measurement:
 

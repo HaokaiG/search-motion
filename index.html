@@ -5035,7 +5035,16 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
   out[o + 12] = 3 << 6;                          /* 4:4:4, progressive */
   out[o + 13] = 0;
   out[o + 14] = 1; out[o + 15] = 1; out[o + 16] = 1;   /* BT.709 throughout */
-  out[o + 17] = 0x40 | 2;                        /* 16-bit alpha */
+  /* 0x02, not 0x42. The low nibble is alpha_channel_type — 2 is 16-bit
+     alpha, and that has always been right. The HIGH nibble is reserved and
+     must be zero; it carried a stray 4. FFmpeg reads this as `buf[17] & 0xf`
+     and never noticed, which is why the file decodes here and in anything
+     built on it, but a decoder that validates reserved bits is entitled to
+     reject the frame or fall through to a no-alpha path — and a reader that
+     concludes "no alpha" is exactly a reader that shows the export as not
+     transparent. Verified in a parsed export: byte 25 now reads 0x02, with
+     alpha_channel_type still 2. */
+  out[o + 17] = 2;                               /* 16-bit alpha */
   out[o + 18] = 0; out[o + 19] = 0;              /* default quant matrices */
   o += 20;
   out[o] = 8 << 3;                               /* picture header size */
@@ -5075,24 +5084,42 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    Opaque pixels are identical arithmetic in both, so only Transparent: on
    ever had the question.
 
-   AND, because it was asked whether one export could be universal: it was
-   measured, and it cannot. A flattener that shows the colour planes without
-   compositing (AI Studio's pipeline) needs the plane to BE c x alpha —
-   premultiplied — while a compositing reader needs c; one plane cannot hold
-   both, and shaping only the sub-noise-floor tail moved the flattener's
-   picture 4.4%. So a TRANSPARENT export delivers one zip holding both
-   variants, each named for its reader, built from one render pass — the
-   planes are cheap next to the render. An opaque export is one .mov as
-   before, the two conventions being the same arithmetic at alpha 255.
+   ONE FILE, by request — a transparent export briefly delivered a zip with
+   a premultiplied twin for AI Studio's flattener, and it is gone: one .mov,
+   straight, transparency being the acceptance test and compositing readers
+   being where transparency exists. The measurement that stands behind the
+   choice: a flattener that shows the colour planes without compositing
+   needs the plane to BE c x alpha while a compositing reader needs c, one
+   plane cannot hold both, and shaping the sub-noise-floor tail — the most
+   that can be conceded without a straight reader noticing — moved the
+   flattener's picture 4.4%. In AI Studio this file's glow will read wide;
+   that is the flattener showing colour where alpha would have faded it,
+   and k = a8 / 255 below is the one-line premultiplied variant if a
+   flattener destination ever needs its own file.
 
-   Within the straight variant, one shaping that costs nothing a straight
-   reader can measure: below alpha 32 the canvas returns un-premultiply
-   rounding noise, not colour, so k eases to zero across that band —
-   bit-exact straight at alpha >= 32, and the straight composite's error
-   below it is bounded at about 8 levels of 255, on pixels whose stored
-   colour was noise. The noise also stops being stored, which is what once
-   bloated straight frames 63% and overran a slice's declared size. */
-function prPlanes(rgba, W, H, premul){
+   NO SHAPING. Pure straight, every pixel, and the reasoning is worth
+   keeping because a "harmless" shaping was tried here and produced a
+   visible fault.
+   The tempting observation is that below alpha 32 the canvas hands back
+   noise: it stores premultiplied and divides on the way out, so the
+   un-premultiplied colour can only land on multiples of 255/a — at alpha 1
+   that is 0 or 255 per channel and nothing between, which is why the
+   glow's outer tail reads as magenta rather than pink. Easing that colour
+   toward zero across the band looks free.
+   It is not. A straight reader composites c * a, and c * a / 255 recovers
+   the SMOOTH premultiplied value the canvas actually holds — the coarse c
+   is not error, it is the exact quotient, and multiplying it by a puts the
+   smooth number back. Darkening c therefore darkens real signal: at alpha
+   16 the shaping halved it, and over a light background the composite went
+   246.8 where it should be 254.5. That deficit, spread around the glow's
+   whole soft edge, is a faint dark ring — "a weird slightly not transparent
+   glow around the actual gradient glow".
+   So the colour goes out untouched. The cost is that a reader which shows
+   the colour planes WITHOUT compositing sees the noise at full strength,
+   and that the noise does not compress — a straight frame runs about 63%
+   larger. Both are the correct price for a compositing reader getting the
+   exact picture. */
+function prPlanes(rgba, W, H){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   const stride = mbW * 16, rows = mbH * 16, n = stride * rows;
   const Y = new Uint16Array(n), U = new Uint16Array(n),
@@ -5100,9 +5127,7 @@ function prPlanes(rgba, W, H, premul){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      const a8 = rgba[p + 3];
-      const k = premul ? a8 / 255 : (a8 >= 32 ? 1 : a8 / 32);
-      const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
+      const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
       U[q] = (512 + 896 * (b - l) / (255 * 1.8556) + 0.5) | 0;
@@ -5190,7 +5215,7 @@ document.getElementById("vexport").onclick = async () => {
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
   const ctx = cvs.getContext("2d", { willReadFrequently: true });
-  const frames = [], framesPre = [];
+  const frames = [];
   let bytes = 0;
   try {
     for (let k = 0; k < n; k++){
@@ -5198,17 +5223,9 @@ document.getElementById("vexport").onclick = async () => {
       render(hold);
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
-      const rgba = ctx.getImageData(0, 0, W, H).data;
-      const p = prPlanes(rgba, W, H, false);
+      const p = prPlanes(ctx.getImageData(0, 0, W, H).data, W, H);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
       frames.push(fr); bytes += fr.length;
-      if (alphaOn){
-        /* the same render, premultiplied, for the reader that shows colour
-           planes without compositing — see prPlanes */
-        const q = prPlanes(rgba, W, H, true);
-        const fp = proresFrame(q.Y, q.U, q.V, q.A, W, H, q.stride, PR_QSCALE);
-        framesPre.push(fp); bytes += fp.length;
-      }
       $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
       await new Promise(r => setTimeout(r, 0));
     }
@@ -5221,40 +5238,11 @@ document.getElementById("vexport").onclick = async () => {
        into the file, and the fix is to use the rate's own denominator. */
     const [ts, dt] = fps === 23.976 ? [24000, 1001]
                                     : [90000, Math.round(90000 / fps)];
-    let blob, name;
-    if (alphaOn){
-      /* one zip, both readers: a file per convention plus a note saying
-         which is which, so the deliverable explains itself when unzipped */
-      const cat = parts => { let L=0; for(const x of parts) L+=x.length;
-        const u=new Uint8Array(L); let o=0;
-        for(const x of parts){ u.set(x,o); o+=x.length; } return u; };
-      const note =
-        "search-motion (editors).mov\n" +
-        "  Straight alpha. For QuickTime, Finder, Premiere, After Effects,\n" +
-        "  Resolve - anything that composites the alpha channel. Interpret\n" +
-        "  as straight (their default). Matches the preview exactly.\n\n" +
-        "search-motion (ai studio).mov\n" +
-        "  Premultiplied. For Google AI Studio and anything else that shows\n" +
-        "  the colour without compositing the alpha - the picture there\n" +
-        "  matches the preview over black. In an editor this file draws\n" +
-        "  semi-transparent ink too dark; use the other one.\n";
-      blob = new Blob([zipOf([
-        { name: "search-motion (editors).mov",
-          bytes: cat(muxMOV(frames, W, H, ts, dt)) },
-        { name: "search-motion (ai studio).mov",
-          bytes: cat(muxMOV(framesPre, W, H, ts, dt)) },
-        { name: "which file.txt",
-          bytes: new TextEncoder().encode(note) },
-      ])], { type: "application/zip" });
-      name = "search-motion-mov.zip";
-    } else {
-      blob = new Blob(muxMOV(frames, W, H, ts, dt),
-                      { type: "video/quicktime" });
-      name = "search-motion.mov";
-    }
+    const blob = new Blob(muxMOV(frames, W, H, ts, dt),
+                          { type: "video/quicktime" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = name;
+    a.download = "search-motion.mov";
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`;
