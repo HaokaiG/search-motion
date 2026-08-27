@@ -1821,6 +1821,11 @@
       </select>
     </div>
     <button id="vexport">Export MOV · ProRes 4444</button>
+    <!-- one file cannot satisfy both alpha readers, so the reader is chosen
+         here. Premultiplied is the default because the piece is delivered to
+         Google AI Studio, which reads it that way; Straight is the format's
+         own convention and what Premiere, AE and Resolve assume. -->
+    <button id="valpha">MOV Alpha: For AI Studio</button>
     <button id="pexport">Export PNG Sequence</button>
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
     <button id="mexport">Export MP4</button>
@@ -5053,24 +5058,27 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    Alpha goes 8 -> 16 bit as v * 257, so opaque is exactly 65535 rather than
    the 65343 a trip through a 10-bit plane leaves behind.
 
-   STRAIGHT, which is what 4444 means and what every editor that opens one
-   assumes. It had been premultiplying, and that is what put a dark edge on
-   everything semi-transparent: measured on this piece's own glow, a canvas
-   pixel of (45,130,255) at alpha 57 was stored as (10,29,57) at alpha 57, so
-   a straight reader scaled it by that alpha a SECOND time and drew it about
-   four times too dark. The box's 35% face and the context line's 60/40/20
-   rows went the same way, which is the other half of that report — the
-   colour and opacity of the type not matching the preview. Opaque exports
-   were never affected, and are not now: at alpha 255 the two conventions are
-   the same arithmetic, and a frame round-trips (10,29,57) -> (10,29,57)
-   either way.
+   BOTH conventions, chosen by the panel's MOV Alpha button, because this
+   question has now gone three rounds and each side of it is a real reader:
 
-   The other convention is real too, and this file no longer offers it. A
-   reader that expects premultiplied and is handed straight data ADDS the
-   stored colour instead of scaling it, so semi-transparent ink blooms —
-   which is what "the gradient is too thick" looked like in Google AI Studio.
-   One file cannot satisfy both readers and straight is the format's own, so
-   straight is what this writes. Back: multiply r, g and b by alpha/255 here.
+   PREMULTIPLIED is what Google AI Studio reads, and it is the DEFAULT
+   because that is where this piece is delivered. Handed straight data that
+   reader ADDS the stored colour instead of scaling it, so semi-transparent
+   ink blooms — "the gradient is too thick", the glow with too much radius.
+
+   STRAIGHT is what 4444 means in the spec and what Premiere, AE and Resolve
+   assume. Handed premultiplied data those scale by alpha a SECOND time:
+   measured on this piece's own glow, a canvas pixel of (45,130,255) at
+   alpha 57 stored premultiplied as (10,29,57) drew about four times too
+   dark, and the box's 35% face and the context line's 60/40/20 rows went
+   with it.
+
+   Opaque pixels are identical arithmetic in both conventions, so opaque
+   exports never cared. Only semi-transparent ink — the glows, the washes,
+   the fades — splits the two, which is why every round of this looked like
+   a glow bug and none of them was: the file was fine, the reader assumed
+   the other convention. The button names the reader rather than the maths
+   because the reader is the thing being chosen.
 
    The noise argument for premultiplying does not need premultiplied storage.
    A canvas keeps premultiplied bytes and divides on the way out, so at low
@@ -5081,6 +5089,7 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    without the alpha, like a thumbnail, and it costs size rather than
    accuracy: a straight frame runs about 63% larger, 893KB against 549KB on
    frame 20 at 1920x1080. */
+let PR_PREMUL = true;                 /* the MOV Alpha button drives this */
 function prPlanes(rgba, W, H){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   const stride = mbW * 16, rows = mbH * 16, n = stride * rows;
@@ -5089,7 +5098,8 @@ function prPlanes(rgba, W, H){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
+      const k = PR_PREMUL ? rgba[p + 3] / 255 : 1;
+      const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
       U[q] = (512 + 896 * (b - l) / (255 * 1.8556) + 0.5) | 0;
@@ -5164,6 +5174,11 @@ function muxMOV(frames, W, H, timescale, delta){
    qscale itself, so 1 rounds each coefficient to the nearest integer and
    nothing else. This is a mastering export — the size is the point of it. */
 const PR_QSCALE = 1;
+const $va = document.getElementById("valpha");
+$va.onclick = () => {
+  PR_PREMUL = !PR_PREMUL;
+  $va.textContent = "MOV Alpha: " + (PR_PREMUL ? "For AI Studio" : "For editors");
+};
 document.getElementById("vexport").onclick = async () => {
   if (busy) return;
   const W = +document.getElementById("gw").value;
