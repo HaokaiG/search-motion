@@ -366,7 +366,22 @@
   #stage.icon-g .aichip b{font-size:63.35px}
 
   .plus{position:absolute;left:425px;top:511px;width:58px;height:58px}
-  .plus i{position:absolute;background:#3c4043;border-radius:3px}
+  /* Square ends and a lighter ink, both off SearchBar_20260819.mp4.
+     The corners are the clip's: profiling ACROSS the very tip of an arm gives
+     254,146,73,77,82,208,255 against 254,148,76,73,86,212,254 two rows in —
+     the same profile, which a rounded end could not give, since it would
+     lighten at the ends of the tip row. So border-radius goes to 0 from 3px.
+     The colour is #1f1f1f BY REQUEST, which is also the ink both design files
+     use for the AI Mode button's label and lens, so the bar's icon and that
+     button now share one value. It went #3c4043 -> #999 (40% of black, asked
+     for and then asked back) -> here. Written as a COLOUR rather than an
+     opacity throughout: opacity would multiply into the footage and matte
+     looks, where this ink is deliberately switched to solid white, and would
+     ride into the export's alpha channel as well.
+     For reference the clip's own arms measure rgb(79,79,79), 69% of black,
+     where #1f1f1f is 88% — darker than the clip, as #3c4043's 76% was
+     lighter. Back: #3c4043 and border-radius 3px for the original pair. */
+  .plus i{position:absolute;background:#1f1f1f;border-radius:0}
   .plus i:nth-child(1){left:0;top:26px;width:58px;height:6px}
   .plus i:nth-child(2){left:26px;top:0;width:6px;height:58px}
   /* The same slot carrying the G mark instead, measured off the ad's own wide
@@ -881,8 +896,12 @@
      Everything inside is unchanged: `b` is still exactly the box's rect, so
      the halo's shape, its 57px radius and the wheel centred in it all sit
      where they did. Back: 70 / 127 / 70 / 70. */
+  /* 197 = the box's own 57 plus the 140 bleed, the way .bargrad's 287 is
+     117 + 170. */
   .nglow{position:absolute;inset:-140px;border-radius:197px;padding:140px;
          box-sizing:border-box;opacity:1;
+         --gradient-angle:170deg;--mask-angle:-90deg;
+         will-change:--mask-angle,--gradient-angle;
          -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
          mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
          -webkit-mask-composite:xor;mask-composite:exclude}
@@ -896,8 +915,55 @@
      wants 17; 17 is the rounder of the two and the one that measured back
      closest. The padding above stays 140 — it only has to be more than the
      blur can reach, and now it is by a wider margin. Back: blur(34px). */
-  .nglow b{position:absolute;inset:140px;border-radius:57px;overflow:hidden;
-           filter:blur(17px)}
+  .nglow-mask{position:absolute;inset:140px;border-radius:57px}
+  /* K_BOX = 300.234/112 * 1.3 = 3.485, the same rule the bar and the chip
+     use: the source's blur keyframes carried onto this element's own height.
+     The bar is 234 tall at 2.716 and the chip 158 at 1.834; this box is the
+     largest of the three at 300.2. The blur is written per frame from the
+     same track, so the value here is only what it holds before the first
+     render. */
+  #stage2 .gblur{filter:blur(3.49px)}
+  #stage2 .gblur.tip{filter:blur(3.49px)}
+  /* Fitted to this box's aspect, not inherited. The squash is what maps the
+     mask's window onto a share of the perimeter, and it has to track the
+     shape: the bar's 7 is fitted to its 10.9 aspect, the chip's 2.2 to its
+     2.88. This box is 1067.86 x 300.234, aspect 3.56 — nearer the chip than
+     the bar — and 2.6 is that interval's own value, 2.2 + (3.56-2.88) /
+     (10.9-2.88) x (7-2.2). It was briefly 5.6, fitted to an 8.77 that came
+     from measuring the wrong element. */
+  /* The source's composit-clip is DISABLED here — overridden to solid black,
+     so the intersect it feeds becomes a no-op while the structure stays the
+     bar's. Measured reason, not taste: the clip is a fixed notch (it has no
+     `from`, so it never turns), and against this element's 92%-wide window it
+     pinned the visible gap at perimeter fraction 0.945..0.315 — the left side
+     and top-left corner — at EVERY mask angle from 0 to 345. The travelling
+     window's own gap was reduced to a second, smaller hole, which is why the
+     rotation read as missing. On the bar the window is 39% wide and the clip
+     rarely intersects it; here it always does. */
+  #stage2 .gblur{--composit-clip:conic-gradient(#000 0 100%)}
+  #stage2 .gmask{scale:2.6 1.5;
+       /* Much wider than the source's, fitted to a supplied still of how the
+          glow should sit round the box: lit across the top and down most of
+          both sides, with the bottom edge clear.
+          The target is ~51%, worked out from the picture rather than guessed
+          at — on a box this wide the top and bottom edges are 39% of the
+          perimeter EACH and the sides only 11%, so "the top and most of both
+          sides" is 39 + 7.7 + 4.4. An eyeball of the image reads like two
+          thirds of the way round; the arithmetic says half, and the arithmetic
+          is what the mask has to hit.
+          With the wheel now opaque — the source's, blue wrapping to blue —
+          the WINDOW is what shapes the band again, so the near-fully-open
+          5/12/97/100 that suited the alpha-faded wheel would light the whole
+          ring. The chip's 28/44/88/99 is the width that measures nearest the
+          reference distribution here.
+          Back: 5/12/97/100 for the faded-wheel pairing, or the source's
+          50/68/75/89. */
+       -webkit-mask-image:conic-gradient(from var(--mask-angle),
+           transparent 0%,transparent 28%,#000 44%,#000 88%,transparent 99%),
+           var(--composit-clip);
+       mask-image:conic-gradient(from var(--mask-angle),
+           transparent 0%,transparent 28%,#000 44%,#000 88%,transparent 99%),
+           var(--composit-clip)}
   /* The wheel is not a screen-space sweep. It is drawn on a SQUARE and then
      squashed — which is why the whole top edge comes out one blue while the
      entire spectrum crowds along the bottom — and it runs anticlockwise, hence
@@ -930,9 +996,15 @@
      between its frames puts the bloom's own rotation at 1.178 samples a frame
      with 0.32 rms, about 1.24 deg, which is the 1.149 already fitted off the
      other clip. */
-  .nglow i{position:absolute;left:50%;top:50%;
-           width:1067.86px;height:1067.86px;margin:-533.93px 0 0 -533.93px;
-           transform:scale(-1,0.436)}
+  /* The wheel is the bar's geometry now — a circle the size of the layer,
+     rotated by --gradient-angle — rather than a 1067.86 square squashed by
+     0.436 and mirrored. The squash moved to .gmask above, which is where the
+     bar puts it; mirroring is gone with it, the travelling arc having a
+     direction of its own. The old pair is in the departures table. */
+  #stage2 .gmask i{position:absolute;inset:0;border-radius:50%;aspect-ratio:1/1;
+           translate:0 -50%;inset-block-start:50%;
+           rotate:var(--gradient-angle);
+           backface-visibility:hidden;transform:translate3d(0,0,0)}
   /* 39, not the design file's 32: down 7px by request */
   #nq{position:absolute;left:45.58px;top:39px;width:960px;
       font-size:44px;line-height:1.2;font-weight:400;color:#fff;
@@ -1405,7 +1477,18 @@
          becomes the chip. -->
     <div id="nbox">
       <div class="nface"></div>
-      <div class="nglow" id="nglow"><b><i></i></b></div>
+      <!-- The bar's construction, in the prompt box. It was a full ring that
+           rotated its hues and never went dark anywhere; this is the same
+           travelling arc the search bar carries, so the two pieces move the
+           same way. The wheel inside is still N2_WHEEL — the motion is what
+           was asked to match, and this piece's colour is its own measurement
+           with a by-request fade on the blue side. -->
+      <div class="nglow" id="nglow">
+        <div class="nglow-mask">
+          <div class="gblur" id="nglowblur"><div class="gmask"><i></i></div></div>
+          <div class="gblur tip"><div class="gmask"><i></i></div></div>
+        </div>
+      </div>
       <div id="nq"><span id="nqt"></span><span id="ncaret"></span></div>
       <div class="nplus"><svg viewBox="0 11.7754 94.2012 70.6509"><path d="M45.4313 48.6689H33.0674V45.3327H45.4313V32.9688H48.7676V45.3327H61.1315V48.6689H48.7676V61.0329H45.4313V48.6689Z"/></svg></div>
       <svg class="nmic" viewBox="1308.92 606.29 27.5 36.32"><path d="M1322.67 627.781C1321.26 627.781 1320.06 627.273 1319.08 626.258C1318.13 625.243 1317.66 623.999 1317.66 622.526V611.249C1317.66 609.874 1318.15 608.712 1319.13 607.762C1320.11 606.78 1321.29 606.289 1322.67 606.289C1324.04 606.289 1325.22 606.78 1326.2 607.762C1327.18 608.712 1327.68 609.874 1327.68 611.249V622.526C1327.68 623.999 1327.18 625.243 1326.2 626.258C1325.25 627.273 1324.07 627.781 1322.67 627.781ZM1321.19 642.611V635.933C1317.72 635.572 1314.81 634.116 1312.45 631.562C1310.1 629.008 1308.92 625.996 1308.92 622.526H1311.91C1311.91 625.505 1312.96 628.01 1315.06 630.04C1317.15 632.069 1319.69 633.084 1322.67 633.084C1325.65 633.084 1328.18 632.069 1330.28 630.04C1332.37 628.01 1333.42 625.505 1333.42 622.526H1336.42C1336.42 625.996 1335.24 629.008 1332.88 631.562C1330.52 634.116 1327.61 635.572 1324.14 635.933V642.611H1321.19Z"/></svg>
@@ -1582,12 +1665,19 @@
     <input id="n2q2" type="text" spellcheck="false" value="difficult to officiate">
     <span class="warn" id="n2qwarn"></span>
     <h3 class="sub">Look</h3>
-    <div class="row">
-      <select id="n2spin">
-        <option value="0.5">Glow Motion 0.5x</option>
-        <option value="1" selected>Glow Motion 1x</option>
-        <option value="2">Glow Motion 2x</option>
-      </select>
+    <!-- the search query box's glow only. The highlight scene's glow keeps
+         its own measured rate and is not on this dial — the two used to share
+         the Glow Motion dropdown this control replaces. -->
+    <div class="lbl"><label for="g2spd">Glow speed</label>
+      <input id="g2spdn" type="number" min="0" max="20" step="0.05" value="1.00">
+    </div>
+    <span class="warn" id="g2warn"></span>
+    <input id="g2spd" type="range" min="0" max="4" step="0.05" value="1">
+    <button class="fold" id="g2bzfold" aria-expanded="false" aria-controls="g2bzwrap"
+            ><i></i>Glow Easing</button>
+    <div class="foldbody" id="g2bzwrap" hidden>
+      <canvas id="g2bzc" class="bez" width="252" height="252"></canvas>
+      <button id="g2bzreset">Reset Curve</button>
     </div>
     <div class="row">
       <select id="n2size">
@@ -1651,7 +1741,7 @@
       <button id="bzreset">Reset Curve</button>
     </div>
     <div class="lbl"><label for="gspd">Glow speed</label>
-      <input id="gspdn" type="number" min="0" max="20" step="0.05" value="2.60">
+      <input id="gspdn" type="number" min="0" max="20" step="0.05" value="1.00">
     </div>
     <!-- the readout sits ABOVE the slider here, where the other speeds put
          theirs below. Measured: Camera speed's fold row is 9px under its
@@ -1661,7 +1751,7 @@
          keeps its line, elaborating the number in the field it now sits under
          rather than floating between two rows. -->
     <span class="warn" id="gwarn"></span>
-    <input id="gspd" type="range" min="0" max="4" step="0.05" value="2.6">
+    <input id="gspd" type="range" min="0" max="4" step="0.05" value="1">
     <button class="fold" id="gbzfold" aria-expanded="false" aria-controls="gbzwrap"
             ><i></i>Glow Easing</button>
     <div class="foldbody" id="gbzwrap" hidden>
@@ -1879,6 +1969,22 @@ const CB_EMPH_ACCEL = [0.3, 0, 0.8, 0.15];
 const BAR_BURST_MS  = 15636;
 const BAR_BURST_F   = BAR_BURST_MS / 1000 * FPS;   // 374.9 frames
 const BAR_BURST_F0  = 18;                          // where the glow already began
+/* The plus does NOT turn. It briefly did, off SearchBar_20260819.mp4, and was
+   taken out again by request; the measurement is kept here because it cost
+   something to make and is the whole of what restoring it needs.
+   The clip's icon does rotate a quarter clockwise as the bar arrives. A plus
+   is symmetric under 90deg, so the end is the same picture it started from and
+   what reads is the turn itself. Tracked by taking ink in a ring around the
+   icon's own centroid and finding the angle whose four arms hold most of it —
+   only meaningful mod 90 for this shape, which is what that returns — the clip
+   gives, per frame: nothing to f3, then 43 (faint), 65, 73.5, 79, 85, 86.5,
+   87, 88.5, settled just past upright from f19. Best fit is
+   cubic-bezier(0,0,0.2,1) over 0..14 at 1.36 deg rms; the house
+   standard-decelerate over 1..15 comes to 1.53.
+   To put it back: rotate .plus by 90 * cbez(CB_STD_DECEL, u) with
+   u = clamp((f - 1) / 14, 0, 1), skipping it while `as-g` is on, since that
+   look swaps the bars for a background image and turning it would spin the
+   wordmark's G rather than read as an icon settling. */
 const BAR_BURST_LOOP = false;                      // the OPENING runs once …
 /* … and it keeps turning throughout, at 13.2 — 1.1x the 12 it was slowed to,
    and a little over a quarter of the rate the clip settles to.
@@ -1907,17 +2013,20 @@ const BAR_SPIN_DPS = 13.2;
    passed, so the burst has not begun — and it means the bar sits with its
    grey border on and no gradient at all, which is the plate before any of
    this arrives. */
-/* 2.6 by request, where this was 1. It is a multiplier on the two measured
-   dials above, so 1 means "as they were measured" and this is a departure
-   from that — stated here rather than buried, since every other number in
-   this block is the source's.
-   Two things worth knowing at 2.6. The opening finally COMPLETES inside act 1:
-   the burst is 374.9 frames at 1x and 144.2 at 2.6, so starting on 18 it lands
-   on 162.2 against act 1's 162, which it never did before. And because the
-   easing is linear now, the rate really is 2.6x throughout rather than sliding
-   along a decelerating curve — 3.44 deg a frame against 1.32.
-   Back: GLOW_DEFAULT = 1 for the measured pair. */
-const GLOW_DEFAULT = 2.6;
+/* The 2.6 that was the default DIAL value is folded into the BASE, by
+   request — the motion is unchanged and the dial reads 1.00 for it, the same
+   rebase the prompt box's dial got. GLOW_BASE multiplies the dial, so the
+   dial's 1 now means "2.6x the measured pair", which is the piece's look;
+   the measured pair itself is the dial at 0.38 (1/2.6). A #glow= saved
+   before the rebase reads 2.6x faster than it did — the price of
+   renumbering, stated rather than hidden.
+   Two things still true at the base rate. The opening COMPLETES inside act
+   1: the burst is 374.9 frames at the measured pair and 144.2 here, so
+   starting on 18 it lands on 162.2 against act 1's 162. And because the
+   easing is linear, the rate really is uniform — 3.44 deg a frame.
+   Back: GLOW_BASE = 1 for the measured pair on a 1.00 dial. */
+const GLOW_BASE    = 2.6;
+const GLOW_DEFAULT = 1;
 let GLOW_SPEED = GLOW_DEFAULT;
 const GRAD_A0 = 170, GRAD_A1 = 225;                // --gradient-angle
 const MASK_A0 = -90, MASK_A1 = 200;                // --mask-angle
@@ -3277,7 +3386,7 @@ function render(t){
      this rather than the frame, so one number moves the angles, the opacity,
      the border cross-fade and the blur together — a playback rate, not four
      separate dials that could drift out of step. */
-  const glowF = Math.max(0, f - BAR_BURST_F0) * GLOW_SPEED;
+  const glowF = Math.max(0, f - BAR_BURST_F0) * GLOW_SPEED * GLOW_BASE;
   const burst = clamp(glowF / BAR_BURST_F, 0, 1);
   /* The chip's halo takes the blur off the burst at 1x, deliberately NOT off
      glowF. Its turn is pinned to the press and the cut (CHIP_CYCLE_F0..F1),
@@ -3291,6 +3400,11 @@ function render(t){
      same one, so the two can never drift apart or disagree about phase. */
   const BURST_E = cbez(GLOW_BEZ, burst);
   const BURST_SPUN = glowF / FPS * BAR_SPIN_DPS;
+  /* How far the sweep has turned since it opened, and where that sits inside
+     the CURRENT lap. The blur reads the lap rather than the burst — see below
+     for why. Zero at BAR_BURST_F0, since both terms are. */
+  const TURNED = (MASK_A1 - MASK_A0) * BURST_E + BURST_SPUN;
+  const LAP_U  = ((TURNED / 360) % 1 + 1) % 1;
   const GRAD_A = (GRAD_A0 + (GRAD_A1 - GRAD_A0) * BURST_E
         + BURST_SPUN * (GRAD_A1 - GRAD_A0) / (MASK_A1 - MASK_A0)).toFixed(2) + "deg";
   const MASK_A = (MASK_A0 + (MASK_A1 - MASK_A0) * BURST_E
@@ -3320,7 +3434,18 @@ function render(t){
   barfill.style.opacity = (f < BAR_BURST_F0 ? 1 : track(BURST_BORDER,
       Math.min(0.5, glowF / BAR_BURST_F))).toFixed(3);
   if (gradOp > 0.002){
-    const bv = track(BURST_BLUR, burst);
+    /* The radius blooms once PER LAP, not once per burst.
+       BURST_BLUR is a lap's worth of shape — 1x up to 20x a sixth of the way
+       round, down to 5x, out to 7x, back to 1x — and in the source a burst
+       WAS a lap, so reading it off `burst` was the same thing. Stretching the
+       burst to 15.6s broke that: act 1 now carries 1.38 laps, the second
+       opening at f122.6, and on `burst` the blur had bloomed to 47.6px at f42
+       and decayed monotonically ever since — 10.2 and falling by the time the
+       second lap began, so that lap started with no radius at all.
+       On LAP_U each lap reopens with its own bloom. The seam is free: the
+       track begins and ends on the same 1x, so wrapping 1 -> 0 is continuous
+       and there is no step to hide. Back: `track(BURST_BLUR, burst)`. */
+    const bv = track(BURST_BLUR, LAP_U);
     gblurMain.style.filter = `blur(${bv.toFixed(2)}px)`;
     const bb = `blur(${(bv * BOOST_BLUR_K).toFixed(2)}px)`;
     for (const el of gblurBoost) el.style.filter = bb;
@@ -3641,9 +3766,10 @@ function setGlow(v, from){
   /* No rebuild: the glow owns no geometry, and nothing downstream reads its
      progress, so its speed cannot change the piece's length the way the
      typing's can. (The old reason given here was that the burst runs 374.9
-     frames, far past act 1 — true at 1x and not at the 2.6 default, where it
-     is 144.2 and lands on 162.2 against act 1's 162. The conclusion holds
-     either way; the reason had to stop depending on the rate.) Nor does this restart the clock, which is what the
+     frames, far past act 1 — true at the measured pair and not at the
+     rebased default (dial 1.00, effective 2.6), where it is 144.2 and lands
+     on 162.2 against act 1's 162. The conclusion holds either way; the
+     reason had to stop depending on the rate.) Nor does this restart the clock, which is what the
      other two do — they change how long the piece runs, so starting over is
      the honest thing there; here it would fling the piece back to frame 0 on
      every tick of a drag. A held frame is repainted; a playing one is
@@ -3652,7 +3778,7 @@ function setGlow(v, from){
      reserved line empty; and 1 is no longer the default anyway, so blanking
      there would have said nothing about the state the piece actually loads
      in. Measured to fit one line at every value from 0.05 to 20. */
-  const dps = BAR_SPIN_DPS * GLOW_SPEED;
+  const dps = BAR_SPIN_DPS * GLOW_SPEED * GLOW_BASE;   // the dial times the base
   $glw.textContent = GLOW_SPEED === 0 ? "frozen — the bar keeps its border"
     : `${dps.toFixed(1)} deg/s after the opening`
       + ` · a lap every ${(360 / dps).toFixed(1)}s`;
@@ -5308,6 +5434,101 @@ const N2_SPIN = 1;                      // the panel's multiplier on both rates
    sweep starts, not how fast it runs.
    Back: 43.99, which is the angle measured off the plate. */
 const N2_RING_F0 = 88.15, N2_RING_RATE = 1.149;
+/* The box carries the bar's construction, so it needs the bar's numbers on
+   its own scale. K_BOX is the same rule: this element's height over the
+   source's 112, times the 1.3 the radius was taken to. 143.6/112*1.3.
+   The sweep opens over act 1 rather than over a duration of its own: it
+   starts on f1 and lands on the click at f49, so the arc completes as the box
+   hands over. That is 290 degrees, the source's own mask travel, and the
+   measured 1.149 deg a frame rides on top of it — this piece's act 1 is 48
+   frames against the search piece's 162, so the constant rate alone would
+   have turned 55 degrees in the whole act and the arc would barely have
+   moved. Back: N2_GLOW_SWEEP 0 leaves only the measured constant. */
+const K_BOX        = 300.234 / 112 * 1.3;
+const N2_GLOW_F0   = 1, N2_GLOW_F1 = 49;
+/* BY REQUEST, this piece's own measured motion is set aside: the arc opens on
+   the box's BOTTOM and turns one clockwise cycle, the way the AI Mode button's
+   halo does. What that replaces is N2_RING_F0 / N2_RING_RATE — a phase and a
+   1.149 deg/frame rate fitted off this piece's own clip — which no longer
+   drive the sweep at all. They are kept as the record of that measurement.
+   350 is fitted, not guessed. Sweeping the mask angle at f9 and reading how
+   much of each edge lights 22px out: 335 gives 80% of the bottom but 62% of
+   the right with it, 340 gives 78/46, 345 gives 78/23, and 350 gives **76% of
+   the bottom with 0 on the top, the left and the right** — the arc entirely on
+   the bottom edge, which is what was asked. 355 and 360 hold the same purity
+   and lose bottom (73, 68).
+   One cycle is 360 over act 1, so the blur's own lap and the sweep are the
+   same thing: exactly one bloom, at 15% of the turn, near f8.
+   Back: N2_GLOW_TURN 290 with the old spin restores a partial sweep. */
+/* BOTTOM-LEFT corner to BOTTOM-RIGHT corner, clockwise, BY REQUEST — the
+   sweep's two endpoints fitted by measurement, not derived. What travels on
+   this box is the WHEEL's own opaque sector: N2_WHEEL carries its blue side
+   alpha-faded (the dissolve asked for early on), so about half the wheel is
+   transparent and that lit half IS the visible arc — the window is wider than
+   it and only trims. That took two failed fits to see: with the window at 92%
+   the mask angle alone moved almost nothing (the lit centroid sat in
+   0.51..0.69 for every angle from 0 to 345), so the wheel and the window now
+   turn TOGETHER, one angle for both, which is also what keeps the window's
+   own gap glued to the wheel's faded side instead of wandering across it.
+   The endpoints, from sweeping that shared angle and reading the lit arc's
+   centroid as a fraction of the perimeter (the corners sit at 0.890 and
+   0.500): 312 puts the centre on the bottom-left corner at 0.888, and 172 on
+   the bottom-right at 0.498 — measured to the third decimal against both.
+   (172 - 312) mod 360 = a 220-degree clockwise travel, which never completes
+   a lap; the blur therefore rides the SWEEP's own progress, the source's tie
+   (one burst, one bloom, back to 1x by the click).
+   Back: 350/360 with the ratio'd gradient for the full-turn version. */
+/* 307/228, refined from the static 312/220: the static fit was read at f20's
+   blur, and the real drive's per-frame blur moves the centroid a little at
+   the ends — walked with the drive live, 312/220 started at 0.905 and ended
+   at 0.464 against the corners' 0.890/0.500. The ~0.00276 fraction-per-degree
+   conversion asked for -5 on the phase and +18 on the turn; near
+   the corner the response is NONLINEAR — the centroid moves ~0.0053 a degree
+   there, double the perimeter average, because the band's mass tips between
+   the right edge and the bottom as it crosses the corner: 238 landed 0.527,
+   228 landed 0.474, and 233 splits it on the local slope. Measured on this
+   pair: f1 at 0.884 and f49 at 0.500 against 0.890/0.500. */
+/* Re-fitted for the SOURCE wheel: the visible band is the window now, not
+   the wheel's faded sector, and its centroid sits elsewhere for the same
+   angle — the old 307/233 read 0.176 and 0.195 short of the corners with
+   the new band. Statically, angle 13 centres it on the bottom-left corner
+   (0.890) and 242.5 on the bottom-right (0.500). Walked LIVE — the real
+   per-frame blur moves the centroid, as it did on every earlier fit — 13/230
+   started 0.038 past the corner and ended 0.032 short, so the phase comes
+   back 17 on its local slope (0.00225/deg there) and the end goes on 10
+   (0.0031/deg): 356 with a 257 turn. Measured on this pair: f1 at 0.884 and
+   f49 at 0.497 against 0.890/0.500. */
+const N2_GLOW_PHASE0 = 356, N2_GLOW_TURN = 257;
+/* The box's own blur track — SMALL to NORMAL to SMALL, by request, in two
+   steps. First the bar's 20x bloom was trimmed to 8x (69.7px on this element
+   against 17-24 through the act's middle); then the residual wobble went
+   too — the source's 8 -> 5 -> 7 middle still read as the radius shifting,
+   and what was asked is one level. So: rise from 1x to a 6x plateau over the
+   sweep's first fifth, HOLD it flat to three quarters, fall back to 1x at
+   the end. 6x is where the old track's own middle sat (5..7, 17-24px), so
+   the plateau is the "normal" the piece already had, minus the drift.
+   Back: the source's five keyframes are in the bar's BURST_BLUR — 
+   track(BURST_BLUR, gu) * K_BOX / K_PLATE restores them whole. */
+const N2_BOX_BLUR = [[0, 1*K_BOX, null], [0.18, 6*K_BOX, null],
+                     [0.75, 6*K_BOX, null], [1, 1*K_BOX, null]];
+/* the panel's dial and curve for THIS sweep — piece 1's pair, this piece's
+   state. Speed is a time scale on the sweep's own clock (0 freezes it; past
+   1 it completes before the click and holds on the bottom-right corner);
+   the curve shapes only the ANGLE, the same rule the bar's easing follows —
+   the blur keeps riding the sweep's plain progress. */
+const N2_GLOW_BEZ_REF = [0, 0, 1, 1];
+let   N2_GLOW_BEZ     = N2_GLOW_BEZ_REF.slice();
+/* 0.35 folded into the BASE, by request: the rate that used to be dialled as
+   0.35 is what the dial's 1.00 means now, so the scale is rebased rather than
+   the default moved — a saved #glow2= from before the rebase will read 2.86x
+   slower than it did, which is the price of renumbering and is stated here
+   rather than hidden. At the new 1.00 the sweep reaches 0.35 of its 257
+   degrees by the click — about 90, partway along the top — and no longer
+   finishes the corner-to-corner journey; 2.86 on the dial is the old 1.00 if
+   the full journey is wanted back. */
+const N2_GLOW_BASE  = 0.35;
+let   N2_GLOW_SPEED = 1;
+const N2_GRAD_OFF = 36;
 /* The wheel, read back off the video rather than taken from the design file.
    Sampling the ring at 17672 points around the perimeter across all 47 frames
    of the act, mapping each through the fitted squash and phase to a position
@@ -5356,6 +5577,7 @@ const N2_WHEEL =
 const stage2 = document.getElementById("stage2");
 const nqt = document.getElementById("nqt"), ncaret = document.getElementById("ncaret");
 const nglow = document.getElementById("nglow");
+const nglowblur = document.getElementById("nglowblur");
 const nsend = document.getElementById("nsend"),
       nenergy = document.getElementById("nenergy");
 const n1El = document.getElementById("n1"), n2El = document.getElementById("n2"),
@@ -5651,11 +5873,50 @@ function render2(t){
 
   nscrim.style.opacity = bgOn ? "1" : "0";
 
-  /* ── the ring turns throughout act 1 ── */
-  const spin = $n2spin ? +$n2spin.value : N2_SPIN;
-  const ang = (N2_RING_F0 - fRaw * N2_RING_RATE * spin % 360 + 720) % 360;
-  const wheel = `conic-gradient(from ${ang.toFixed(2)}deg,${N2_WHEEL})`;
-  nglow.querySelector("i").style.background = wheel;
+  /* ── the arc sweeps across act 1 ── */
+  /* The bar's drive, on this box. An opening on the standard decelerate plus
+     the constant measured turn, both fed into one angle so the mask and the
+     wheel cannot disagree about phase. */
+  const gu   = sat((f - N2_GLOW_F0) * N2_GLOW_SPEED * N2_GLOW_BASE
+                   / (N2_GLOW_F1 - N2_GLOW_F0));
+  /* the radius envelope rides act 1's own progress, NOT the speeded sweep.
+     At the rebased default the sweep only reaches 0.35 by the click, and on
+     the speeded clock the blur would hold its plateau into the morph — the
+     small-to-normal-to-SMALL that was just asked for would never end small.
+     On the act's clock the envelope completes at the click at every speed. */
+  const gu0  = sat((f - N2_GLOW_F0) / (N2_GLOW_F1 - N2_GLOW_F0));
+  /* the panel's curve shapes the angle; linear is its default, and it is
+     load-bearing there — on the standard decelerate this sweep passes the
+     blur track's bloom by about f2, with the box barely on screen */
+  const gTurn = N2_GLOW_TURN * cbez(N2_GLOW_BEZ, gu);
+  /* one turn drives both, offset by a constant: the window and the wheel
+     advance together, so the band always shows the SAME slice of the wheel.
+     The offset places that slice. A point at window coordinate t sits at
+     wheel coordinate t - OFF, so with the band spanning 28..99% and the
+     wheel's spectrum at 34..73%, OFF = +10% (+36deg) maps the band onto
+     wheel 18..89 — both ends inside the blue that runs 73..134 through the
+     wrap, the spectrum whole in the middle. Blue connects to blue through
+     the band rather than a patch of it sitting on each side of a hole.
+     (-45 was tried first from the same stops run in the wrong direction,
+     and measured back with one end on red, hue 0-9.) */
+  const gAng = N2_GLOW_PHASE0 + gTurn;
+  nglow.style.setProperty("--mask-angle", gAng.toFixed(2) + "deg");
+  nglow.style.setProperty("--gradient-angle",
+    (gAng + N2_GRAD_OFF).toFixed(2) + "deg");
+  /* one burst over the sweep, the source's own tie — a 220-degree travel
+     never completes a lap, so lap arithmetic would strand the track
+     mid-decay */
+  const nbv  = track(N2_BOX_BLUR, gu0);
+  nglowblur.style.filter = `blur(${nbv.toFixed(2)}px)`;
+  nglow.querySelector(".tip").style.filter =
+    `blur(${(nbv * 0.05).toFixed(2)}px)`;
+  /* No wheel override any more: the layers take the SOURCE's wheel from the
+     stylesheet — the same 16-stop conic the bar carries, which begins and
+     ends on #3186ff so the band is one connected run, blue at both ends.
+     N2_WHEEL, this piece's own wheel, is what was here before, and its
+     alpha-faded blue side is exactly what put GAPS inside the band — the
+     faded stops read as holes, with a blue patch stranded on each side of
+     one. It stays defined as the record of that measurement. */
 
   /* ── typing ── */
   let n = 0;
@@ -5925,7 +6186,9 @@ function render2(t){
 
     /* the wheel the ring carried, still turning, now spread along the phrase:
        the near end at one hue and the far end N2_HUE_SPREAD ahead of it */
-    const h = (N2_HUE_AT160 - (f - 160) * N2_HUE_RATE * spin % 360 + 720) % 360;
+    /* N2_SPIN, not the panel's glow speed: that dial drives the QUERY BOX's
+       sweep only, by request, and this scene keeps its measured rate */
+    const h = (N2_HUE_AT160 - (f - 160) * N2_HUE_RATE * N2_SPIN % 360 + 720) % 360;
     const far = (h + N2_HUE_SPREAD) % 360;
     /* Tight and bright, then straight down: banding the plate's settled frame
        puts 2.9% of it above 150 but only 0.2% between 90 and 150, so its halo
@@ -5997,7 +6260,7 @@ $piece.addEventListener("change", e => { PIECE = +e.target.value; applyPiece(); 
 const $n2q = document.getElementById("n2q"), $n2ctx = document.getElementById("n2ctx"),
       $n2a = document.getElementById("n2a"), $n2q1 = document.getElementById("n2q1"),
       $n2q2 = document.getElementById("n2q2"), $n2warn = document.getElementById("n2warn"),
-      $n2spin = document.getElementById("n2spin"), $n2size = document.getElementById("n2size"),
+      $n2size = document.getElementById("n2size"),
       $n2tail = document.getElementById("n2tail"), $n2qwarn = document.getElementById("n2qwarn"),
       $n2box = document.getElementById("n2box"), $n2blur = document.getElementById("n2blur");
 $n2a.value = N2_BODY;
@@ -6095,7 +6358,44 @@ function applyN2Look(){
 }
 $n2box.onclick  = () => { boxWhiteOn = !boxWhiteOn; applyN2Look(); };
 $n2blur.onclick = () => { backdropOn = !backdropOn; applyN2Look(); };
-$n2spin.addEventListener("change", () => { render(hold !== null ? hold : 0); });
+/* the query box's own glow dial, piece 1's shape: field and bar drive each
+   other, 0 is real (isFinite, not ||), the hash carries a non-default */
+const $g2s = document.getElementById("g2spd"), $g2sn = document.getElementById("g2spdn");
+const $g2w = document.getElementById("g2warn");
+function setGlow2(v, from){
+  const n = +v;
+  N2_GLOW_SPEED = clamp(isFinite(n) ? n : 1, 0, 20);
+  if (from !== "range")  $g2s.value  = N2_GLOW_SPEED;
+  if (from !== "number") $g2sn.value = N2_GLOW_SPEED.toFixed(2);
+  const span = (N2_GLOW_F1 - N2_GLOW_F0);
+  const eff  = N2_GLOW_SPEED * N2_GLOW_BASE;   // the dial times the 0.35 base
+  $g2w.textContent = N2_GLOW_SPEED === 0
+      ? "frozen on the bottom-left corner"
+    : eff >= 1
+      ? `${N2_GLOW_TURN} deg by f${Math.round(N2_GLOW_F0 + span / eff)}`
+        + `, then holds`
+      : `reaches ${Math.round(N2_GLOW_TURN * cbez(N2_GLOW_BEZ, Math.min(eff, 1)))}`
+        + ` of ${N2_GLOW_TURN} deg by the click`;
+  if (hold !== null) render(hold);
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  N2_GLOW_SPEED === 1 ? h.delete("glow2")
+                      : h.set("glow2", N2_GLOW_SPEED.toFixed(2));
+  const q = h.toString();
+  history.replaceState(null, "", q ? "#" + q : location.pathname);
+}
+$g2s.addEventListener("input",  () => setGlow2($g2s.value,  "range"));
+$g2sn.addEventListener("change", () => {
+  setGlow2(Math.round(+$g2sn.value * 100) / 100, "number");
+  $g2sn.value = N2_GLOW_SPEED.toFixed(2);
+});
+const glow2Bez = makeBez({
+  canvas: "g2bzc", reset: "g2bzreset", key: "g2bez", ref: N2_GLOW_BEZ_REF,
+  get: () => N2_GLOW_BEZ,
+  set: v => { N2_GLOW_BEZ = v; },
+  after: () => { setGlow2(N2_GLOW_SPEED, "bez");  // the readout quotes the curve
+                 if (hold !== null) render(hold); },
+});
+makeFold("g2bzfold", "g2bzwrap");
 $n2size.addEventListener("change", e => {
   for (const el of n3pages){
     el.style.fontSize = e.target.value + "px";
@@ -6190,6 +6490,16 @@ function boot(){
     if (d.length === 4 && d.every(isFinite)) GLOW_BEZ = d;
   }
   glowBez.draw();
+  if (Q.has("glow2")){                       // #glow2=… the prompt box's sweep
+    const gv = +Q.get("glow2");
+    N2_GLOW_SPEED = clamp(isFinite(gv) ? gv : 1, 0, 20);
+  }
+  if (Q.has("g2bez")){                       // #g2bez=x1,y1,x2,y2 its curve
+    const d = Q.get("g2bez").split(",").map(Number);
+    if (d.length === 4 && d.every(isFinite)) N2_GLOW_BEZ = d;
+  }
+  glow2Bez.draw();
+  setGlow2(N2_GLOW_SPEED, "boot");
   if (Q.has("bez")){                         // #bez=x1,y1,x2,y2
     const d = Q.get("bez").split(",").map(Number);
     if (d.length === 4 && d.every(isFinite)) CAM_BEZ = d;
