@@ -472,11 +472,31 @@ redistribution question if the file leaves this machine.
   red at the top, blue right, green bottom, yellow left, all four hues matching.
 - Everything is driven by one `render(t)` function off `requestAnimationFrame`.
 
-## The MOV's alpha is straight, not premultiplied
+## The MOV's alpha: the panel chooses the reader
 
 ProRes 4444 carries an alpha channel and does not say anywhere in the file which
 convention its colour is in. Straight and premultiplied are the same bytes meaning
-two different pictures, and the two readers this piece has met disagree.
+two different pictures, and the two readers this piece has met disagree — so after
+three rounds of this looking like a glow bug (it never was; the file was fine and
+the reader assumed the other convention each time), the writer offers BOTH, on the
+**MOV Alpha** button under the export. It names the reader rather than the maths,
+because the reader is the thing being chosen:
+
+- **For AI Studio** (premultiplied) — the DEFAULT, because that is where this piece
+  is delivered. Verified on a live transparent frame at f70: the glow's canvas
+  pixels break the premultiplied invariant 154,627 times out of 528,919
+  semi-transparent pixels — that excess colour is exactly what AI Studio's reader
+  ADDS, which is the glow coming back with too much radius — and the written planes
+  at this setting break it **0 times in 5,487 sampled**.
+- **For editors** (straight) — the format's own convention, what Premiere, AE and
+  Resolve assume. The section below is the measurement that made it the right
+  answer for those readers, and it still is: premultiplied data in a straight
+  reader is scaled by alpha a second time and lands four to five times too dark.
+
+Opaque pixels are identical arithmetic in both (verified byte-identical planes),
+so only *Transparent: on* ever has the question.
+
+The history, kept because each half of it is a measurement:
 
 `prPlanes` had been premultiplying **unconditionally**, and that is what put a dark
 edge on everything semi-transparent. Measured on the glow at act 1's f20: a canvas
@@ -486,8 +506,9 @@ by that alpha a *second* time and drew `(2,6,13)`. Four to five times too dark.
 The box's 35% face and the context line's 60/40/20 rows went the same way, which is
 the other half of it: the colour and opacity of the type not matching the preview.
 
-Straight now, and it reproduces the preview exactly. Same frame, same points, what
-a straight reader composites over black against what the preview shows there:
+On the *For editors* setting the file reproduces the preview exactly in a straight
+reader. Same frame, same points, what it composites over black against what the
+preview shows there:
 
 | | stored | α | reader over black | preview |
 |---|---|---|---|---|
@@ -500,13 +521,11 @@ a straight reader composites over black against what the preview shows there:
 conventions are the same arithmetic, and a frame round-trips `(10,29,57)` →
 `(10,29,57)` either way. Only *Transparent: on* ever had the question.
 
-The other convention is real too, and this file no longer offers it. A reader that
-expects premultiplied and is handed straight data *adds* the stored colour instead
-of scaling it, so semi-transparent ink blooms — that is what "the gradient is too
-thick" looked like in Google AI Studio, and premultiplying is what fixed it there.
-One file cannot satisfy both readers, and straight is the format's own convention
-and the one that matches the preview, so straight is what this writes. To go the
-other way, multiply `r`, `g` and `b` by `alpha/255` in `prPlanes`.
+A reader that expects premultiplied and is handed straight data *adds* the stored
+colour instead of scaling it, so semi-transparent ink blooms — that is what "the
+gradient is too thick" looked like in Google AI Studio both times it was reported.
+One file cannot satisfy both readers, which is exactly why it is a button now and
+not a convention.
 
 Two things worth knowing. The noise argument for premultiplying does not need
 premultiplied *storage*: a canvas keeps premultiplied bytes and divides on the way
