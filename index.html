@@ -1833,6 +1833,7 @@
       <select id="pmul">
         <option value="0" selected>Alpha: Straight · editors</option>
         <option value="1">Alpha: Premultiplied · flatteners</option>
+        <option value="2">Alpha: Luma matte · any pipeline</option>
       </select>
     </span>
     <button id="vexport">Export MOV · ProRes 4444</button>
@@ -4745,9 +4746,15 @@ const $pm = document.getElementById("pmul");
 const $pmw = document.getElementById("pmulwhy");
 function syncPremulHint(){
   if (!alphaOn)
-    $pmw.dataset.why = "Nothing to bake in while the frame is opaque — every "
-      + "pixel is alpha 255, which is identical arithmetic in both "
-      + "conventions. Turn Transparent on for this to do anything.";
+    $pmw.dataset.why = "Nothing to carry while the frame is opaque — every "
+      + "pixel is alpha 255, identical arithmetic in every convention and a "
+      + "solid white matte. Turn Transparent on for this to do anything.";
+  else if ($pm.value === "2")
+    $pmw.dataset.why = "One frame of double height: the picture on top, the "
+      + "alpha as grey below. The file is OPAQUE, so nothing can strip the "
+      + "matte — it is picture. Use when the destination has no alpha at "
+      + "all, such as AI Studio. Recombine by applying the lower half as a "
+      + "luma matte to the upper. Applies to the MP4 too.";
   else if ($pm.value === "1")
     $pmw.dataset.why = "Colour is written as colour x alpha. Correct in a "
       + "reader that ignores the matte, such as AI Studio. In an editor, set "
@@ -4761,6 +4768,44 @@ function syncPremulHint(){
 $pm.onchange = syncPremulHint;
 syncPremulHint();
 
+/* ── the luma matte ──────────────────────────────────────────────────────
+   The last resort, and the only thing that gets a matte through a reader
+   which HAS no alpha. Measured, that is what AI Studio is: it converts RGBA
+   to RGB on ingest — reported against PNG, the format where alpha is least
+   ambiguous — and this browser cannot write the one other transparent video
+   format either, every VP8/VP9/AV1 config with alpha:"keep" answering
+   unsupported while alpha:"discard" answers yes on all of them. So no file
+   can carry a channel that the far end deletes.
+
+   What survives is PICTURE, so the matte is written as picture: one frame of
+   double height, the image on top and the alpha as grey below. Nothing has
+   to preserve anything — it is an ordinary opaque video — and the two halves
+   recombine in any editor (set the lower half as a luma matte on the upper).
+
+   The top half is PREMULTIPLIED rather than straight, deliberately. Straight
+   colour at very low alpha is the noise this file has measured twice: 255/a
+   quantisation, magenta where the glow should be pink, and it would be
+   carried at full strength into a half that gets recombined by division.
+   Premultiplied is the smooth value the canvas actually holds, and a
+   recombining reader multiplies by the matte rather than dividing, so the
+   noise never enters. Opaque output either way — alpha 255 on both halves,
+   since the point is a file with no alpha to lose.                       */
+function matteCompose(src, W, H, dstCtx){
+  const img = dstCtx.createImageData(W, H * 2);
+  const d = img.data, half = W * H * 4;
+  for (let p = 0; p < half; p += 4){
+    const a = src[p + 3];
+    d[p]     = src[p]     * a / 255;      /* clamped array rounds for us */
+    d[p + 1] = src[p + 1] * a / 255;
+    d[p + 2] = src[p + 2] * a / 255;
+    d[p + 3] = 255;
+    d[half + p] = d[half + p + 1] = d[half + p + 2] = a;
+    d[half + p + 3] = 255;
+  }
+  dstCtx.putImageData(img, 0, 0);         /* for anything taking a canvas */
+  return d;                               /* and the pixels, for prPlanes */
+}
+
 document.getElementById("mexport").onclick = async () => {
   if (busy) return;
   if (typeof VideoEncoder === "undefined"){
@@ -4773,9 +4818,22 @@ document.getElementById("mexport").onclick = async () => {
   const fps = +document.getElementById("gfps").value;
   const step = FPS / fps;
   const wasHold = hold;
+  /* The matte belongs here more than it belongs on the MOV: a pipeline that
+     will not take ProRes is exactly the pipeline that needs the matte drawn
+     as picture, and H.264 is what such a pipeline does take. Doubling the
+     height keeps the width at the standard 1920, which the encoder levels
+     and every ingest are happier with than a 3840-wide side-by-side. */
+  const matte = alphaOn && document.getElementById("pmul").value === "2";
+  const EH = matte ? H * 2 : H;               // still even, so 4:2:0 is fine
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
-  const ctx = cvs.getContext("2d", { willReadFrequently: false });
+  const ctx = cvs.getContext("2d", { willReadFrequently: matte });
+  let mcvs = null, mctx = null;
+  if (matte){
+    mcvs = document.createElement("canvas");
+    mcvs.width = W; mcvs.height = EH;
+    mctx = mcvs.getContext("2d", { willReadFrequently: true });
+  }
   const samples = [], sync = [];
   let avcC = null, failed = null;
   try {
@@ -4798,8 +4856,8 @@ document.getElementById("mexport").onclick = async () => {
        ask the encoder which of these it will take for THIS size and rate and
        use the first that answers yes — lowest profile first, so a small
        export still comes out as widely playable as it was.               */
-    const want = { width: W, height: H, framerate: fps,
-      bitrate: Math.round(clamp(W * H * fps * 0.25, 2e6, 24e6)),
+    const want = { width: W, height: EH, framerate: fps,
+      bitrate: Math.round(clamp(W * EH * fps * 0.25, 2e6, 24e6)),
       avc: { format: "avc" } };                // AVCC + avcC, not Annex-B
     let codec = null;
     for (const c of ["avc1.42E01E", "avc1.42E028", "avc1.42E033",
@@ -4809,7 +4867,7 @@ document.getElementById("mexport").onclick = async () => {
         if (r && r.supported){ codec = c; break; }
       } catch (e){ /* an unsupported string throws rather than answering */ }
     }
-    if (!codec) throw new Error(`no H.264 level for ${W}x${H} at ${fps}fps`);
+    if (!codec) throw new Error(`no H.264 level for ${W}x${EH} at ${fps}fps`);
     enc.configure({ ...want, codec });
     const segA = segStart(), segN = Math.ceil((segEnd() - segA) / step);
     for (let k = 0; k < segN; k++){
@@ -4817,8 +4875,9 @@ document.getElementById("mexport").onclick = async () => {
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);          // exact frame, not wherever it had played to
-      await drawStage(ctx, W, H);
-      const frame = new VideoFrame(cvs, {
+      await drawStage(ctx, W, H, matte);     // needs the matte to draw it
+      if (matte) matteCompose(ctx.getImageData(0, 0, W, H).data, W, H, mctx);
+      const frame = new VideoFrame(matte ? mcvs : cvs, {
         timestamp: Math.round(k * 1e6 / fps),
         duration:  Math.round(1e6 / fps)
       });
@@ -4832,7 +4891,7 @@ document.getElementById("mexport").onclick = async () => {
     enc.close();
     if (failed) throw failed;
     if (!avcC) throw new Error("no avcC from the encoder");
-    const mp4 = muxMP4(samples, sync, W, H, timescale, delta, avcC);
+    const mp4 = muxMP4(samples, sync, W, EH, timescale, delta, avcC);
     const blob = new Blob([mp4], { type: "video/mp4" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -5322,15 +5381,26 @@ document.getElementById("vexport").onclick = async () => {
   const step = FPS / fps;
   const segA = segStart();                    // the chosen half
   const n = Math.ceil((segEnd() - segA) / step);
-  /* Only meaningful with a matte to bake in — an opaque frame is k = 1 in
-     both conventions, so the setting is ignored rather than obeyed when
-     Transparent is off, and the hint on the control says so. */
-  const premul = alphaOn && document.getElementById("pmul").value === "1";
+  /* Only meaningful with a matte to carry — an opaque frame is k = 1 in
+     every convention and its matte would be solid white, so the setting is
+     ignored rather than obeyed when Transparent is off, and the hint on the
+     control says so. */
+  const mode   = alphaOn ? document.getElementById("pmul").value : "0";
+  const premul = mode === "1";
+  const matte  = mode === "2";
+  const EH     = matte ? H * 2 : H;           // the encoded height
   busy = true;
   const wasHold = hold;
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
   const ctx = cvs.getContext("2d", { willReadFrequently: true });
+  /* the double-height frame the matte is composed into, made once */
+  let mctx = null;
+  if (matte){
+    const mcvs = document.createElement("canvas");
+    mcvs.width = W; mcvs.height = EH;
+    mctx = mcvs.getContext("2d", { willReadFrequently: true });
+  }
   const frames = [];
   let bytes = 0;
   try {
@@ -5339,8 +5409,10 @@ document.getElementById("vexport").onclick = async () => {
       render(hold);
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
-      const p = prPlanes(ctx.getImageData(0, 0, W, H).data, W, H, premul);
-      const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
+      const img = ctx.getImageData(0, 0, W, H).data;
+      const px  = matte ? matteCompose(img, W, H, mctx) : img;
+      const p = prPlanes(px, W, EH, premul);
+      const fr = proresFrame(p.Y, p.U, p.V, p.A, W, EH, p.stride, PR_QSCALE);
       frames.push(fr); bytes += fr.length;
       $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
       await new Promise(r => setTimeout(r, 0));
@@ -5354,7 +5426,7 @@ document.getElementById("vexport").onclick = async () => {
        into the file, and the fix is to use the rate's own denominator. */
     const [ts, dt] = fps === 23.976 ? [24000, 1001]
                                     : [90000, Math.round(90000 / fps)];
-    const blob = new Blob(muxMOV(frames, W, H, ts, dt),
+    const blob = new Blob(muxMOV(frames, W, EH, ts, dt),
                           { type: "video/quicktime" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -5372,6 +5444,7 @@ document.getElementById("vexport").onclick = async () => {
        in both, which is the route to a flattener. */
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`
       + (!alphaOn ? " · opaque, reads the same everywhere"
+         : matte   ? ` · ${W}x${EH} luma matte, opaque — recombine downstream`
          : premul  ? " · premultiplied, for a flattening reader"
                    : " · straight alpha, for a compositing reader");
   } catch (e){
@@ -6677,8 +6750,9 @@ function boot(){
   }
   glow2Bez.draw();
   setGlow2(N2_GLOW_SPEED, "boot");
-  if (Q.has("pmul")){                        // #pmul=1 premultiplied MOV colour
-    $pm.value = Q.get("pmul") === "1" ? "1" : "0";
+  if (Q.has("pmul")){                        // #pmul=1 premultiplied, 2 matte
+    const v = Q.get("pmul");
+    $pm.value = (v === "1" || v === "2") ? v : "0";
   }
   syncPremulHint();                          // and state the hint either way
   if (Q.has("bez")){                         // #bez=x1,y1,x2,y2
