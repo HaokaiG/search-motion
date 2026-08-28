@@ -1846,7 +1846,7 @@
    apart. Now: read the stamp under the export buttons in both places. If
    they differ, the far copy is old and nothing else about the report can
    be trusted until it is re-imported. */
-const BUILD = "2026-08-28 · straight + ground + matte tally";
+const BUILD = "2026-08-28 · straight + ground + tally + nclx/legal";
 /* #t=<seconds> freezes on one instant, #bare hides the HUD — that is how the
    stills for the frame-by-frame diff against the source clip get rendered. */
 const Q = new URLSearchParams(
@@ -5267,7 +5267,20 @@ function muxMOV(frames, W, H, timescale, delta){
                       b32(0x00480000), b32(0x00480000), zeros(4), b16(1),
                       cname, b16(0x0020),                 /* 32-bit: has alpha */
                       new Uint8Array([0xFF, 0xFF]),
-                      bx("colr", str4("nclc"), b16(1), b16(1), b16(1)),
+                      /* 'nclx', not 'nclc'. Both name the same three fields —
+                         BT.709 primaries, transfer and matrix — but nclc stops
+                         there, leaving the one thing it cannot say: whether the
+                         samples are VIDEO range or FULL range. A reader then has
+                         to infer it from convention, and inferring wrong is
+                         precisely the legal-vs-full mismatch that shows as
+                         crushed blacks on one machine and blown highlights on
+                         another. nclx carries a full_range_flag in the top bit of
+                         a trailing byte; 0x00 declares video range, which is the
+                         64..940 these planes actually hold. Nothing about the
+                         pixels changes — the same numbers are now described
+                         completely instead of three-quarters described. */
+                      bx("colr", str4("nclx"), b16(1), b16(1), b16(1),
+                                 new Uint8Array([0x00])),
                       bx("fiel", new Uint8Array([1, 0])),
                       bx("pasp", b32(1), b32(1)));
   const stsd = bx("stsd", zeros(4), b32(1), ap4h);

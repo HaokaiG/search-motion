@@ -670,6 +670,39 @@ the measured matte at write time (`matte measured: 62% clear…`), an opaque
 export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
 holds both kinds under one name.
 
+### The colour tag says the range too
+
+The export was tagged `colr nclc 1/1/1` — BT.709 primaries, transfer and
+matrix. Correct as far as it goes, and it is what ffmpeg writes for a `.mov`.
+But `nclc` stops at those three fields and cannot state the one thing left:
+whether the samples are **video range or full range**. A reader then infers it
+from convention, and inferring wrong is exactly the legal-vs-full mismatch
+that surfaces as crushed blacks on one machine and blown highlights on
+another.
+
+It writes **`nclx`** now, the same three values plus a `full_range_flag` in
+the top bit of a trailing byte, set to **0 — video range**, which is the
+64..940 these planes actually hold. Nothing about the pixels changes; the
+same numbers are described completely instead of three-quarters described.
+
+Verified on the delivered file: the atom parses back as `nclx`,
+`primaries=1 transfer=1 matrix=1`, `full_range_flag=0`, and Apple's decoder
+now reports `kMDItemProfileName` **"HD (1-1-1)"** alongside
+**"Apple ProRes 4444"** — ColorSync resolving the profile rather than
+assuming one. Alpha is untouched at **74.1% clear / 20.8% soft / 5.1%
+solid**, bit-identical to before.
+
+**Why this matters more on some machines than others.** Measured across the
+two Macs this piece is checked on: same macOS (26.6.2 / 25G83), same Light
+appearance, but one is an M1 with a standard Retina LCD and no EDR, and the
+other an M5 Pro with a **Liquid Retina XDR** panel — full extended-dynamic-
+range capability, selectable Reference Modes, auto-brightness on. EDR renders
+bright content with headroom above normal white, and this piece's glow is
+near-white saturated blue, the content EDR pushes hardest. A complete colour
+tag is what lets the display pipeline convert rather than guess; the rest is
+the display's own Reference Mode, which is a setting on that machine and not
+something any file can carry.
+
 ### The frame header goes long, like every other ProRes file
 
 The ProRes frame header can be written short — 20 bytes, matrix flags clear,
