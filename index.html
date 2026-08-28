@@ -1823,6 +1823,15 @@
         <option value="60">60 fps</option>
       </select>
     </div>
+    <!-- which convention the MOV's colour is written in. ProRes 4444 states
+         this NOWHERE in the file, so the reader has to be told, and the two
+         readers this piece meets want opposite answers. -->
+    <span class="why" id="alphawhy">
+      <select id="alphamode">
+        <option value="straight" selected>Alpha: Straight · editors</option>
+        <option value="matted">Alpha: Matted · flatteners</option>
+      </select>
+    </span>
     <button id="vexport">Export MOV · ProRes 4444</button>
     <button id="pexport">Export PNG Sequence</button>
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
@@ -1846,7 +1855,7 @@
    apart. Now: read the stamp under the export buttons in both places. If
    they differ, the far copy is old and nothing else about the report can
    be trusted until it is re-imported. */
-const BUILD = "2026-08-28 · matted + tally + nclx/legal";
+const BUILD = "2026-08-28 · alpha dial + tally + nclc";
 /* #t=<seconds> freezes on one instant, #bare hides the HUD — that is how the
    stills for the frame-by-frame diff against the source clip get rendered. */
 const Q = new URLSearchParams(
@@ -4557,6 +4566,44 @@ function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
 
 const $gs = document.getElementById("gstat");
 document.getElementById("build").textContent = "build " + BUILD;
+
+/* ── which convention the MOV writes ─────────────────────────────────────
+   Read fresh at each export rather than latched at boot, so changing the
+   control takes effect on the very next click.
+
+     straight  colour as-is, the convention 4444 means. An editor reads it
+               with NO setting at all. A reader that drops the matte shows
+               the glow at full strength — row C.
+     matted    colour composited onto the piece's own ground, alpha kept.
+               A reader that drops the matte gets the picture EXACTLY right
+               (measured: 100% of pixels exact). An editor must be told:
+               Interpret Footage > Alpha > Premultiplied - Matted With
+               Color, white for the search piece, black for the prompt one.
+
+   Straight is the default because an editor is the destination that cannot
+   be worked around — a flattener has the opaque export as its correct file,
+   an editor has nothing else. #alpha=straight / #alpha=matted carries it,
+   for a headless render or a machine where the panel is awkward to reach. */
+const $am = document.getElementById("alphamode");
+if (Q.get("alpha") === "matted" || Q.get("alpha") === "straight")
+  $am.value = Q.get("alpha");
+Object.defineProperty(window, "MATTED", { get: () => $am.value === "matted" });
+const $amw = document.getElementById("alphawhy");
+function syncAlphaHint(){
+  $amw.dataset.why = !alphaOn
+    ? "Nothing to write either way while the frame is opaque — every pixel "
+      + "is alpha 255, identical in both conventions. Turn Transparent on."
+    : MATTED
+      ? "Colour is composited onto the piece's ground with the alpha kept. "
+        + "Correct in anything that drops the matte. In an editor set "
+        + "Interpret Footage > Alpha > Premultiplied - Matted With Color, "
+        + "and set that colour to WHITE here (black on the prompt piece)."
+      : "Colour as-is, the convention 4444 means. Correct in AE, Premiere "
+        + "and Resolve with no setting at all. A reader that drops the "
+        + "matte will show the glow wider than it is.";
+}
+$am.onchange = syncAlphaHint;
+/* the first call waits for alphaOn below — `let` is in its dead zone here */
 let busy = false;
 document.getElementById("gexport").onclick = async () => {
   if (busy) return;
@@ -4696,11 +4743,13 @@ $ab.onclick = () => {
   stage.classList.toggle("has-alpha", alphaOn);
   $ab.textContent = "Transparent: " + (alphaOn ? "On" : "Off");
   syncGifAvailability();
+  syncAlphaHint();
   chipGapForMode();
   applyQuery();                    // the bar re-derives from the wider gap
   render(hold !== null ? hold : 0);
 };
 syncGifAvailability();             // and set it once for the state it loads in
+syncAlphaHint();                   // same, for the alpha convention's hint
 
 document.getElementById("mexport").onclick = async () => {
   if (busy) return;
@@ -5220,6 +5269,17 @@ function prPlanes(rgba, W, H){
    That is straight colour, correct in an editor with no setting at all,
    and row C everywhere else. The choice between them is which reader has
    to be configured, and it is now the editor rather than everything. */
+/* STRAIGHT's companion: colour under alpha 0 is free to choose (a
+   compositing reader multiplies it by exactly 0), so it carries the piece's
+   ground rather than the canvas's black. Only a == 0 is touched — at any
+   a > 0 the colour is the exact quotient a straight reader multiplies back,
+   and shading it is the halo bug this file already had once. */
+function groundFill(rgba, ground){
+  for (let p = 0; p < rgba.length; p += 4)
+    if (rgba[p + 3] === 0)
+      rgba[p] = rgba[p + 1] = rgba[p + 2] = ground;
+}
+
 function matteOnto(rgba, ground){
   for (let p = 0; p < rgba.length; p += 4){
     const a = rgba[p + 3];
@@ -5283,20 +5343,18 @@ function muxMOV(frames, W, H, timescale, delta){
                       b32(0x00480000), b32(0x00480000), zeros(4), b16(1),
                       cname, b16(0x0020),                 /* 32-bit: has alpha */
                       new Uint8Array([0xFF, 0xFF]),
-                      /* 'nclx', not 'nclc'. Both name the same three fields —
-                         BT.709 primaries, transfer and matrix — but nclc stops
-                         there, leaving the one thing it cannot say: whether the
-                         samples are VIDEO range or FULL range. A reader then has
-                         to infer it from convention, and inferring wrong is
-                         precisely the legal-vs-full mismatch that shows as
-                         crushed blacks on one machine and blown highlights on
-                         another. nclx carries a full_range_flag in the top bit of
-                         a trailing byte; 0x00 declares video range, which is the
-                         64..940 these planes actually hold. Nothing about the
-                         pixels changes — the same numbers are now described
-                         completely instead of three-quarters described. */
-                      bx("colr", str4("nclx"), b16(1), b16(1), b16(1),
-                                 new Uint8Array([0x00])),
+                      /* 'nclc', the QuickTime form, NOT the ISO 'nclx'.
+                         nclx carries a full_range_flag that nclc cannot, and
+                         that extra field was briefly written here — Apple read
+                         it fine. But it broke the rule the long frame header
+                         was adopted to follow: match what real encoders
+                         actually emit. Apple's own encoder and ffmpeg both
+                         write nclc in a .mov, and being the only .mov in the
+                         world carrying nclx is exactly the untested path that
+                         rule exists to avoid. Range goes back to convention —
+                         ProRes Y'CbCr is video range, which every ProRes
+                         decoder assumes — and the file stops being unusual. */
+                      bx("colr", str4("nclc"), b16(1), b16(1), b16(1)),
                       bx("fiel", new Uint8Array([1, 0])),
                       bx("pasp", b32(1), b32(1)));
   const stsd = bx("stsd", zeros(4), b32(1), ap4h);
@@ -5361,7 +5419,8 @@ document.getElementById("vexport").onclick = async () => {
           const av = img[i];
           if (av === 0) aZero++; else if (av === 255) aFull++; else aPart++;
         }
-      if (alphaOn) matteOnto(img, PIECE === 2 ? 0 : 255);
+      if (alphaOn && MATTED) matteOnto(img, PIECE === 2 ? 0 : 255);
+      else if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
       const p = prPlanes(img, W, H);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
       frames.push(fr); bytes += fr.length;
@@ -5396,7 +5455,8 @@ document.getElementById("vexport").onclick = async () => {
     const aT = aZero + aFull + aPart;
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`
       + (alphaOn
-         ? ` · matted on ${PIECE === 2 ? "black" : "white"} · matte measured: ${Math.round(100 * aZero / aT)}% clear`
+         ? ` · ${MATTED ? "matted on " + (PIECE === 2 ? "black" : "white") : "straight alpha"}`
+           + ` · matte measured: ${Math.round(100 * aZero / aT)}% clear`
            + ` / ${Math.round(100 * aPart / aT)}% soft / ${Math.round(100 * aFull / aT)}% solid`
          : " · opaque, reads the same everywhere");
   } catch (e){
