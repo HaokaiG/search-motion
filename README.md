@@ -645,42 +645,55 @@ identically in a compositing reader and a flattening one, and AI Studio shows
 what the preview shows. The export's status line says which of the two it just
 wrote, because this question has come back three times and it is never the glow.
 
-### The same movie out of ffmpeg, beside the built-in encoder
+### Seeing the transparency in After Effects and Premiere
 
-**By request** — a second MOV button that hands the frames to ffmpeg.wasm and
-lets `prores_ks` write the file. The built-in encoder is verified down to the
-bitstream, but every time an export misbehaves somewhere the question returns
-to whether the encoder is at fault; a file out of ffmpeg settles that in either
-direction, because its bytes are the industry's. The frames cross over as PNGs
-(the browser's own encoder — lossless, alpha intact), and ffmpeg encodes
-`prores_ks -profile:v 4444 -pix_fmt yuva444p10le -vendor apl0
--movflags +faststart`. **Straight alpha**, because a canvas PNG is straight by
-definition — the two buttons write the same convention, and 23.976 is stated
-as `24000/1001` so the timing stays exact, the same reason the built-in muxer
-special-cases it.
+The file's matte is real — Apple's decoder (the same ProRes code Adobe ships)
+returns graded alpha from the delivered bytes, and compositing that frame over
+a checkerboard shows the field clear and the bar's 20% scrim letting the
+checker through. When the import still *looks* opaque, it is one of three
+things, each a click:
 
-What it costs, stated rather than discovered: ffmpeg.wasm is **~31 MB, fetched
-from jsDelivr on first use** and cached by the browser after; offline the
-button fails with a message and the built-in export keeps working, being
-self-contained. It runs the **single-threaded** core — the multithreaded one
-needs cross-origin isolation headers a plain static host does not send — so it
-encodes slower. And it works in wasm memory, which caps near 2 GB: fine to
-960px, a 1920 whole-piece transparent run may die of memory, said in the
-status line rather than hung. Versions are pinned (`ffmpeg@0.12.10`,
-`util@0.12.1`, `core@0.12.6`).
+- **After Effects shows transparent as black.** A comp's empty ground renders
+  black unless the **transparency grid** is on — the checkerboard icon at the
+  bottom of the Composition panel. Nothing about the footage; toggle it.
+- **After Effects was told to ignore the alpha.** AE asks how to interpret
+  unlabeled alpha on import; answered "Ignore" once (or set as a preference),
+  the clip comes in opaque forever after. Fix: right-click the footage →
+  **Interpret Footage → Main → Alpha: Straight (Unmatted)**.
+- **Premiere's program monitor is black behind V1.** Put the MOV on **V2 over
+  another clip** — transparency only shows over something. If it was ever
+  marked ignored: right-click the clip → **Modify → Interpret Footage →
+  Alpha**, uncheck *Ignore Alpha Channel*, leave premultiply off.
 
-One integration trap recorded because it cost a round: the library's worker is
-a **module** worker, where `importScripts` does not exist, so it falls back to
-`import(coreURL)` and reads the module's **default export** — which the UMD
-core does not have. The core must be the **ESM build**; pairing the UMD core
-with it fails as exactly `failed to import ffmpeg-core.js`.
+And check it is the transparent file at all: the export's status line prints
+the measured matte at write time (`matte measured: 62% clear…`), an opaque
+export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
+holds both kinds under one name.
 
-Verified on the delivered file: **"Apple ProRes 4444"** per `mdls`, 480x270 at
-6.875s, faststart (`ftyp → moov → wide → mdat`, moov at byte 20), real graded
-alpha out of Apple's decoder (73.2% clear / 22.4% partial / 4.3% opaque), and
-**4.21 MB against the built-in's 4.29** on the identical 55 frames — two
-independent encoders agreeing on size to 2%. The built-in export re-verified
-unregressed alongside, same run.
+### The export answers "is it transparent" itself, as it writes
+
+"Is the file transparent" has now been asked from three different viewers, and
+each answers with its own ground: QuickTime and Finder composite the alpha
+over **black** (a transparent file looks like a black-background file there),
+an editor composites it over the timeline, and a flattener deletes the matte
+outright. So the export answers for itself instead. As the frames are encoded
+— from the same pixels the encoder is given — the transparent MOV's status
+line now reports the measured matte, e.g. **`matte measured: 62% clear / 22%
+soft / 16% solid`** for the whole piece. This runs wherever the page runs, AI
+Studio included: same code, same bytes, same numbers. A line reading 62% clear
+**is** the transparency, whatever colour a player paints behind it — and to
+*see* it, the file has to be composited over something, which means an editor.
+
+For scale: a single mid-act frame reads ~71% clear / 24% soft / 5% solid; the
+whole-piece aggregate is more solid because act 2's white card fills the later
+frames. Both are the same file behaving correctly.
+
+**The ffmpeg export came back out, by request**, one PR after it went in. It
+proved what it was for while it lasted — the reference encoder's file decoded
+as "Apple ProRes 4444" with a real matte, within 2% of the built-in's size on
+identical frames, which settles that the built-in encoder is not the fault
+line — and the record of that lives in the codec's comments and PR #14. What
+it cost (a 31 MB CDN fetch, a second button) is gone with it.
 
 ### Straight only, with the piece's ground written under nothing
 
