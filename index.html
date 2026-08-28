@@ -1846,7 +1846,7 @@
    apart. Now: read the stamp under the export buttons in both places. If
    they differ, the far copy is old and nothing else about the report can
    be trusted until it is re-imported. */
-const BUILD = "2026-08-28 · straight + ground + tally + nclx/legal";
+const BUILD = "2026-08-28 · matted + tally + nclx/legal";
 /* #t=<seconds> freezes on one instant, #bare hides the HUD — that is how the
    stills for the frame-by-frame diff against the source clip get rendered. */
 const Q = new URLSearchParams(
@@ -5188,31 +5188,47 @@ function prPlanes(rgba, W, H){
   return { Y, U, V, A, stride };
 }
 
-/* ── the ground under nothing ────────────────────────────────────────────
-   A fully transparent pixel has no colour of its own: the canvas stores
-   premultiplied and un-premultiplies on the way out, so 0/0 comes back 0
-   and the plane under the clear field was BLACK. A compositing reader
-   never sees it — it multiplies that colour by exactly 0 — but a reader
-   that DROPS the matte (AI Studio converts RGBA to RGB on ingest) shows
-   the planes as they are, and the piece appeared on a black ground.
+/* ── the matte, baked into the colour ────────────────────────────────────
+   A transparent frame has two halves — colour, and how much of it is
+   there — and a reader that shows the colour WITHOUT applying the second
+   half sees the glow at full strength over whatever sat under alpha 0.
+   That picture has a name in this repo's history: row C, white ground and
+   a glow spread far past the bar, and it is what a flattening pipeline
+   (AI Studio) and a mis-set editor both produce. The file was never wrong;
+   the colour channel simply did not contain the answer on its own.
 
-   The colour under alpha 0 is the one thing in a straight file that is
-   genuinely free to choose: any value at all composites identically,
-   with error exactly 0, not merely small. So it is set to the piece's
-   own ground — the same rule drawStage uses for an opaque export, black
-   for piece 2 (whose plate lives on black) and white otherwise — and a
-   flattener now shows the piece on the ground it belongs on.
+   Now it does. Every pixel is composited onto the piece's own ground —
+   white, and black for piece 2 whose plate lives on black, the same rule
+   drawStage uses for an opaque export — while THE ALPHA CHANNEL IS KEPT
+   INTACT. Colour = c*a + ground*(1-a), alpha = a. So the colour planes
+   alone already read as the piece over its ground, correct falloff and
+   all, and a reader that drops the matte now gets the right picture
+   instead of row C.
 
-   ONLY a == 0 is touched. At any a > 0 the colour is the exact quotient
-   a straight reader multiplies back, and darkening it toward the ground
-   is the halo bug this file already had once, measured at up to 6.6/255
-   over the glow's soft edge. The glow reading wide in a flattener is the
-   other, unfixable half of dropping the matte: the band at moderate
-   alpha IS the real glow, at colour a straight file must keep. */
-function groundFill(rgba, ground){
-  for (let p = 0; p < rgba.length; p += 4)
-    if (rgba[p + 3] === 0)
-      rgba[p] = rgba[p + 1] = rgba[p + 2] = ground;
+   WHAT IT COSTS, and it is a real cost. This is the "matted" convention:
+   the colour is premultiplied against a known ground rather than left
+   straight. An editor must be told, or it will composite a second time
+   and the soft edges come out too light over anything darker than the
+   matte. In After Effects that is Interpret Footage > Main > Alpha >
+   Premultiplied - Matted With Color, with the colour set to WHITE for the
+   search piece and BLACK for the prompt piece. Premiere and Resolve have
+   the same control. One setting, standard everywhere, and it is the price
+   of the file being correct in every reader that cannot ask.
+
+   THE WAY BACK is the previous behaviour, which touched only a == 0:
+       if (a === 0) rgba[p] = rgba[p+1] = rgba[p+2] = ground;
+   That is straight colour, correct in an editor with no setting at all,
+   and row C everywhere else. The choice between them is which reader has
+   to be configured, and it is now the editor rather than everything. */
+function matteOnto(rgba, ground){
+  for (let p = 0; p < rgba.length; p += 4){
+    const a = rgba[p + 3];
+    if (a === 255) continue;                 /* opaque: already the answer */
+    const k = a / 255, g = ground * (1 - k);
+    rgba[p]     = rgba[p]     * k + g;       /* clamped array rounds for us */
+    rgba[p + 1] = rgba[p + 1] * k + g;
+    rgba[p + 2] = rgba[p + 2] * k + g;
+  }
 }
 
 /* ══════════════════════════ the MOV around it ════════════════════════════
@@ -5345,7 +5361,7 @@ document.getElementById("vexport").onclick = async () => {
           const av = img[i];
           if (av === 0) aZero++; else if (av === 255) aFull++; else aPart++;
         }
-      if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
+      if (alphaOn) matteOnto(img, PIECE === 2 ? 0 : 255);
       const p = prPlanes(img, W, H);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
       frames.push(fr); bytes += fr.length;
@@ -5380,7 +5396,7 @@ document.getElementById("vexport").onclick = async () => {
     const aT = aZero + aFull + aPart;
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`
       + (alphaOn
-         ? ` · straight alpha · matte measured: ${Math.round(100 * aZero / aT)}% clear`
+         ? ` · matted on ${PIECE === 2 ? "black" : "white"} · matte measured: ${Math.round(100 * aZero / aT)}% clear`
            + ` / ${Math.round(100 * aPart / aT)}% soft / ${Math.round(100 * aFull / aT)}% solid`
          : " · opaque, reads the same everywhere");
   } catch (e){
