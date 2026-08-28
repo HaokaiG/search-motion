@@ -5273,6 +5273,15 @@ document.getElementById("vexport").onclick = async () => {
   const ctx = cvs.getContext("2d", { willReadFrequently: true });
   const frames = [];
   let bytes = 0;
+  /* The matte, tallied AS IT IS ENCODED. "Is the file transparent" has now
+     been asked from three different viewers, and each answers with its own
+     ground — QuickTime and Finder composite over black, an editor over its
+     timeline, a flattener deletes the matte outright — so the export
+     answers for itself instead, from the same pixels the encoder is given,
+     wherever the page runs (AI Studio included: same code, same bytes). A
+     status line reading "74% clear" IS the transparency, whatever colour a
+     player paints behind it. */
+  let aZero = 0, aFull = 0, aPart = 0;
   try {
     for (let k = 0; k < n; k++){
       hold = (segA + k * step) / FPS;
@@ -5280,6 +5289,11 @@ document.getElementById("vexport").onclick = async () => {
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
       const img = ctx.getImageData(0, 0, W, H).data;
+      if (alphaOn)
+        for (let i = 3; i < img.length; i += 4){
+          const av = img[i];
+          if (av === 0) aZero++; else if (av === 255) aFull++; else aPart++;
+        }
       if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
       const p = prPlanes(img, W, H);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
@@ -5312,9 +5326,12 @@ document.getElementById("vexport").onclick = async () => {
        Turning Transparent off writes alpha 255 on EVERY pixel (measured: min
        and max both 255 across a whole frame), so that file reads identically
        in both, which is the route to a flattener. */
+    const aT = aZero + aFull + aPart;
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`
-      + (alphaOn ? " · straight alpha, for a compositing reader"
-                 : " · opaque, reads the same everywhere");
+      + (alphaOn
+         ? ` · straight alpha · matte measured: ${Math.round(100 * aZero / aT)}% clear`
+           + ` / ${Math.round(100 * aPart / aT)}% soft / ${Math.round(100 * aFull / aT)}% solid`
+         : " · opaque, reads the same everywhere");
   } catch (e){
     $gs.textContent = "failed: " + (e && e.message ? e.message : e);
   } finally {

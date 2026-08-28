@@ -645,6 +645,56 @@ identically in a compositing reader and a flattening one, and AI Studio shows
 what the preview shows. The export's status line says which of the two it just
 wrote, because this question has come back three times and it is never the glow.
 
+### Seeing the transparency in After Effects and Premiere
+
+The file's matte is real — Apple's decoder (the same ProRes code Adobe ships)
+returns graded alpha from the delivered bytes, and compositing that frame over
+a checkerboard shows the field clear and the bar's 20% scrim letting the
+checker through. When the import still *looks* opaque, it is one of three
+things, each a click:
+
+- **After Effects shows transparent as black.** A comp's empty ground renders
+  black unless the **transparency grid** is on — the checkerboard icon at the
+  bottom of the Composition panel. Nothing about the footage; toggle it.
+- **After Effects was told to ignore the alpha.** AE asks how to interpret
+  unlabeled alpha on import; answered "Ignore" once (or set as a preference),
+  the clip comes in opaque forever after. Fix: right-click the footage →
+  **Interpret Footage → Main → Alpha: Straight (Unmatted)**.
+- **Premiere's program monitor is black behind V1.** Put the MOV on **V2 over
+  another clip** — transparency only shows over something. If it was ever
+  marked ignored: right-click the clip → **Modify → Interpret Footage →
+  Alpha**, uncheck *Ignore Alpha Channel*, leave premultiply off.
+
+And check it is the transparent file at all: the export's status line prints
+the measured matte at write time (`matte measured: 62% clear…`), an opaque
+export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
+holds both kinds under one name.
+
+### The export answers "is it transparent" itself, as it writes
+
+"Is the file transparent" has now been asked from three different viewers, and
+each answers with its own ground: QuickTime and Finder composite the alpha
+over **black** (a transparent file looks like a black-background file there),
+an editor composites it over the timeline, and a flattener deletes the matte
+outright. So the export answers for itself instead. As the frames are encoded
+— from the same pixels the encoder is given — the transparent MOV's status
+line now reports the measured matte, e.g. **`matte measured: 62% clear / 22%
+soft / 16% solid`** for the whole piece. This runs wherever the page runs, AI
+Studio included: same code, same bytes, same numbers. A line reading 62% clear
+**is** the transparency, whatever colour a player paints behind it — and to
+*see* it, the file has to be composited over something, which means an editor.
+
+For scale: a single mid-act frame reads ~71% clear / 24% soft / 5% solid; the
+whole-piece aggregate is more solid because act 2's white card fills the later
+frames. Both are the same file behaving correctly.
+
+**The ffmpeg export came back out, by request**, one PR after it went in. It
+proved what it was for while it lasted — the reference encoder's file decoded
+as "Apple ProRes 4444" with a real matte, within 2% of the built-in's size on
+identical frames, which settles that the built-in encoder is not the fault
+line — and the record of that lives in the codec's comments and PR #14. What
+it cost (a 31 MB CDN fetch, a second button) is gone with it.
+
 ### Straight only, with the piece's ground written under nothing
 
 **By request the export writes one convention: straight.** A dial that briefly
