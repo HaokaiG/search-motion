@@ -670,6 +670,34 @@ the measured matte at write time (`matte measured: 62% clear…`), an opaque
 export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
 holds both kinds under one name.
 
+### The frame header goes long, like every other ProRes file
+
+The ProRes frame header can be written short — 20 bytes, matrix flags clear,
+the decoder substituting its flat default — and that is what this encoder did.
+It is legal, Apple's decoder honours it, and it was verified working. But
+**no real encoder writes it that way**: Apple's own and ffmpeg's `prores_ks`
+both emit **148 bytes** with both quantisation matrices spelled out, measured
+side by side on files from each. That left the short form the last structural
+difference between these exports and every other ProRes 4444 in existence.
+
+A decoder is only ever exercised against the files the world actually
+contains, so a path nothing else takes is an untested path — a needless risk
+to carry when the fix costs 128 bytes a frame. The header is 148 now, flags
+`3` (luma then chroma), both matrices the flat **4** this encoder already
+quantises against.
+
+**The image does not change, and that is the point.** The matrices written are
+the ones already in use, so the quantiser behaves identically. Measured on the
+delivered file before and after: alpha **74.1% clear / 20.8% soft / 5.1%
+solid** both times, bit-identical; `mdls` still reports **"Apple ProRes 4444"**
+at 480x270 / 6.875s; the matte tally is unchanged. Only the header grew.
+
+This is the last thing the exporter can do about a file reading differently on
+another machine. Everything beyond it is the reader: a byte-identical file
+(SHA-256 verified on both) rendering transparent on one Mac and opaque on
+another is decided entirely by that machine's alpha interpretation and the
+ground its viewer paints, neither of which any encoder change can reach.
+
 ### The export answers "is it transparent" itself, as it writes
 
 "Is the file transparent" has now been asked from three different viewers, and
@@ -694,65 +722,6 @@ as "Apple ProRes 4444" with a real matte, within 2% of the built-in's size on
 identical frames, which settles that the built-in encoder is not the fault
 line — and the record of that lives in the codec's comments and PR #14. What
 it cost (a 31 MB CDN fetch, a second button) is gone with it.
-### The same movie out of ffmpeg, beside the built-in encoder
-
-**By request** — a second MOV button that hands the frames to ffmpeg.wasm and
-lets `prores_ks` write the file. The built-in encoder is verified down to the
-bitstream, but every time an export misbehaves somewhere the question returns
-to whether the encoder is at fault; a file out of ffmpeg settles that in either
-direction, because its bytes are the industry's. The frames cross over as PNGs
-(the browser's own encoder — lossless, alpha intact), and ffmpeg encodes
-`prores_ks -profile:v 4444 -pix_fmt yuva444p10le -vendor apl0
--movflags +faststart`. **Straight alpha**, because a canvas PNG is straight by
-definition — the two buttons write the same convention, and 23.976 is stated
-as `24000/1001` so the timing stays exact, the same reason the built-in muxer
-special-cases it.
-
-**Colour is tagged explicitly, all four fields** —
-`-color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv`.
-The first version of this button left them off, and the file it wrote had **no
-`colr` atom at all** (measured: the sample entry carried only `fiel`). An
-untagged file is one every reader has to *guess* about, and that guess is
-where cross-machine colour and gamma differences come from — QuickTime applies
-its own display gamma near 1.96, the web assumes 2.2, broadcast 2.4, and a
-reader with no tag picks one. Naming primaries, transfer, matrix and range
-leaves nothing to infer. `-color_range tv` declares the legal-range 64..940
-both encoders actually produce, which is the mismatch that otherwise surfaces
-as crushed blacks or blown highlights on one machine and not another.
-
-Measured after: ffmpeg now writes `colr nclc 1/1/1` — **identical to the
-built-in muxer's**, so the two encoders describe their colour the same way and
-a file from either is read the same way. Alpha is unaffected: still 73.2%
-clear / 22.4% soft / 4.3% solid, still `Apple ProRes 4444` per `mdls`.
-
-**What this does not fix**, said plainly because the two get conflated: colour
-tagging governs colour and gamma, not the matte. A reader that discards the
-alpha channel discards it just the same from a perfectly tagged file — the
-`ap4h` depth-32 / alphaType-2 declaration is a separate mechanism, and no
-`colr` value influences it.
-
-What it costs, stated rather than discovered: ffmpeg.wasm is **~31 MB, fetched
-from jsDelivr on first use** and cached by the browser after; offline the
-button fails with a message and the built-in export keeps working, being
-self-contained. It runs the **single-threaded** core — the multithreaded one
-needs cross-origin isolation headers a plain static host does not send — so it
-encodes slower. And it works in wasm memory, which caps near 2 GB: fine to
-960px, a 1920 whole-piece transparent run may die of memory, said in the
-status line rather than hung. Versions are pinned (`ffmpeg@0.12.10`,
-`util@0.12.1`, `core@0.12.6`).
-
-One integration trap recorded because it cost a round: the library's worker is
-a **module** worker, where `importScripts` does not exist, so it falls back to
-`import(coreURL)` and reads the module's **default export** — which the UMD
-core does not have. The core must be the **ESM build**; pairing the UMD core
-with it fails as exactly `failed to import ffmpeg-core.js`.
-
-Verified on the delivered file: **"Apple ProRes 4444"** per `mdls`, 480x270 at
-6.875s, faststart (`ftyp → moov → wide → mdat`, moov at byte 20), real graded
-alpha out of Apple's decoder (73.2% clear / 22.4% partial / 4.3% opaque), and
-**4.21 MB against the built-in's 4.29** on the identical 55 frames — two
-independent encoders agreeing on size to 2%. The built-in export re-verified
-unregressed alongside, same run.
 
 ### Straight only, with the piece's ground written under nothing
 
