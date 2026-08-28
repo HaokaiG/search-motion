@@ -670,6 +670,42 @@ the measured matte at write time (`matte measured: 62% clear…`), an opaque
 export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
 holds both kinds under one name.
 
+### Both conventions, on a dial, with straight as the default
+
+The matte-baked-in change fixed the flattened picture exactly — measured 100%
+of pixels correct — and then ran into the reader it costs: **After Effects.**
+Set to *Premultiplied - Matted With Color* the footage still would not go
+transparent there, while a **PNG sequence from the same panel always does**.
+That is the decisive pairing: PNG alpha needs no interpretation and works, so
+the comp background and the transparency grid are ruled out, and the
+difference is the MOV's convention meeting that machine's AE.
+
+So the choice comes back as a control rather than a default anyone has to
+live with — **Alpha: Straight** (the default) or **Alpha: Matted**:
+
+| | straight | matted |
+|---|---|---|
+| colour written | as-is | `c*a + ground*(1-a)`, alpha kept |
+| an editor | **correct with no setting at all** | needs *Premultiplied - Matted With Color* |
+| a reader that drops the matte | row C — glow at full strength | **100% of pixels exact** |
+| size, 55 frames at 480 | 4.30 MB | 3.56 MB |
+
+**Straight is the default** because an editor is the destination that cannot be
+worked around: a flattener already has the opaque export as its correct file,
+an editor has nothing else. `#alpha=straight` / `#alpha=matted` carries it for
+a headless render or a machine where the panel is awkward to reach, and the
+control's hover hint names the AE setting each one needs.
+
+**And `colr` goes back to `nclc`.** The `nclx` form carried a `full_range_flag`
+that `nclc` cannot, and Apple read it fine — but it broke the rule the long
+frame header was adopted to follow: *match what real encoders actually emit*.
+Apple's own encoder and ffmpeg both write `nclc` in a `.mov`, and being the
+only `.mov` in the world carrying `nclx` is precisely the untested path that
+rule exists to avoid. Range returns to convention, which every ProRes decoder
+assumes. Verified after: `colr nclc 1/1/1`, frame header 148 bytes,
+`alphaType 2`, `ap4h depth 32`, and `mdls` still reporting **Apple ProRes
+4444** with `kMDItemProfileName "HD (1-1-1)"`.
+
 ### The matte is baked into the colour, so a flattener sees the real picture
 
 A transparent frame has two halves — colour, and how much of it is there — and
