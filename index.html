@@ -1855,7 +1855,7 @@
    apart. Now: read the stamp under the export buttons in both places. If
    they differ, the far copy is old and nothing else about the report can
    be trusted until it is re-imported. */
-const BUILD = "2026-08-28 · prores v1 alpha fix + dial";
+const BUILD = "2026-08-28 · prores v1 + rate/aspect declared";
 /* #t=<seconds> freezes on one instant, #bare hides the HUD — that is how the
    stills for the frame-by-frame diff against the source clip get rendered. */
 const Q = new URLSearchParams(
@@ -5029,7 +5029,7 @@ function prFDCT(src, stride, x0, y0, out, o){
 /* -- one frame ------------------------------------------------------------
    Planes come in padded up to whole macroblocks; W/H are what the header
    declares, and the decoder crops back to them.                          */
-function proresFrame(Y, U, V, A, W, H, stride, qscale){
+function proresFrame(Y, U, V, A, W, H, stride, qscale, fps){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   /* slices are 8 macroblocks wide, halving at the right edge until they fit —
      the decoder halves the same way, so the two agree without being told */
@@ -5136,7 +5136,20 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
   out.set([0x61, 0x70, 0x6C, 0x30], o + 4);      /* vendor 'apl0' */
   dv.setUint16(o + 8, W); dv.setUint16(o + 10, H);
   out[o + 12] = 3 << 6;                          /* 4:4:4, progressive */
-  out[o + 13] = 0;
+  /* aspect_ratio_info << 4 | frame_rate_code, and BOTH were 0 — "unknown".
+     The container's stts is what actually times playback, so a software
+     decoder never needed these and nothing here noticed. A reader that
+     believes the BITSTREAM, which is what a hardware decode path does, is
+     told the pixels have an unknown shape and the picture an unknown rate,
+     and has to invent both. Reported as the file "not rendered in the right
+     fps chosen".
+     1 = square pixels, which is what this piece is (pasp is 1:1 too).
+     The rate codes are the spec's own: 23.976, 24, 25, 29.97, 30, 50,
+     59.94, 60. The panel also offers 8 and 12, which the table has no code
+     for — those stay 0, honestly unknown, rather than claiming a rate the
+     file does not run at. */
+  const FRC = { 23.976: 1, 24: 2, 25: 3, 29.97: 4, 30: 5, 50: 6, 59.94: 7, 60: 8 };
+  out[o + 13] = (1 << 4) | (FRC[fps] || 0);
   out[o + 14] = 1; out[o + 15] = 1; out[o + 16] = 1;   /* BT.709 throughout */
   /* 0x02, not 0x42. The low nibble is alpha_channel_type — 2 is 16-bit
      alpha, and that has always been right. The HIGH nibble is reserved and
@@ -5446,7 +5459,7 @@ document.getElementById("vexport").onclick = async () => {
       if (alphaOn && MATTED) matteOnto(img, PIECE === 2 ? 0 : 255);
       else if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
       const p = prPlanes(img, W, H);
-      const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
+      const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE, fps);
       frames.push(fr); bytes += fr.length;
       $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
       await new Promise(r => setTimeout(r, 0));
