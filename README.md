@@ -693,42 +693,6 @@ particular reads near-black there instead of 20% grey. That is what dropping
 the matte does to straight data; the faithful AI Studio view remains the
 opaque export (or the MP4), with the transparent MOV reserved for editors.
 
-### Written for where it runs
-
-This tool has two homes, and they want opposite conventions from the same
-button. Run **locally**, the transparent MOV goes to editors — AE, Premiere,
-Resolve, QuickTime — which read 4444 as straight; handed premultiplied they
-scale by alpha a second time and draw the dark halo (four to five times too
-dark at the measured points). Run **inside AI Studio** — the repo imported as
-an app, exporting from AI Studio's own preview — the file feeds a pipeline
-that flattens, and there only premultiplied shows the true picture, because
-colour x alpha *is* the compositing arithmetic, baked into the pixels where no
-flattener can delete it. Straight there is "the glow is too big and the file
-is not transparent"; premultiplied there is the export that **worked**.
-
-Rather than asking (a dial was built and removed by request), **the writer now
-picks its convention from where the page is hosted**. AI Studio runs an
-imported app in a cross-origin iframe on Google hosting, so the signal is:
-framed, and an ancestor origin matching `aistudio.google.com`,
-`usercontent.goog` or `googleusercontent.com`. The detection is deliberately
-narrow — a non-Google iframe gets straight, the safe default — and
-`#alpha=straight` / `#alpha=premul` in the URL overrides it either way. The
-export's status line always names what it wrote.
-
-Verified: the premultiplied path is plane-exact (a semi pixel at alpha 131
-predicts Y 284 and writes **284**; the clear field sits at black, which is the
-premultiplied invariant — `groundFill` applies to straight only, since ink
-under alpha 0 in a premultiplied file would *add* to every composite). Through
-the button: straight **4.29 MB**, premultiplied **3.56 MB**, opaque
-**2.89 MB** — each matching its convention's established size. The regex was
-unit-tested against both Google host shapes (`aistudio.google.com`, an
-`*.scf.usercontent.goog` app sandbox — both detect) and against non-Google
-origins (`127.0.0.1`, `codepen.io` — both fall back to straight), and the
-piece was run inside a real cross-origin iframe: renders clean, no console
-errors, straight chosen. The one branch that cannot be exercised outside real
-Google hosting is the live ancestor-origin read itself; `#alpha=` is the
-escape hatch if the heuristic ever misses.
-
 The history, kept because each half of it is a measurement:
 
 `prPlanes` had been premultiplying **unconditionally**, and that is what put a dark

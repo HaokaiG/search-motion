@@ -5122,7 +5122,7 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
    and that the noise does not compress — a straight frame runs about 63%
    larger. Both are the correct price for a compositing reader getting the
    exact picture. */
-function prPlanes(rgba, W, H, premul){
+function prPlanes(rgba, W, H){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   const stride = mbW * 16, rows = mbH * 16, n = stride * rows;
   const Y = new Uint16Array(n), U = new Uint16Array(n),
@@ -5130,13 +5130,7 @@ function prPlanes(rgba, W, H, premul){
   for (let y = 0; y < H; y++){
     let p = y * W * 4, q = y * stride;
     for (let x = 0; x < W; x++, p += 4, q++){
-      /* The one line that switches convention — see WRITE_PREMUL below for
-         who gets which. k = 1 leaves the colour as-is (straight); k = a/255
-         bakes the fading in (premultiplied), the same arithmetic a
-         compositing reader performs over black. Opaque pixels are k = 1
-         exactly in both, which is why only Transparent: on differs. */
-      const k = premul ? rgba[p + 3] / 255 : 1;
-      const r = rgba[p] * k, g = rgba[p + 1] * k, b = rgba[p + 2] * k;
+      const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       Y[q] = (64 + 876 * l / 255 + 0.5) | 0;
       U[q] = (512 + 896 * (b - l) / (255 * 1.8556) + 0.5) | 0;
@@ -5182,46 +5176,6 @@ function groundFill(rgba, ground){
     if (rgba[p + 3] === 0)
       rgba[p] = rgba[p + 1] = rgba[p + 2] = ground;
 }
-
-/* ── written for where it runs ───────────────────────────────────────────
-   ProRes 4444 states nowhere in the file which convention its colour is
-   in, and this tool's two homes want opposite answers. Run LOCALLY, the
-   transparent MOV goes to editors — AE, Premiere, Resolve, QuickTime —
-   which read 4444 as STRAIGHT; handed premultiplied they scale by alpha a
-   second time and draw the dark halo (measured: a (45,130,255) pixel at
-   alpha 57 drawn four to five times too dark). Run INSIDE AI STUDIO, the
-   file feeds a pipeline that flattens — RGBA to RGB, the matte deleted —
-   and there only PREMULTIPLIED shows the true picture, because colour x
-   alpha is the compositing arithmetic baked into the pixels; straight
-   shows the glow's soft tail unfaded, more than 20x too bright at alpha
-   11 (106.3 written where the truth over black is 4.6), which is "the
-   glow is too big and the file is not transparent".
-
-   So the writer picks its convention from where the page is hosted rather
-   than asking. AI Studio runs an imported app in a cross-origin iframe on
-   Google hosting; being framed by one of those origins is the signal. The
-   detection is a heuristic and deliberately narrow — a non-Google iframe
-   gets straight, the safe default — and `#alpha=straight` or
-   `#alpha=premul` in the URL overrides it either way, stated in the
-   export's status line so the file always says what it is.
-
-   groundFill applies to STRAIGHT only. A premultiplied file's colour
-   under alpha 0 must be 0 — a premul-aware reader composites c + d(1-a),
-   so any ink there would ADD to every frame — and multiplying the ground
-   by k = 0 would zero it anyway; the flattened premultiplied view sits on
-   black, which is the composite-over-black it is. */
-const IN_STUDIO = (() => {
-  if (window.top === window.self) return false;       /* not framed at all */
-  const G = /aistudio\.google\.com|usercontent\.goog|googleusercontent\.com/;
-  try {
-    const anc = location.ancestorOrigins;             /* Chrome has this */
-    if (anc && anc.length) return G.test([...anc].join(" "));
-  } catch (e){ /* fall through to the referrer */ }
-  return G.test(document.referrer || "");
-})();
-const WRITE_PREMUL = Q.get("alpha") === "premul"   ? true
-                   : Q.get("alpha") === "straight" ? false
-                   : IN_STUDIO;
 
 /* ══════════════════════════ the MOV around it ════════════════════════════
    Same box grammar as the MP4 next door, so the writer is the same; what
@@ -5326,8 +5280,8 @@ document.getElementById("vexport").onclick = async () => {
       await bgSeek(hold);
       await drawStage(ctx, W, H, alphaOn);
       const img = ctx.getImageData(0, 0, W, H).data;
-      if (alphaOn && !WRITE_PREMUL) groundFill(img, PIECE === 2 ? 0 : 255);
-      const p = prPlanes(img, W, H, alphaOn && WRITE_PREMUL);
+      if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
+      const p = prPlanes(img, W, H);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE);
       frames.push(fr); bytes += fr.length;
       $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
@@ -5359,10 +5313,8 @@ document.getElementById("vexport").onclick = async () => {
        and max both 255 across a whole frame), so that file reads identically
        in both, which is the route to a flattener. */
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`
-      + (!alphaOn     ? " · opaque, reads the same everywhere"
-         : WRITE_PREMUL
-           ? " · premultiplied" + (IN_STUDIO ? ", written for AI Studio" : " by #alpha=")
-           : " · straight alpha, for a compositing reader");
+      + (alphaOn ? " · straight alpha, for a compositing reader"
+                 : " · opaque, reads the same everywhere");
   } catch (e){
     $gs.textContent = "failed: " + (e && e.message ? e.message : e);
   } finally {
