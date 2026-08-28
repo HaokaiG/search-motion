@@ -670,6 +670,56 @@ the measured matte at write time (`matte measured: 62% clear…`), an opaque
 export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
 holds both kinds under one name.
 
+### The real bug: bitstream version 0 on a 4444 file
+
+The verdict below was wrong, and the correction came from hardware this
+machine does not have. **ProRes bitstream version 0 predates 4:4:4 and the
+alpha channel; version 1 is the one that carries them.** This encoder wrote
+`version = 0`, which is genuinely non-conformant for a 4444 file.
+
+A **software** decoder tolerates the mismatch and reads the alpha anyway —
+which is why every check here passed for so long, this Mac being a base M1
+with no ProRes engine. Apple Silicon **with** a hardware Media Engine
+validates the header strictly, sees `version < 1`, and correctly concludes
+the file has no alpha to read: every pixel returns opaque. That is the whole
+of "transparent on one Mac, row C on another", and it explains why Apple's
+own re-encode also failed — `avconvert` was handed this file's frames, and
+the A/B could only ever compare two files with the same defect.
+
+Measured on an M5 Pro through `AVAssetReader` at 32BGRA, 160x90:
+
+| | opaque | semi | transparent |
+|---|---|---|---|
+| version 0 | **14400** | 0 | 0 |
+| **version 1** | 0 | **7200** | **7200** |
+
+**The 148-byte frame header matters WITH this, not instead of it.** A
+version-1 frame is expected to carry its quantisation matrices rather than
+lean on the decoder's defaults, and a version-1 header of 20 bytes was
+reported rendering incompletely on that hardware. Both halves ship together,
+which is why this build pairs `version = 1` with the long header already in
+place.
+
+The compressor name goes to **"Apple ProRes 4444"** alongside it. QuickLook,
+Finder and AVFoundation match on that string when reporting the codec and its
+32-bit alpha; a bespoke name was a needless difference from every other ProRes
+file, the same reasoning as the long header.
+
+Verified here after the change — the software path must not regress: the
+conformance pattern still decodes **bit-exact, 0 mismatches over 10,240
+pixels**, colour is within tolerance on every opaque sample, the full piece
+exports at 4.30 MB with alpha **74.1% / 20.8% / 5.1%**, the opaque path is
+unmoved at 2.89 MB, and `mdls` still reports **Apple ProRes 4444**. Header
+now reads: 148 bytes, **version 1**, alphaType 2, chroma 3, matrixFlags 3,
+depth 32, name `Apple ProRes 4444`.
+
+**What this retires.** The section below concluded the fault was that machine
+and unreachable from here. That conclusion was sound on the evidence then
+available and is wrong now — the evidence was incomplete because both files
+in the A/B carried the same bad version field. It is kept, struck through by
+this note, because the reasoning that led to it is worth not repeating: a
+controlled A/B is only as good as the variable it fails to hold constant.
+
 ### Verdict: one machine cannot show ProRes 4444 alpha, and it is not the file
 
 The hunt ends with a controlled A/B. The identical frames were written twice —
