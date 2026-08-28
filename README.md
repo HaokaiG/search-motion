@@ -670,6 +670,48 @@ the measured matte at write time (`matte measured: 62% clear…`), an opaque
 export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
 holds both kinds under one name.
 
+### The matte is baked into the colour, so a flattener sees the real picture
+
+A transparent frame has two halves — colour, and how much of it is there — and
+a reader that shows the colour **without** applying the second half sees the
+glow at full strength over whatever sat under alpha 0. That picture has a name
+in this repo's history: **row C** — white ground, glow spread far past the bar.
+It is what a flattening pipeline produces, and what a mis-set editor produces,
+and it kept coming back because the file was never wrong: **the colour channel
+simply did not contain the answer on its own.**
+
+Now it does. Every pixel is composited onto the piece's own ground — white, and
+black for piece 2 whose plate lives on black, the same rule `drawStage` uses
+for an opaque export — **while the alpha channel is kept intact**:
+`colour = c*a + ground*(1-a)`, `alpha = a`.
+
+Measured, a flattener's view against the true picture at 480x270, f40:
+
+| | mean error | max error | pixels exact |
+|---|---|---|---|
+| before (straight, ground under nothing) | 43.0 of 255 | 236 | 75.9% |
+| **after (matted)** | **0.00** | **0** | **100%** |
+
+Not reduced — **eliminated**. Every pixel of the flattened view is now the
+picture as designed. Verified on the delivered file: still `Apple ProRes 4444`
+with `kMDItemProfileName "HD (1-1-1)"`, and the alpha channel **still present
+and graded** at 74.1% clear / 20.8% soft / 5.1% solid. The file is smaller too,
+3.56 MB against 4.29, because matted colour in the clear regions compresses
+where straight noise does not.
+
+**What it costs, and it is real.** This is the *matted* convention: colour
+premultiplied against a known ground rather than left straight. An editor must
+be told, or it composites a second time and soft edges come out too light over
+anything darker than the matte. In After Effects: **Interpret Footage → Main →
+Alpha → Premultiplied - Matted With Color**, set to **white** for the search
+piece and **black** for the prompt piece. Premiere and Resolve have the same
+control. One setting, standard everywhere.
+
+That is the trade, stated plainly: **the editor now needs configuring instead
+of everything else.** Previously straight was correct in an editor with no
+setting at all and row C in every reader that could not ask. The way back is
+the one-line previous behaviour, kept in the code comment.
+
 ### The colour tag says the range too
 
 The export was tagged `colr nclc 1/1/1` — BT.709 primaries, transfer and
