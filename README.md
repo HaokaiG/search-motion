@@ -670,6 +670,48 @@ the measured matte at write time (`matte measured: 62% clear…`), an opaque
 export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
 holds both kinds under one name.
 
+### Declaring the frame rate and pixel shape in the bitstream
+
+With version 1 in place the hardware decoder finally read the alpha, and two
+things remained: part of the frame missing, and the movie not running at the
+rate chosen. The second has a cause in the same header.
+
+Frame-header byte 13 is `aspect_ratio_info << 4 | frame_rate_code`, and **both
+halves were 0 — "unknown"**. The container's `stts` is what actually times
+playback, so a software decoder never needed either field and nothing here
+noticed for the life of the encoder. A reader that believes the **bitstream**,
+which is what a hardware decode path does, is told the pixels are of unknown
+shape and the picture of unknown rate, and has to invent both.
+
+Both are declared now: **aspect 1** (square pixels, matching the 1:1 `pasp`
+already written) and the spec's own rate codes — 23.976, 24, 25, 29.97, 30,
+50, 59.94, 60. The panel also offers **8 and 12 fps, which the table has no
+code for**; those stay 0, honestly unknown, rather than claiming a rate the
+file does not run at.
+
+Verified across every offered rate, bitstream against container:
+
+| chosen | frame_rate_code | container fps | frames |
+|---|---|---|---|
+| 8 | 0 *(no code exists)* | 8.000 | 55 |
+| 23.976 | **1** | 23.976 | 162 |
+| 24 | **2** | 24.000 | 163 |
+| 30 | **5** | 30.000 | 203 |
+| 60 | **8** | 60.000 | 406 |
+
+Aspect reads **1** at every rate, version **1**, alphaType **2**. And no
+regression in the software path: the conformance pattern still decodes with
+**0 alpha mismatches over 10,240 pixels** and **0 colour samples out of
+tolerance**, still `Apple ProRes 4444`.
+
+**Still open: part of the frame missing on hardware.** Ruled out here by
+measurement, so the next person does not repeat it — slice sizes are nowhere
+near the 16-bit table limit (max **7,546** bytes against 65,535, at every
+width from 480 to 1920); `PRBits` grows on demand and cannot overflow; slice
+partitioning resets to 8 macroblocks per row exactly as the decoder's own loop
+does; and every container timing field is correct. Reproducing it needs
+hardware this machine does not have.
+
 ### The real bug: bitstream version 0 on a 4444 file
 
 The verdict below was wrong, and the correction came from hardware this
