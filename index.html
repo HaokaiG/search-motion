@@ -1821,6 +1821,9 @@
       </select>
     </div>
     <button id="vexport">Export MOV · ProRes 4444</button>
+    <!-- the same movie out of the reference encoder — see the ffmpeg block
+         in the script for why it exists and what it costs to load -->
+    <button id="fexport">Export MOV · ffmpeg</button>
     <button id="pexport">Export PNG Sequence</button>
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
     <button id="mexport">Export MP4</button>
@@ -5318,6 +5321,126 @@ document.getElementById("vexport").onclick = async () => {
   } catch (e){
     $gs.textContent = "failed: " + (e && e.message ? e.message : e);
   } finally {
+    hold = wasHold; busy = false;
+    if (hold === null) window.play();
+  }
+};
+
+/* ═══════════════════ the same movie out of ffmpeg ═══════════════════════
+   A second writer for the same file, by request — the REFERENCE encoder
+   beside the hand-written one. The built-in encoder above is verified
+   down to the bitstream, but every time the export misbehaves somewhere
+   the question returns to whether the encoder is at fault; a file out of
+   ffmpeg's own prores_ks settles that in either direction, because its
+   bytes are the industry's. The frames go over as PNGs — the browser's
+   own encoder, lossless, alpha intact — and ffmpeg encodes prores_ks
+   profile 4444, yuva444p10le, vendor apl0, faststart. STRAIGHT alpha,
+   because a canvas PNG is straight by definition; the two buttons write
+   the same convention.
+
+   What it costs, stated up front rather than discovered: ffmpeg.wasm is
+   about 31 MB, fetched from jsDelivr on FIRST use and cached by the
+   browser after; offline, this button fails with a message and the
+   built-in export above keeps working, being self-contained. It runs the
+   SINGLE-THREADED core — the multithreaded one needs cross-origin
+   isolation headers a plain static host does not send — so encoding is
+   slower than the built-in. And it encodes in wasm memory, which caps
+   around 2 GB: fine to 960px, tight at 1280, and a 1920 whole-piece
+   transparent run may die of memory — the status line will say so
+   rather than the page hanging. Versions are pinned so today's verified
+   behaviour stays tomorrow's. */
+let FF = null;                      /* loaded once, kept for the session */
+const FF_LOGS = [];
+async function ffmpegLoad(){
+  if (FF) return FF;
+  const jsd = "https://cdn.jsdelivr.net/npm";
+  const script = src => new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = res;
+    s.onerror = () => rej(new Error("could not fetch " + src + " — offline?"));
+    document.head.appendChild(s);
+  });
+  $gs.textContent = "fetching ffmpeg…";
+  await script(`${jsd}/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js`);
+  await script(`${jsd}/@ffmpeg/util@0.12.1/dist/umd/index.js`);
+  const { toBlobURL } = FFmpegUtil;
+  const ff = new FFmpegWASM.FFmpeg();
+  ff.on("log", e => { FF_LOGS.push(e.message); if (FF_LOGS.length > 30) FF_LOGS.shift(); });
+  $gs.textContent = "fetching ffmpeg core — about 31 MB the first time…";
+  /* every part goes through a blob URL: the worker the library spawns and
+     the core it loads are cross-origin from this page, and a blob is the
+     one origin a Worker constructor always accepts. The core must be the
+     ESM build — the library's worker is a module worker, where
+     importScripts does not exist, so it falls back to import(coreURL) and
+     reads the module's DEFAULT export; the UMD core has none, and the
+     symptom of pairing them is exactly "failed to import ffmpeg-core.js" */
+  await ff.load({
+    coreURL: await toBlobURL(`${jsd}/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js`,
+                             "text/javascript"),
+    wasmURL: await toBlobURL(`${jsd}/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm`,
+                             "application/wasm"),
+    classWorkerURL: await toBlobURL(`${jsd}/@ffmpeg/ffmpeg@0.12.10/dist/umd/814.ffmpeg.js`,
+                             "text/javascript")
+  });
+  FF = ff; return ff;
+}
+document.getElementById("fexport").onclick = async () => {
+  if (busy) return;
+  const W = +document.getElementById("gw").value;
+  const H = Math.round(W * 1080 / 1920);
+  const fps = +document.getElementById("gfps").value;
+  const step = FPS / fps;
+  const segA = segStart();
+  const n = Math.ceil((segEnd() - segA) / step);
+  busy = true;
+  const wasHold = hold;
+  const cvs = document.createElement("canvas");
+  cvs.width = W; cvs.height = H;
+  const ctx = cvs.getContext("2d", { willReadFrequently: false });
+  const names = [];
+  try {
+    const ff = await ffmpegLoad();
+    for (let k = 0; k < n; k++){
+      hold = (segA + k * step) / FPS;
+      render(hold);
+      await bgSeek(hold);
+      await drawStage(ctx, W, H, alphaOn);
+      const png = await new Promise(r => cvs.toBlob(r, "image/png"));
+      const name = "f" + String(k).padStart(4, "0") + ".png";
+      await ff.writeFile(name, new Uint8Array(await png.arrayBuffer()));
+      names.push(name);
+      $gs.textContent = `frame ${k + 1}/${n}…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    $gs.textContent = "ffmpeg encoding…";
+    /* 23.976 is 24000/1001 and stating it as the fraction keeps the file's
+       timing exact, the same reason the built-in muxer special-cases it */
+    const rate = fps === 23.976 ? "24000/1001" : String(fps);
+    FF_LOGS.length = 0;
+    const ret = await ff.exec(["-framerate", rate, "-i", "f%04d.png",
+      "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le",
+      "-vendor", "apl0", "-movflags", "+faststart", "out.mov"]);
+    if (ret !== 0)
+      throw new Error("ffmpeg exited " + ret + ": "
+                      + FF_LOGS.slice(-4).join(" · "));
+    const out = await ff.readFile("out.mov");
+    const blob = new Blob([out], { type: "video/quicktime" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "search-motion-ffmpeg.mov";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB · ffmpeg prores_ks 4444`
+      + (alphaOn ? " · straight alpha" : " · opaque");
+  } catch (e){
+    $gs.textContent = "ffmpeg failed: " + (e && e.message ? e.message : e);
+  } finally {
+    /* the wasm FS survives between runs, so leftovers would double the
+       memory next time; delete even after a failure */
+    try {
+      for (const f of names) await FF.deleteFile(f).catch(() => {});
+      await FF.deleteFile("out.mov").catch(() => {});
+    } catch (e){ /* no instance — nothing was written */ }
     hold = wasHold; busy = false;
     if (hold === null) window.play();
   }
