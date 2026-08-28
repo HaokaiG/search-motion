@@ -645,6 +645,43 @@ identically in a compositing reader and a flattening one, and AI Studio shows
 what the preview shows. The export's status line says which of the two it just
 wrote, because this question has come back three times and it is never the glow.
 
+### The same movie out of ffmpeg, beside the built-in encoder
+
+**By request** — a second MOV button that hands the frames to ffmpeg.wasm and
+lets `prores_ks` write the file. The built-in encoder is verified down to the
+bitstream, but every time an export misbehaves somewhere the question returns
+to whether the encoder is at fault; a file out of ffmpeg settles that in either
+direction, because its bytes are the industry's. The frames cross over as PNGs
+(the browser's own encoder — lossless, alpha intact), and ffmpeg encodes
+`prores_ks -profile:v 4444 -pix_fmt yuva444p10le -vendor apl0
+-movflags +faststart`. **Straight alpha**, because a canvas PNG is straight by
+definition — the two buttons write the same convention, and 23.976 is stated
+as `24000/1001` so the timing stays exact, the same reason the built-in muxer
+special-cases it.
+
+What it costs, stated rather than discovered: ffmpeg.wasm is **~31 MB, fetched
+from jsDelivr on first use** and cached by the browser after; offline the
+button fails with a message and the built-in export keeps working, being
+self-contained. It runs the **single-threaded** core — the multithreaded one
+needs cross-origin isolation headers a plain static host does not send — so it
+encodes slower. And it works in wasm memory, which caps near 2 GB: fine to
+960px, a 1920 whole-piece transparent run may die of memory, said in the
+status line rather than hung. Versions are pinned (`ffmpeg@0.12.10`,
+`util@0.12.1`, `core@0.12.6`).
+
+One integration trap recorded because it cost a round: the library's worker is
+a **module** worker, where `importScripts` does not exist, so it falls back to
+`import(coreURL)` and reads the module's **default export** — which the UMD
+core does not have. The core must be the **ESM build**; pairing the UMD core
+with it fails as exactly `failed to import ffmpeg-core.js`.
+
+Verified on the delivered file: **"Apple ProRes 4444"** per `mdls`, 480x270 at
+6.875s, faststart (`ftyp → moov → wide → mdat`, moov at byte 20), real graded
+alpha out of Apple's decoder (73.2% clear / 22.4% partial / 4.3% opaque), and
+**4.21 MB against the built-in's 4.29** on the identical 55 frames — two
+independent encoders agreeing on size to 2%. The built-in export re-verified
+unregressed alongside, same run.
+
 ### Straight only, with the piece's ground written under nothing
 
 **By request the export writes one convention: straight.** A dial that briefly
@@ -692,42 +729,6 @@ whose straight colour a flattener shows at full strength. The bar's plate in
 particular reads near-black there instead of 20% grey. That is what dropping
 the matte does to straight data; the faithful AI Studio view remains the
 opaque export (or the MP4), with the transparent MOV reserved for editors.
-
-### Written for where it runs
-
-This tool has two homes, and they want opposite conventions from the same
-button. Run **locally**, the transparent MOV goes to editors — AE, Premiere,
-Resolve, QuickTime — which read 4444 as straight; handed premultiplied they
-scale by alpha a second time and draw the dark halo (four to five times too
-dark at the measured points). Run **inside AI Studio** — the repo imported as
-an app, exporting from AI Studio's own preview — the file feeds a pipeline
-that flattens, and there only premultiplied shows the true picture, because
-colour x alpha *is* the compositing arithmetic, baked into the pixels where no
-flattener can delete it. Straight there is "the glow is too big and the file
-is not transparent"; premultiplied there is the export that **worked**.
-
-Rather than asking (a dial was built and removed by request), **the writer now
-picks its convention from where the page is hosted**. AI Studio runs an
-imported app in a cross-origin iframe on Google hosting, so the signal is:
-framed, and an ancestor origin matching `aistudio.google.com`,
-`usercontent.goog` or `googleusercontent.com`. The detection is deliberately
-narrow — a non-Google iframe gets straight, the safe default — and
-`#alpha=straight` / `#alpha=premul` in the URL overrides it either way. The
-export's status line always names what it wrote.
-
-Verified: the premultiplied path is plane-exact (a semi pixel at alpha 131
-predicts Y 284 and writes **284**; the clear field sits at black, which is the
-premultiplied invariant — `groundFill` applies to straight only, since ink
-under alpha 0 in a premultiplied file would *add* to every composite). Through
-the button: straight **4.29 MB**, premultiplied **3.56 MB**, opaque
-**2.89 MB** — each matching its convention's established size. The regex was
-unit-tested against both Google host shapes (`aistudio.google.com`, an
-`*.scf.usercontent.goog` app sandbox — both detect) and against non-Google
-origins (`127.0.0.1`, `codepen.io` — both fall back to straight), and the
-piece was run inside a real cross-origin iframe: renders clean, no console
-errors, straight chosen. The one branch that cannot be exercised outside real
-Google hosting is the live ancestor-origin read itself; `#alpha=` is the
-escape hatch if the heuristic ever misses.
 
 The history, kept because each half of it is a measurement:
 
