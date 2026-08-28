@@ -1855,7 +1855,7 @@
    apart. Now: read the stamp under the export buttons in both places. If
    they differ, the far copy is old and nothing else about the report can
    be trusted until it is re-imported. */
-const BUILD = "2026-08-28 · alpha dial + tally + nclc";
+const BUILD = "2026-08-28 · prores v1 alpha fix + dial";
 /* #t=<seconds> freezes on one instant, #bare hides the HUD — that is how the
    stills for the frame-by-frame diff against the source clip get rendered. */
 const Q = new URLSearchParams(
@@ -5112,7 +5112,27 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale){
   dv.setUint32(0, out.length);
   out.set([0x69, 0x63, 0x70, 0x66], 4);          /* 'icpf' */
   let o = 8;
-  dv.setUint16(o, FRAME_HDR); dv.setUint16(o + 2, 0);  /* header size, version */
+  /* VERSION 1, not 0 — and this one is a real conformance bug, found on
+     hardware this machine does not have.
+
+     Bitstream version 0 predates 4:4:4 and the alpha channel; version 1 is
+     the one that carries them. A SOFTWARE decoder tolerates the mismatch
+     and reads the alpha anyway, which is why every check here passed for so
+     long: this Mac is a base M1 with no ProRes engine and decodes in
+     software. Apple Silicon with a hardware Media Engine validates the
+     header strictly and, seeing version < 1, correctly concludes the file
+     has no alpha to read and returns every pixel opaque.
+
+     Measured on an M5 Pro through AVAssetReader at 32BGRA, 160x90:
+        version 0 -> opaque 14400, semi 0, transparent 0
+        version 1 -> opaque 0, semi 7200, transparent 7200
+     which is the whole of "transparent on one Mac, row C on another".
+
+     The 148-byte header matters WITH this, not instead of it. A version-1
+     frame is expected to carry its quantisation matrices rather than lean
+     on the decoder's defaults, and a version-1 header of 20 bytes renders
+     incompletely on that hardware — reported. Both halves ship together. */
+  dv.setUint16(o, FRAME_HDR); dv.setUint16(o + 2, 1);  /* header size, version */
   out.set([0x61, 0x70, 0x6C, 0x30], o + 4);      /* vendor 'apl0' */
   dv.setUint16(o + 8, W); dv.setUint16(o + 10, H);
   out[o + 12] = 3 << 6;                          /* 4:4:4, progressive */
@@ -5336,7 +5356,11 @@ function muxMOV(frames, W, H, timescale, delta){
   const vmhd = bx("vmhd", new Uint8Array([0,0,0,1]), zeros(8));
   const dinf = bx("dinf", bx("dref", zeros(4), b32(1),
                                      bx("url ", new Uint8Array([0,0,0,1]))));
-  const name = "Search Motion ProRes 4444";
+  /* the codec's own name, not this piece's. QuickLook, Finder and
+     AVFoundation match on this string when they report the codec and its
+     32-bit alpha; a bespoke name is a needless difference from every other
+     ProRes file, the same reasoning as the long frame header. */
+  const name = "Apple ProRes 4444";
   const cname = new Uint8Array(32); cname[0] = name.length;
   cname.set(str4(name), 1);
   const ap4h = bx("ap4h", zeros(6), b16(1), zeros(16), b16(W), b16(H),
