@@ -1336,6 +1336,9 @@
   #hud #awarn{color:#e0a33a}
   #hud #gstat{color:#7ac0a0;text-transform:none;letter-spacing:0;min-height:14px;
        font-size:11px}
+  /* dim, because it is for comparing against the other copy rather than
+     reading every day — but always present, never a hover */
+  #hud #build{color:#5a5a66;text-transform:none;letter-spacing:0;font-size:10px}
 </style>
 </head>
 <body>
@@ -1825,11 +1828,25 @@
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
     <button id="mexport">Export MP4</button>
     <span id="gstat"></span>
+    <!-- which build this is. The copy running in AI Studio updates only when
+         the repo is re-imported, so for ten rounds "is that copy current"
+         was assumed rather than checked; this makes it a glance. -->
+    <span id="build"></span>
   </div>
 </div>
 
 <script>
 "use strict";
+/* ── which build this is ─────────────────────────────────────────────────
+   Bumped with each commit that changes what an export contains. It exists
+   because this piece runs in two places — locally, and as a repo imported
+   into AI Studio — and the imported copy only changes when it is imported
+   AGAIN. Every "the export is wrong over there" has therefore had two
+   possible causes, a real fault or a stale copy, and no way to tell them
+   apart. Now: read the stamp under the export buttons in both places. If
+   they differ, the far copy is old and nothing else about the report can
+   be trusted until it is re-imported. */
+const BUILD = "2026-08-28 · straight + ground + matte tally";
 /* #t=<seconds> freezes on one instant, #bare hides the HUD — that is how the
    stills for the frame-by-frame diff against the source clip get rendered. */
 const Q = new URLSearchParams(
@@ -4539,6 +4556,7 @@ function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
 }
 
 const $gs = document.getElementById("gstat");
+document.getElementById("build").textContent = "build " + BUILD;
 let busy = false;
 document.getElementById("gexport").onclick = async () => {
   if (busy) return;
