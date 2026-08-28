@@ -670,6 +670,52 @@ the measured matte at write time (`matte measured: 62% clear…`), an opaque
 export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
 holds both kinds under one name.
 
+### The alpha bitstream, proven against Apple's own decoder
+
+When the same file rendered transparent on one Mac and opaque on another, the
+last unexamined suspect was this encoder's **alpha plane** — the one part of
+the bitstream nothing outside this repo had ever written. The two machines do
+not share a decoder, which made it plausible: a **base M1** (no ProRes engine)
+decodes ProRes in **software**, while an **M5 Pro** uses the **hardware
+engine**, and silicon is far stricter about conformance than software is.
+
+So it was tested rather than argued. A 160x64 pattern built to exercise every
+branch of the alpha coder — a long zero run, a long solid run, +1 deltas that
+wrap, large jumps, one hard edge, stepped runs, alternating values with no
+runs at all, and a long mid-grey run — encoded through the real path, written
+as a real `.mov`, then decoded by **Apple's own decoder** and compared pixel
+by pixel against the source.
+
+**10,240 pixels. Zero mismatches. Worst delta 0.**
+
+The alpha bitstream is conformant, and the theory is dead. Recorded here
+because it was expensive to establish and because the next person to suspect
+this encoder should start from the proof rather than repeat the hunt. (One
+trap in the test itself: the reference must clamp like a `Uint8ClampedArray`
+or a pattern reaching 256 reports 256 false mismatches — the harness's bug,
+not the codec's.)
+
+Alongside it, the container was compared field-for-field against a file
+re-encoded by **Apple's own encoder** (`avconvert --preset
+PresetAppleProRes4444LPCM`) from the identical frames. Every value that
+governs alpha matches: `ap4h` depth **32**, frame header **148 bytes**,
+`alphaType` **2**, chroma **3**, `colr` **`nclc 1/1/1`**, decoded alpha
+**74.1% / 20.8% / 5.1%** on both.
+
+**The working fix for a machine whose decoder drops the matte anyway.** Since
+that reader shows the colour planes without compositing, **Alpha: Matted**
+gives it the correct picture — measured 100% of pixels exact — where straight
+gives row C. And if a genuinely Apple-encoded file is wanted, one command
+produces one from any export:
+
+```
+avconvert --source search-motion.mov --preset PresetAppleProRes4444LPCM \
+          --output search-motion-apple.mov --replace
+```
+
+Verified to preserve everything: alpha back at 74.1% / 20.8% / 5.1%, identical
+to the source.
+
 ### Both conventions, on a dial, with straight as the default
 
 The matte-baked-in change fixed the flattened picture exactly — measured 100%
