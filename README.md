@@ -670,6 +670,39 @@ the measured matte at write time (`matte measured: 62% clear…`), an opaque
 export says `opaque`, and a Downloads folder full of `search-motion (n).mov`
 holds both kinds under one name.
 
+### Verdict: one machine cannot show ProRes 4444 alpha, and it is not the file
+
+The hunt ends with a controlled A/B. The identical frames were written twice —
+once by this encoder, once by **Apple's own encoder** (`avconvert --preset
+PresetAppleProRes4444LPCM`) — and both were opened in QuickTime on the machine
+that had been showing row C.
+
+**Both showed row C.**
+
+Apple's encoder, Apple's decoder, Apple's hardware, no code from this repo
+anywhere in that file's creation — and the matte is still dropped. That
+clears the export completely and locates the fault in that machine's ProRes
+alpha path. Nothing written here can reach it.
+
+For the record, everything that was ruled out on the way, each by measurement
+rather than argument: the file (SHA-256 identical across both machines), the
+alpha bitstream (bit-exact against Apple's decoder over 10,240 pixels), the
+container (field-for-field identical to Apple's own output), the OS (26.6.2 /
+25G83 on both), the system appearance (Light on both), AE's interpretation
+(PNG sequences with alpha import correctly on the same machine), and colour
+management (which shifts colour and gamma, never whether a matte is honoured).
+
+**What to use on a machine like that.** In order of preference:
+
+1. **PNG sequence** — real 8-bit alpha, imports into AE as footage, and
+   verified working on the affected machine. This is the answer whenever that
+   machine needs actual transparency.
+2. **Alpha: Matted** — a single `.mov` that reads correctly wherever the matte
+   is dropped, measured 100% of pixels exact. Not transparent there, but the
+   right picture rather than row C.
+3. **Do transparent MOV work on a machine that decodes it**, and treat the
+   affected one as a flattening reader.
+
 ### The alpha bitstream, proven against Apple's own decoder
 
 When the same file rendered transparent on one Mac and opaque on another, the
