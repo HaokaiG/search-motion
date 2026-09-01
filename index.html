@@ -1855,7 +1855,7 @@
    apart. Now: read the stamp under the export buttons in both places. If
    they differ, the far copy is old and nothing else about the report can
    be trusted until it is re-imported. */
-const BUILD = "2026-08-28 · prores v1 + rate/aspect declared";
+const BUILD = "2026-08-31 · prores v1 + codeword width conformant (q2)";
 /* #t=<seconds> freezes on one instant, #bare hides the HUD — that is how the
    stills for the frame-by-frame diff against the source clip get rendered. */
 const Q = new URLSearchParams(
@@ -4898,6 +4898,31 @@ PRBits.prototype.flush = function(){             /* pad the last byte with 0s */
 /* One codeword. The two branches meet with no gap: the largest Rice value is
    ((s+1) << k) - 1 and the smallest exp-Golomb one is exactly ((s+1) << k),
    which is what makes this the exact inverse of the decoder's reader.      */
+/* A codeword has to arrive in ONE fill of the decoder's bit cache, and a
+   decoder refuses the frame rather than the codeword when it does not:
+   ffmpeg computes exp_order - switch_bits + 2q and bails past MIN_CACHE_BITS,
+   which is 25 on the 32-bit reader and 32 on the 64-bit one.
+
+   Every software decoder reachable from this machine is the 64-bit one, so
+   anything up to 32 bits read fine here for the whole life of this encoder.
+   A hardware Media Engine's window is fixed and narrow, and a codeword it
+   cannot pull in one go costs it the REST OF THAT SLICE — which arrives as a
+   128x16 band of the frame missing, scattered wherever the content happens
+   to be hard-edged. That is "there is real transparency but a significant
+   part of the frame is missing", and it is a second conformance bug living
+   behind the version-0 one, not a leftover of it.
+
+   Measured before the fix, at 1920 with the flat matrices and qscale 1: 41
+   codewords per frame over the limit, widest 27 bits, and EVERY ONE of them
+   a DC delta. Never a first DC, never a run, never a level. The reason is
+   the codebook: a zero delta selects codebook 0x04, the smallest one there
+   is, so a run of flat blocks followed by a hard edge asks the narrowest
+   code to carry the widest value. Flat, flat, flat, then the white card's
+   edge — which is most of this piece.
+
+   Counted rather than assumed, so the retry above can act on it. */
+const PR_CW_MAX = 25;
+let prOverWide = 0;
 function prCW(bw, val, cb){
   const s = cb & 3, e = (cb >> 2) & 7, k = cb >> 5;
   const q = val >>> k;
@@ -4907,7 +4932,9 @@ function prCW(bw, val, cb){
   } else {                                       /* exp-Golomb */
     const V = val + (1 << e) - ((s + 1) << k);
     const w = 32 - Math.clz32(V);
-    bw.zeros(w - (e - s)); bw.put(w, V);
+    const lead = w - (e - s);
+    if (e - s + 2 * lead > PR_CW_MAX) prOverWide++;
+    bw.zeros(lead); bw.put(w, V);
   }
 }
 
@@ -5029,7 +5056,7 @@ function prFDCT(src, stride, x0, y0, out, o){
 /* -- one frame ------------------------------------------------------------
    Planes come in padded up to whole macroblocks; W/H are what the header
    declares, and the decoder crops back to them.                          */
-function proresFrame(Y, U, V, A, W, H, stride, qscale, fps){
+function proresFrameAt(Y, U, V, A, W, H, stride, qscale, fps){
   const mbW = (W + 15) >> 4, mbH = (H + 15) >> 4;
   /* slices are 8 macroblocks wide, halving at the right edge until they fit —
      the decoder halves the same way, so the two agree without being told */
@@ -5070,7 +5097,17 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale, fps){
       const bw = new PRBits(nblk * 96);
       prDCs(bw, lev, nblk);
       if (ac) prACs(bw, lev, nblk);
-      plane.push(bw.b.subarray(0, bw.flush()));
+      /* flush() can grow the buffer, and in `bw.b.subarray(0, bw.flush())`
+         the base `bw.b` is resolved BEFORE the argument runs — so the
+         subarray would come off the old, shorter array and silently clamp
+         the last byte off the plane. Measured on a writer filled to its
+         capacity: flush declared 5 bytes and the subarray handed back 4,
+         with the real byte sitting in the new buffer. Growth does happen
+         here in normal use (peak writer 3249 bytes against a 3072 start),
+         and a plane one byte short desynchronises the rest of its slice —
+         the same missing-band symptom, from a different cause. */
+      const used = bw.flush();
+      plane.push(bw.b.subarray(0, used));
     }
     /* alpha is a plain raster of the slice's 16 x 16n region */
     for (let r = 0; r < 16; r++){
@@ -5079,7 +5116,8 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale, fps){
     }
     const abw = new PRBits(n * 640);
     prAlpha(abw, av, n * 256);
-    const A4 = abw.b.subarray(0, abw.flush());
+    const aUsed = abw.flush();                   /* flush before reading .b — see above */
+    const A4 = abw.b.subarray(0, aUsed);
     const hdr = new Uint8Array(8);
     hdr[0] = 8 << 3; hdr[1] = qscale;
     hdr[2] = plane[0].length >> 8; hdr[3] = plane[0].length & 255;
@@ -5175,6 +5213,31 @@ function proresFrame(Y, U, V, A, W, H, stride, qscale, fps){
   for (const s of sizes){ dv.setUint16(o, s); o += 2; }
   for (const p of parts){ out.set(p, o); o += p.length; }
   return out;
+}
+
+/* qscale 2 is provably enough for every input prPlanes can produce, and the
+   proof is worth having rather than a table of frames that happened to pass:
+   the packer writes 10-bit video range, Y in [64,940] and chroma in [64,960],
+   so the largest DC any block can hold is 32(940-512) and the largest delta
+   between two of them is the full swing. Run that through the widest codebook
+   at each qscale and the worst codeword in the whole input space comes out at
+   27 bits at qscale 1 — over — and exactly 25 at qscale 2, which is the last
+   width the decoder accepts, since it rejects on `> MIN_CACHE_BITS`.
+
+   So the retry below should never fire. It is here because "provably" rests
+   on that range, and the range is one edit away from someone widening it:
+   a full-range packing, a 12-bit path, a different matrix. Re-encoding a
+   frame one step coarser costs a second and is silent; shipping a file that
+   drops bands on every Mac with a Media Engine is neither. It stops at 8
+   because the bound falls with qscale and 3 already has room to spare. */
+let PR_QUSED = 0;
+function proresFrame(Y, U, V, A, W, H, stride, qscale, fps){
+  for (let q = qscale; ; q++){
+    prOverWide = 0;
+    const out = proresFrameAt(Y, U, V, A, W, H, stride, q, fps);
+    PR_QUSED = q;
+    if (!prOverWide || q >= 8) return out;
+  }
 }
 
 /* -- RGBA -> the four planes ---------------------------------------------
@@ -5416,10 +5479,34 @@ function muxMOV(frames, W, H, timescale, delta){
   return [ftyp, moov, mdatHdr, ...frames];
 }
 
-/* Visually lossless: with the default matrices the quantiser step is the
-   qscale itself, so 1 rounds each coefficient to the nearest integer and
-   nothing else. This is a mastering export — the size is the point of it. */
-const PR_QSCALE = 1;
+/* 2, not 1, and this is the fix for "a significant part of the frame is
+   missing" on an M3-or-later Mac.
+
+   With the flat matrices the quantiser step IS the qscale, so 1 rounds each
+   coefficient to the nearest integer and nothing else — which reads like the
+   right choice for a mastering export and is the reason it stood. What it
+   actually does is hold the coefficients at their largest, and the largest DC
+   deltas are the ones that overflow the decoder's codeword window (see
+   PR_CW_MAX). Measured at 1920: 41 illegal codewords per frame at qscale 1,
+   ZERO at 2, and the worst case over the entire legal input range drops from
+   27 bits to exactly 25.
+
+   It costs nothing worth having, measured three ways rather than argued:
+
+     - ALPHA IS UNTOUCHED. The matte is a run/delta raster with no transform
+       and no quantiser, so it is bit-exact at any qscale. Transparency does
+       not depend on this number at all.
+     - Flat blocks stay EXACT. 32(V-512) divides by 8, so every flat block —
+       most of this piece — round-trips to its own value with zero error, the
+       same as at qscale 1.
+     - On the moving content, worst pixel 4/1023 against 2/1023, which is
+       1.17 of an 8-bit level in the single worst pixel of a frame and 0.015
+       on average. Measured by inverting the encoder's own transform.
+
+   And it is SMALLER: 412 KB a frame against 474, 13.2% off, because the
+   coefficients that no longer overflow were also the expensive ones. The
+   size argument for qscale 1 was backwards. */
+const PR_QSCALE = 2;
 document.getElementById("vexport").onclick = async () => {
   if (busy) return;
   const W = +document.getElementById("gw").value;
@@ -5444,6 +5531,11 @@ document.getElementById("vexport").onclick = async () => {
      status line reading "74% clear" IS the transparency, whatever colour a
      player paints behind it. */
   let aZero = 0, aFull = 0, aPart = 0;
+  /* the coarsest qscale any frame needed. PR_QSCALE unless the conformance
+     retry fired, which on this content it does not — worth printing anyway,
+     because a silent re-encode is exactly the kind of thing that should not
+     be silent. */
+  let qUsed = 0;
   try {
     for (let k = 0; k < n; k++){
       hold = (segA + k * step) / FPS;
@@ -5460,6 +5552,7 @@ document.getElementById("vexport").onclick = async () => {
       else if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
       const p = prPlanes(img, W, H);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE, fps);
+      if (PR_QUSED > qUsed) qUsed = PR_QUSED;
       frames.push(fr); bytes += fr.length;
       $gs.textContent = `frame ${k + 1}/${n} · ${(bytes / 1048576).toFixed(0)} MB…`;
       await new Promise(r => setTimeout(r, 0));
@@ -5495,7 +5588,8 @@ document.getElementById("vexport").onclick = async () => {
          ? ` · ${MATTED ? "matted on " + (PIECE === 2 ? "black" : "white") : "straight alpha"}`
            + ` · matte measured: ${Math.round(100 * aZero / aT)}% clear`
            + ` / ${Math.round(100 * aPart / aT)}% soft / ${Math.round(100 * aFull / aT)}% solid`
-         : " · opaque, reads the same everywhere");
+         : " · opaque, reads the same everywhere")
+      + (qUsed > PR_QSCALE ? ` · re-encoded at q${qUsed} for codeword width` : "");
   } catch (e){
     $gs.textContent = "failed: " + (e && e.message ? e.message : e);
   } finally {

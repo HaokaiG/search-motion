@@ -1096,6 +1096,127 @@ The other exports never had the question. PNG is straight by definition and the
 browser's own encoder writes it; the MP4 and GIF have no real alpha channel to
 disagree about.
 
+## The second conformance bug: codewords too wide for the decoder's window
+
+Bitstream version 0 was one bug. Behind it sat another, and it is the one that
+made the frames arrive incomplete after the alpha started working.
+
+ProRes's entropy coder is read out of a **fixed bit cache**. A decoder pulls one
+codeword per fill, and when a codeword will not fit it does not read it in two
+goes — it rejects. ffmpeg computes the width as `exp_order − switch_bits + 2q`
+and bails past `MIN_CACHE_BITS`, which is **25** on the 32-bit reader and 32 on
+the 64-bit one. Every software decoder reachable from this machine is the
+64-bit one, so anything up to 32 bits read here without complaint for the whole
+life of this encoder. A hardware Media Engine's window is fixed and narrow, and
+a codeword it cannot pull in one go costs it **the rest of that slice** — which
+arrives as a 128×16 band of the frame missing, scattered wherever the content
+happens to be hard-edged.
+
+Measured at 1920 with the flat matrices and qscale 1:
+
+| codeword width | count per 10 frames |
+| --- | --- |
+| 25 bits (legal, at the limit) | 1,377 |
+| 26 bits | 10 |
+| 27 bits | 310 |
+
+About **41 illegal codewords per frame**, and every single one a **DC delta** —
+never a first DC, never a run, never a level. The reason is the codebook
+progression: a zero delta selects codebook `0x04`, the narrowest one there is,
+so a run of flat blocks followed by a hard edge asks the smallest code to carry
+the largest value. Flat, flat, flat, then the white card's edge. That is most of
+this piece.
+
+### The fix is the quantiser, and it is free
+
+With the flat matrices the quantiser step *is* the qscale, so 1 rounds each
+coefficient to the nearest integer and nothing else. That reads like the right
+choice for a mastering export, and it is why it stood. What it actually does is
+hold the coefficients at their largest, and the largest DC deltas are the ones
+that overflow. **qscale 2** is the whole fix.
+
+It is not "safe on the frames I tried". The packer writes 10-bit video range —
+Y in [64, 940], chroma in [64, 960] — so the largest DC a block can hold is
+32(940−512) and the largest delta between two of them is the full swing. Run
+that through every codebook and the worst codeword **in the entire input space**
+comes out at:
+
+| qscale | worst codeword, whole input range | verdict |
+| --- | --- | --- |
+| 1 | 27 bits | over |
+| 2 | **25 bits** | exactly the last width accepted |
+| 3 | 25 bits | fine |
+
+And it costs nothing worth having, measured three ways rather than argued:
+
+- **Alpha is untouched.** The matte is a run/delta raster with no transform and
+  no quantiser, so it is bit-exact at any qscale. Transparency does not depend
+  on this number at all — confirmed by decoding the alpha back out of encoded
+  frames and comparing to the source: **2,088,960 samples over 1,088 slices,
+  zero mismatches**.
+- **Flat blocks stay exact.** 32(V−512) divides by 8, so every flat block —
+  most of this piece — round-trips to its own value with zero error, the same
+  as at qscale 1.
+- **On the moving content**, worst pixel 4/1023 against 2/1023: 1.17 of an
+  8-bit level in the single worst pixel of a frame, 0.015 on average. Measured
+  by inverting the encoder's own transform.
+
+It is also **13.2% smaller** — 412KB a frame against 474 at 1920 — because the
+coefficients that no longer overflow were the expensive ones. The size argument
+for qscale 1 was backwards.
+
+### Two guards, so this cannot come back quietly
+
+`prCW` now counts any codeword it emits over 25 bits, and `proresFrame` wraps
+the encode in a retry that re-encodes the frame one qscale coarser if the count
+is not zero. On this content it never fires. It exists because "provably safe"
+rests on that 10-bit video range, and the range is one edit away from someone
+widening it — a full-range packing, a 12-bit path, a different matrix. A silent
+re-encode costs a second; a file that drops bands on every Mac with a Media
+Engine does not announce itself at all. When it does fire, the status line says
+so.
+
+The second guard is unrelated and was found in the same read.
+`plane.push(bw.b.subarray(0, bw.flush()))` resolves the base `bw.b` **before**
+the argument runs, so when `flush()` grows the buffer the subarray comes off the
+old, shorter array and silently clamps a byte off the plane. Measured on a
+writer filled to capacity: flush declared 5 bytes, the subarray handed back 4,
+and the real byte was sitting in the new buffer. Growth does happen in normal
+use — peak writer 3,249 bytes against a 3,072 start. A plane one byte short
+desynchronises the rest of its slice: the same missing-band symptom from a
+different cause. Both call sites now flush first and read `.b` after.
+
+### Verified on the shipped bytes, not the encoder's own bookkeeping
+
+A 960×540 transparent export was read back and walked with a decoder that
+re-derives each codeword's width from the bitstream the way `DECODE_CODEWORD`
+does:
+
+| | |
+| --- | --- |
+| frames | 163 |
+| slices | 44,336 |
+| DC codewords read back | 3,990,240 |
+| **widest codeword in the file** | **25 bits** |
+| over the limit | **0** |
+| atom order | `ftyp`, `moov`, `mdat` — faststart |
+| byte accounting | 29,480,079 consumed = mdat payload exactly |
+
+Structural checks pass at every export width (480 through 1920, including the
+480 case that exercises slice halving into widths 8, 8, 8, 4, 2): bitstream
+version 1, 148-byte frame header, `alpha_channel_type` 2 with a clear reserved
+nibble, slice count matching the decoder's own recomputation, and every slice's
+plane sizes inside its declared size.
+
+### What this says about the method
+
+The alpha coder was written decoder-first and verified bit-exact against
+Apple's decode. The container was checked field-for-field against Apple's own
+muxer. Both are right. **The DCT and entropy path was never round-tripped
+against a real reader** — and that is exactly where this bug lived, for months,
+behind a software decoder that was too forgiving to report it. Write the
+decoder first, for every path, not just the one that felt risky.
+
 ## Verifying it
 
 `#t=<seconds>` freezes on an instant and `#bare` hides the HUD, which is how the stills for the
