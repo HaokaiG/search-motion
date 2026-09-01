@@ -797,6 +797,13 @@ management (which shifts colour and gamma, never whether a matte is honoured).
 
 ### The alpha bitstream, proven against Apple's own decoder
 
+> **Superseded in part.** This section's proof stands — the alpha *values* are
+> bit-exact — but it proves the wrong thing. The bug was never in the values;
+> it was one missing flag bit at the *end* of a slice, in a place this decode
+> comparison never looked. See "The real bug: one missing bit at the end of an
+> alpha slice" below.
+
+
 When the same file rendered transparent on one Mac and opaque on another, the
 last unexamined suspect was this encoder's **alpha plane** — the one part of
 the bitstream nothing outside this repo had ever written. The two machines do
@@ -1096,126 +1103,102 @@ The other exports never had the question. PNG is straight by definition and the
 browser's own encoder writes it; the MP4 and GIF have no real alpha channel to
 disagree about.
 
-## The second conformance bug: codewords too wide for the decoder's window
+## The real bug: one missing bit at the end of an alpha slice
 
-Bitstream version 0 was one bug. Behind it sat another, and it is the one that
-made the frames arrive incomplete after the alpha started working.
+This is the fix for "there is real transparency but a significant part of the
+frame is missing" on every Mac with a ProRes Media Engine — M3 and later. It is
+one bit per slice, it was invisible to every software decoder on two machines,
+and finding it took a hardware bisection because no amount of local verification
+could see it.
 
-ProRes's entropy coder is read out of a **fixed bit cache**. A decoder pulls one
-codeword per fill, and when a codeword will not fit it does not read it in two
-goes — it rejects. ffmpeg computes the width as `exp_order − switch_bits + 2q`
-and bails past `MIN_CACHE_BITS`, which is **25** on the 32-bit reader and 32 on
-the 64-bit one. Every software decoder reachable from this machine is the
-64-bit one, so anything up to 32 bits read here without complaint for the whole
-life of this encoder. A hardware Media Engine's window is fixed and narrow, and
-a codeword it cannot pull in one go costs it **the rest of that slice** — which
-arrives as a 128×16 band of the frame missing, scattered wherever the content
-happens to be hard-edged.
+### What the bit is
 
-Measured at 1920 with the flat matrices and qscale 1:
+The alpha stream is diffs and runs. After **every** diff, Apple's decoder reads a
+one-bit continuation flag: `1` means the stream is finished, `0` means a run
+field follows — 4 bits, and 11 more if those four are zero. This encoder wrote
+the flag between symbols but not after the **last** one: when a slice's alpha
+ended on a diff, the stream simply stopped and the byte was padded with zeros.
 
-| codeword width | count per 10 frames |
+A zero there does not mean "end". It means **"a run field follows"**. The
+decoder then reads a run length out of the padding and walks off the end of the
+slice's data — a slice error on hardware, and a damaged frame.
+
+ffmpeg never sees it. Its reader breaks out of the loop when the sample count is
+reached, *before* consulting that flag, so a stream that simply stops audits as
+perfectly valid. Every check this project ran — the bit-exact alpha round-trip
+over two million samples, the entropy audit under ffmpeg's own semantics, the
+full-file codeword walk — passed, because they all encoded the same assumption
+as the encoder.
+
+Which is also why the symptom looked temporal rather than spatial. A slice whose
+alpha ends on a **run** needs no terminator and was always correct. Flat mattes
+end on runs; complex ones end on diffs. So the glow-heavy first act broke and the
+flat second act played — "it didn't even show the search query motion, only the
+AI Mode chat motion".
+
+### How it was found
+
+Not by theory. Every theory was wrong, and each one was killed by the M5:
+
+| tested on hardware | result |
 | --- | --- |
-| 25 bits (legal, at the limit) | 1,377 |
-| 26 bits | 10 |
-| 27 bits | 310 |
+| bitstream version 0 → 1 | real bug, real fix — but not this one |
+| frame rate / aspect declared | Apple leaves both 0; not load-bearing |
+| codeword width ≤ 25 bits (qscale 2) | **wrong** — Apple's own working files carry 27-bit codewords |
+| 8-bit alpha (Apple's own choice) | still failed; alpha *width* is not the issue |
+| quantiser presentation (matrices, qscale) | still failed |
+| our frames in Apple's container (r1) | **failed** — container is innocent |
+| Apple's frames in our container (r2) | **worked** — container is innocent |
+| our colour + Apple's alpha (h2) | **worked** |
+| Apple's colour + our alpha (h1) | **failed** — the alpha sections are guilty |
 
-About **41 illegal codewords per frame**, and every single one a **DC delta** —
-never a first DC, never a run, never a level. The reason is the codebook
-progression: a zero delta selects codebook `0x04`, the narrowest one there is,
-so a run of flat blocks followed by a hard edge asks the smallest code to carry
-the largest value. Flat, flat, flat, then the white card's edge. That is most of
-this piece.
+The last two rows are the whole method: same pixels, two encoders, spliced at the
+slice level so the hardware itself names the guilty half. Once it pointed at
+alpha, the question stopped being "what might be wrong" and became "what does
+Apple write that we don't" — answerable by decoding Apple's alpha values,
+re-encoding those *exact same values* with this encoder, and diffing symbol by
+symbol.
 
-### The fix is the quantiser, and it is free
+That diff showed the padding. Measured across Apple's own output, every frame,
+every slice: a diff-ending stream is always padded `1` then zeros — Apple spends
+an entire extra byte to carry that one bit when the diff happens to end
+byte-aligned — and a run-ending stream is always plain zeros.
 
-With the flat matrices the quantiser step *is* the qscale, so 1 rounds each
-coefficient to the nearest integer and nothing else. That reads like the right
-choice for a mastering export, and it is why it stood. What it actually does is
-hold the coefficients at their largest, and the largest DC deltas are the ones
-that overflow. **qscale 2** is the whole fix.
+### The proof
 
-It is not "safe on the frames I tried". The packer writes 10-bit video range —
-Y in [64, 940], chroma in [64, 960] — so the largest DC a block can hold is
-32(940−512) and the largest delta between two of them is the full swing. Run
-that through every codebook and the worst codeword **in the entire input space**
-comes out at:
+With the rule added, this encoder replays Apple's own alpha symbols and produces
+**byte-identical output on 2,376 of 2,376 comparable slices**. Not equivalent —
+identical, every flag, field and padding bit. And in the shipped export, all 171
+diff-ending slices sampled carry the convention across every padding width from
+1 to 8 bits, with the 7,173 run-ending slices untouched.
 
-| qscale | worst codeword, whole input range | verdict |
-| --- | --- | --- |
-| 1 | 27 bits | over |
-| 2 | **25 bits** | exactly the last width accepted |
-| 3 | 25 bits | fine |
+### What did not survive this
 
-And it costs nothing worth having, measured three ways rather than argued:
+The **qscale 2** change is reverted. It was adopted because DC codewords at
+qscale 1 could exceed the 25-bit window ffmpeg's 32-bit reader enforces — a real
+measurement, and a wrong conclusion: Apple's own files, which the M5 plays
+perfectly, carry 27-bit codewords in the same frames. Hardware accepts them. The
+quantiser is back to 1, the mastering setting this export always intended, and
+the width guard stays at 28 only to catch a future edit that widens the input
+range.
 
-- **Alpha is untouched.** The matte is a run/delta raster with no transform and
-  no quantiser, so it is bit-exact at any qscale. Transparency does not depend
-  on this number at all — confirmed by decoding the alpha back out of encoded
-  frames and comparing to the source: **2,088,960 samples over 1,088 slices,
-  zero mismatches**.
-- **Flat blocks stay exact.** 32(V−512) divides by 8, so every flat block —
-  most of this piece — round-trips to its own value with zero error, the same
-  as at qscale 1.
-- **On the moving content**, worst pixel 4/1023 against 2/1023: 1.17 of an
-  8-bit level in the single worst pixel of a frame, 0.015 on average. Measured
-  by inverting the encoder's own transform.
+Worth keeping from that detour: `PRBits.prototype.bytes()`. In
+`bw.b.subarray(0, bw.flush())` the base `bw.b` is resolved *before* the argument
+runs, so a growth inside `flush()` hands back the stale, shorter buffer and
+clamps a byte off the plane — measured, 5 bytes declared and 4 returned. That
+was a genuine truncation bug on busy frames, found here and independently in a
+parallel review, where it was traced to `kVTVideoDecoderBadDataErr` on hardware.
+It shipped in the same commit as qscale 2, which is why the two could not be
+told apart until they were separated.
 
-It is also **13.2% smaller** — 412KB a frame against 474 at 1920 — because the
-coefficients that no longer overflow were the expensive ones. The size argument
-for qscale 1 was backwards.
+### The method lesson, stated plainly
 
-### Two guards, so this cannot come back quietly
-
-`prCW` now counts any codeword it emits over 25 bits, and `proresFrame` wraps
-the encode in a retry that re-encodes the frame one qscale coarser if the count
-is not zero. On this content it never fires. It exists because "provably safe"
-rests on that 10-bit video range, and the range is one edit away from someone
-widening it — a full-range packing, a 12-bit path, a different matrix. A silent
-re-encode costs a second; a file that drops bands on every Mac with a Media
-Engine does not announce itself at all. When it does fire, the status line says
-so.
-
-The second guard is unrelated and was found in the same read.
-`plane.push(bw.b.subarray(0, bw.flush()))` resolves the base `bw.b` **before**
-the argument runs, so when `flush()` grows the buffer the subarray comes off the
-old, shorter array and silently clamps a byte off the plane. Measured on a
-writer filled to capacity: flush declared 5 bytes, the subarray handed back 4,
-and the real byte was sitting in the new buffer. Growth does happen in normal
-use — peak writer 3,249 bytes against a 3,072 start. A plane one byte short
-desynchronises the rest of its slice: the same missing-band symptom from a
-different cause. Both call sites now flush first and read `.b` after.
-
-### Verified on the shipped bytes, not the encoder's own bookkeeping
-
-A 960×540 transparent export was read back and walked with a decoder that
-re-derives each codeword's width from the bitstream the way `DECODE_CODEWORD`
-does:
-
-| | |
-| --- | --- |
-| frames | 163 |
-| slices | 44,336 |
-| DC codewords read back | 3,990,240 |
-| **widest codeword in the file** | **25 bits** |
-| over the limit | **0** |
-| atom order | `ftyp`, `moov`, `mdat` — faststart |
-| byte accounting | 29,480,079 consumed = mdat payload exactly |
-
-Structural checks pass at every export width (480 through 1920, including the
-480 case that exercises slice halving into widths 8, 8, 8, 4, 2): bitstream
-version 1, 148-byte frame header, `alpha_channel_type` 2 with a clear reserved
-nibble, slice count matching the decoder's own recomputation, and every slice's
-plane sizes inside its declared size.
-
-### What this says about the method
-
-The alpha coder was written decoder-first and verified bit-exact against
-Apple's decode. The container was checked field-for-field against Apple's own
-muxer. Both are right. **The DCT and entropy path was never round-tripped
-against a real reader** — and that is exactly where this bug lived, for months,
-behind a software decoder that was too forgiving to report it. Write the
-decoder first, for every path, not just the one that felt risky.
+Every verification this project ran against the alpha coder was written from the
+same reading of the format as the encoder. A round-trip through your own
+decoder cannot find a bug in your own understanding — it can only confirm you
+are self-consistent. The bug fell out the moment the comparison changed from
+"does my decoder read my file" to **"does my encoder produce the bytes the
+reference encoder produces, for the same input"**.
 
 ## The cross-check: Apple's encoder, handed the same frames for real this time
 

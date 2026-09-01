@@ -4998,6 +4998,13 @@ function prACs(bw, lev, nblk){
 }
 
 /* -- alpha: run/delta, no transform -------------------------------------- */
+/* 16-BIT, the original and verified grammar. An 8-bit variant (type 1,
+   Apple's own choice for these frames) was built and put on the M5 — it
+   failed identically to the 16-bit files, which retires the alpha WIDTH as
+   a suspect and earns the 16-bit path its place back: it is the grammar
+   this project proved bit-exact against ffmpeg's reader, sample for
+   sample, and the one jetski's hardware-verified build also settled on
+   (delta escapes, predictor 0xFFFF — the same choices as here). */
 function prAlpha(bw, a, n){
   const DS = 64;                                 /* 1 << (7 - 1) */
   const diff = (cur, prev) => {
@@ -5019,6 +5026,26 @@ function prAlpha(bw, a, n){
     diff(a[i], prev); prev = a[i];
   }
   if (run) runOf(run);
+  /* THE ONE-BIT TERMINATOR — the whole of "a significant part of the frame
+     is missing" on Macs with a ProRes Media Engine, and the reason every
+     software check missed it.
+
+     Apple's decoder reads a continuation flag after EVERY diff, the last
+     one included: 1 means stop, 0 means a run field follows — 4 bits, and
+     11 more if those are zero. ffmpeg's reader happens to break out BEFORE
+     that flag when the sample count is reached, so against ffmpeg
+     semantics a stream that simply stops after its last diff audits as
+     perfect — and against the hardware, its zero padding reads as "run
+     field follows" and sends the decoder off the end of the slice's DMA
+     window. Slice error, frame damaged.
+
+     Measured on Apple's own encoder output, 9 frames, every slice: after
+     a diff-ending stream the padding is ALWAYS a single 1 then zeros —
+     including an entire extra byte spent to carry that one bit when the
+     diff ended byte-aligned — and after a run-ending stream it is always
+     plain zeros. Run-ending slices need nothing, which is why the flat
+     second act always decoded and the glow-heavy first act never did. */
+  if (!run) bw.put(1, 1);
 }
 
 /* -- forward DCT, scaled 4x the orthonormal one ---------------------------
