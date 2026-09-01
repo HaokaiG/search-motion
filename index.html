@@ -1855,7 +1855,7 @@
    apart. Now: read the stamp under the export buttons in both places. If
    they differ, the far copy is old and nothing else about the report can
    be trusted until it is re-imported. */
-const BUILD = "2026-08-31 · prores v1 + codeword width conformant (q2)";
+const BUILD = "2026-09-01 · alpha terminator bit — decodes on M3 and later";
 /* #t=<seconds> freezes on one instant, #bare hides the HUD — that is how the
    stills for the frame-by-frame diff against the source clip get rendered. */
 const Q = new URLSearchParams(
@@ -4916,6 +4916,13 @@ PRBits.prototype.flush = function(){             /* pad the last byte with 0s */
   if (this.nb) this.put(8 - this.nb, 0);
   return this.n;
 };
+/* flush FIRST, then read .b — in `bw.b.subarray(0, bw.flush())` the base is
+   resolved before the argument runs, so a growth inside flush() hands back
+   the stale, shorter buffer and clamps the last byte off the plane. */
+PRBits.prototype.bytes = function(){
+  const len = this.flush();
+  return this.b.subarray(0, len);
+};
 
 /* One codeword. The two branches meet with no gap: the largest Rice value is
    ((s+1) << k) - 1 and the smallest exp-Golomb one is exactly ((s+1) << k),
@@ -5147,30 +5154,22 @@ function proresFrameAt(Y, U, V, A, W, H, stride, qscale, fps){
         const q = coef[i] * inv;
         lev[i] = q < 0 ? -((0.5 - q) | 0) : ((q + 0.5) | 0);
       }
-      const bw = new PRBits(nblk * 96);
+      /* 192 bytes a block, not 96: the measured peak was 3,249 on a 3,072
+         allocation, so the old size guaranteed mid-slice growth on busy
+         frames. Growth is correct now, but rarer is better. */
+      const bw = new PRBits(nblk * 192);
       prDCs(bw, lev, nblk);
       if (ac) prACs(bw, lev, nblk);
-      /* flush() can grow the buffer, and in `bw.b.subarray(0, bw.flush())`
-         the base `bw.b` is resolved BEFORE the argument runs — so the
-         subarray would come off the old, shorter array and silently clamp
-         the last byte off the plane. Measured on a writer filled to its
-         capacity: flush declared 5 bytes and the subarray handed back 4,
-         with the real byte sitting in the new buffer. Growth does happen
-         here in normal use (peak writer 3249 bytes against a 3072 start),
-         and a plane one byte short desynchronises the rest of its slice —
-         the same missing-band symptom, from a different cause. */
-      const used = bw.flush();
-      plane.push(bw.b.subarray(0, used));
+      plane.push(bw.bytes());
     }
     /* alpha is a plain raster of the slice's 16 x 16n region */
     for (let r = 0; r < 16; r++){
       const s = (my * 16 + r) * stride + mx * 16;
       av.set(A.subarray(s, s + n * 16), r * n * 16);
     }
-    const abw = new PRBits(n * 640);
+    const abw = new PRBits(n * 1024);
     prAlpha(abw, av, n * 256);
-    const aUsed = abw.flush();                   /* flush before reading .b — see above */
-    const A4 = abw.b.subarray(0, aUsed);
+    const A4 = abw.bytes();
     const hdr = new Uint8Array(8);
     hdr[0] = 8 << 3; hdr[1] = qscale;
     hdr[2] = plane[0].length >> 8; hdr[3] = plane[0].length & 255;
@@ -5242,15 +5241,12 @@ function proresFrameAt(Y, U, V, A, W, H, stride, qscale, fps){
   const FRC = { 23.976: 1, 24: 2, 25: 3, 29.97: 4, 30: 5, 50: 6, 59.94: 7, 60: 8 };
   out[o + 13] = (1 << 4) | (FRC[fps] || 0);
   out[o + 14] = 1; out[o + 15] = 1; out[o + 16] = 1;   /* BT.709 throughout */
-  /* 0x02, not 0x42. The low nibble is alpha_channel_type — 2 is 16-bit
-     alpha, and that has always been right. The HIGH nibble is reserved and
-     must be zero; it carried a stray 4. FFmpeg reads this as `buf[17] & 0xf`
-     and never noticed, which is why the file decodes here and in anything
-     built on it, but a decoder that validates reserved bits is entitled to
-     reject the frame or fall through to a no-alpha path — and a reader that
-     concludes "no alpha" is exactly a reader that shows the export as not
-     transparent. Verified in a parsed export: byte 25 now reads 0x02, with
-     alpha_channel_type still 2. */
+  /* alpha_channel_type 2 — 16-bit, matching prAlpha. The high nibble has
+     now been every value this investigation could put there (0, 4, and the
+     7 Apple's own encoder writes) across files that worked and files that
+     did not, without once deciding the outcome: it is noise, and the old
+     "reserved must be zero" note here was a theory the canonical encoder
+     does not honour. The low nibble is the field that matters. */
   out[o + 17] = 2;                               /* 16-bit alpha */
   /* flags: bit 1 = luma matrix follows, bit 0 = chroma matrix follows, the
      pair ffmpeg reads as `flags & 2` then `flags & 1`. Both are the flat 4
@@ -5373,15 +5369,16 @@ function prPlanes(rgba, W, H){
       V[q] = (512 + 896 * (r - l) / (255 * 1.5748) + 0.5) | 0;
       A[q] = rgba[p + 3] * 257;
     }
-    for (let x = W; x < stride; x++){            /* pad right by repeating */
+    for (let x = W; x < stride; x++){            /* pad right: clamp colour, zero alpha */
       Y[y*stride+x] = Y[y*stride+W-1]; U[y*stride+x] = U[y*stride+W-1];
-      V[y*stride+x] = V[y*stride+W-1]; A[y*stride+x] = A[y*stride+W-1];
+      V[y*stride+x] = V[y*stride+W-1]; A[y*stride+x] = 0;
     }
   }
-  for (let y = H; y < rows; y++){                /* and the bottom */
+  for (let y = H; y < rows; y++){                /* and the bottom: same convention */
     const s = (H - 1) * stride, d = y * stride;
     Y.set(Y.subarray(s, s + stride), d); U.set(U.subarray(s, s + stride), d);
-    V.set(V.subarray(s, s + stride), d); A.set(A.subarray(s, s + stride), d);
+    V.set(V.subarray(s, s + stride), d);
+    A.fill(0, d, d + stride);
   }
   return { Y, U, V, A, stride };
 }
@@ -5475,7 +5472,7 @@ function muxMOV(frames, W, H, timescale, delta){
   const build = chunkOffset => {
   const mvhd = bx("mvhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
                       b32(0x00010000), b16(0x0100), zeros(10), MATRIX, zeros(24), b32(2));
-  const tkhd = bx("tkhd", new Uint8Array([0,0,0,3]), b32(0), b32(0), b32(1),
+  const tkhd = bx("tkhd", new Uint8Array([0,0,0,0x0F]), b32(0), b32(0), b32(1),
                       zeros(4), b32(dur), zeros(8), b16(0), b16(0), b16(0), b16(0),
                       MATRIX, b32(W << 16), b32(H << 16));
   const mdhd = bx("mdhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
@@ -5512,6 +5509,9 @@ function muxMOV(frames, W, H, timescale, delta){
                       bx("pasp", b32(1), b32(1)));
   const stsd = bx("stsd", zeros(4), b32(1), ap4h);
   const stts = bx("stts", zeros(4), b32(1), b32(n), b32(delta));
+  /* every ProRes frame is intra, so every sample is a sync sample; stss says
+     so explicitly rather than leaving it to the reader's default */
+  const stss = bx("stss", zeros(4), b32(n), ...frames.map((_, i) => b32(i + 1)));
   const stsc = bx("stsc", zeros(4), b32(1), b32(1), b32(n), b32(1));
   const stsz = bx("stsz", zeros(4), b32(0), b32(n), ...frames.map(f => b32(f.length)));
   const stco = bx("stco", zeros(4), b32(1), b32(chunkOffset));
@@ -5519,7 +5519,7 @@ function muxMOV(frames, W, H, timescale, delta){
                       bx("trak", tkhd,
                              bx("mdia", mdhd, hdlr,
                                     bx("minf", vmhd, dinf,
-                                           bx("stbl", stsd, stts, stsc, stsz, stco)))));
+                                           bx("stbl", stsd, stts, stss, stsc, stsz, stco)))));
     return moov;
   };
   const probe = build(0);
