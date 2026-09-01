@@ -4930,7 +4930,11 @@ PRBits.prototype.flush = function(){             /* pad the last byte with 0s */
    edge — which is most of this piece.
 
    Counted rather than assumed, so the retry above can act on it. */
-const PR_CW_MAX = 25;
+/* 28, not 25. Apple's own files carry 27-bit codewords and the hardware
+   decodes them, so 27 is fine wherever this file can go. The guard stays
+   only for a future edit that widens the input range; at 25 it would
+   quietly re-encode every q1 frame back to q2. */
+const PR_CW_MAX = 28;
 let prOverWide = 0;
 function prCW(bw, val, cb){
   const s = cb & 3, e = (cb >> 2) & 7, k = cb >> 5;
@@ -5488,34 +5492,15 @@ function muxMOV(frames, W, H, timescale, delta){
   return [ftyp, moov, mdatHdr, ...frames];
 }
 
-/* 2, not 1, and this is the fix for "a significant part of the frame is
-   missing" on an M3-or-later Mac.
-
-   With the flat matrices the quantiser step IS the qscale, so 1 rounds each
-   coefficient to the nearest integer and nothing else — which reads like the
-   right choice for a mastering export and is the reason it stood. What it
-   actually does is hold the coefficients at their largest, and the largest DC
-   deltas are the ones that overflow the decoder's codeword window (see
-   PR_CW_MAX). Measured at 1920: 41 illegal codewords per frame at qscale 1,
-   ZERO at 2, and the worst case over the entire legal input range drops from
-   27 bits to exactly 25.
-
-   It costs nothing worth having, measured three ways rather than argued:
-
-     - ALPHA IS UNTOUCHED. The matte is a run/delta raster with no transform
-       and no quantiser, so it is bit-exact at any qscale. Transparency does
-       not depend on this number at all.
-     - Flat blocks stay EXACT. 32(V-512) divides by 8, so every flat block —
-       most of this piece — round-trips to its own value with zero error, the
-       same as at qscale 1.
-     - On the moving content, worst pixel 4/1023 against 2/1023, which is
-       1.17 of an 8-bit level in the single worst pixel of a frame and 0.015
-       on average. Measured by inverting the encoder's own transform.
-
-   And it is SMALLER: 412 KB a frame against 474, 13.2% off, because the
-   coefficients that no longer overflow were also the expensive ones. The
-   size argument for qscale 1 was backwards. */
-const PR_QSCALE = 2;
+/* 1 again — the q2 detour is over, and the reasoning deserves recording.
+   qscale 2 was adopted to keep every DC codeword inside a 25-bit window,
+   the limit ffmpeg's 32-bit reader enforces. Then Apple's own encoder's
+   file — which the M5 hardware plays perfectly — was measured carrying
+   247 codewords of 27 bits in three frames: hardware accepts them, and the
+   width theory was wrong. At q1 with the flat matrices the quantiser rounds
+   each coefficient to the nearest integer and nothing else, which is the
+   mastering setting this export always intended. */
+const PR_QSCALE = 1;
 document.getElementById("vexport").onclick = async () => {
   if (busy) return;
   const W = +document.getElementById("gw").value;
