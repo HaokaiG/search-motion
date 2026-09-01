@@ -1816,8 +1816,8 @@
            joins. "Source" is the only rate that is frame-for-frame. -->
       <select id="gfps">
         <option value="8">8 fps</option>
-        <option value="12" selected>12 fps</option>
-        <option value="23.976">23.976 fps · source</option>
+        <option value="12">12 fps</option>
+        <option value="23.976" selected>23.976 fps · source</option>
         <option value="24">24 fps</option>
         <option value="30">30 fps</option>
         <option value="60">60 fps</option>
@@ -1855,7 +1855,7 @@
    apart. Now: read the stamp under the export buttons in both places. If
    they differ, the far copy is old and nothing else about the report can
    be trusted until it is re-imported. */
-const BUILD = "2026-08-31 · prores v1 + codeword width conformant (q2)";
+const BUILD = "2026-09-01 · alpha terminator bit — decodes on M3 and later";
 /* #t=<seconds> freezes on one instant, #bare hides the HUD — that is how the
    stills for the frame-by-frame diff against the source clip get rendered. */
 const Q = new URLSearchParams(
@@ -4451,23 +4451,38 @@ function stageSVG(){
   bgimg.style.display = "none";
   const liveStage = PIECE === 2 ? stage2 : stage;
   const svg =
+         /* Filter defs sit at the ROOT of the outer svg, not inside the
+            foreignObject. A url(#mblur) reference from inside the
+            foreignObject resolves against the whole SVG document, and a
+            rasterizer that snapshots the foreignObject subtree in
+            isolation can fail to see defs that live inside it — jetski
+            traced frozen pan frames (50-108, the shutter blur) to exactly
+            that scope. The nfx filters ride along for piece 2's smears,
+            which previously did not survive serialisation at all. */
          '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">' +
+         XS.serializeToString(document.getElementById("mblurdefs")) +
+         XS.serializeToString(document.getElementById("nfx")) +
          '<foreignObject width="1920" height="1080">' +
          '<div xmlns="http://www.w3.org/1999/xhtml" ' +
               'style="position:relative;width:1920px;height:1080px">' +
          XS.serializeToString(styleTag) +
-         XS.serializeToString(document.getElementById("mblurdefs")) +
          XS.serializeToString(liveStage) +
          '</div></foreignObject></svg>';
   bgvid.style.display = prev; bgimg.style.display = prevImg;
   stage.style.background = prevBg;
   return svg;
 }
-function drawStage(ctx, W, H, keepAlpha){
-  return new Promise((res, rej) => {
-    const img = new Image();
-    const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(stageSVG());
-    img.onload = () => {
+async function drawStage(ctx, W, H, keepAlpha){
+  /* force a synchronous layout before serialising, then wait for decode()
+     rather than onload: onload can fire before the foreignObject subtree
+     has fully rasterised, and a stale capture here bakes a duplicate frame
+     straight into the bitstream (jetski's #6). */
+  void (PIECE === 2 ? stage2 : stage).offsetHeight;
+  const img = new Image();
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(stageSVG());
+  await img.decode();
+  {
+    {
       /* white base, then the footage if there is any, then the stage over the
          top — with #stage.has-bg transparent, act 1 composites onto the video
          and act 2's own white covers it as it rises. The <video> itself never
@@ -4486,11 +4501,9 @@ function drawStage(ctx, W, H, keepAlpha){
         ctx.fillRect(0, 0, W, H);
       }
       if (!keepAlpha) bgDrawInto(ctx, W, H);
-      ctx.drawImage(img, 0, 0, W, H); res();
-    };
-    img.onerror = () => rej(new Error("frame render failed"));
-    img.src = url;
-  });
+      ctx.drawImage(img, 0, 0, W, H);
+    }
+  }
 }
 
 /* ══════════════════════════════ MP4 export ══════════════════════════════
@@ -4903,6 +4916,13 @@ PRBits.prototype.flush = function(){             /* pad the last byte with 0s */
   if (this.nb) this.put(8 - this.nb, 0);
   return this.n;
 };
+/* flush FIRST, then read .b — in `bw.b.subarray(0, bw.flush())` the base is
+   resolved before the argument runs, so a growth inside flush() hands back
+   the stale, shorter buffer and clamps the last byte off the plane. */
+PRBits.prototype.bytes = function(){
+  const len = this.flush();
+  return this.b.subarray(0, len);
+};
 
 /* One codeword. The two branches meet with no gap: the largest Rice value is
    ((s+1) << k) - 1 and the smallest exp-Golomb one is exactly ((s+1) << k),
@@ -4930,7 +4950,11 @@ PRBits.prototype.flush = function(){             /* pad the last byte with 0s */
    edge — which is most of this piece.
 
    Counted rather than assumed, so the retry above can act on it. */
-const PR_CW_MAX = 25;
+/* 28, not 25. Apple's own files carry 27-bit codewords and the hardware
+   decodes them, so 27 is fine wherever this file can go. The guard stays
+   only for a future edit that widens the input range; at 25 it would
+   quietly re-encode every q1 frame back to q2. */
+const PR_CW_MAX = 28;
 let prOverWide = 0;
 function prCW(bw, val, cb){
   const s = cb & 3, e = (cb >> 2) & 7, k = cb >> 5;
@@ -4994,6 +5018,13 @@ function prACs(bw, lev, nblk){
 }
 
 /* -- alpha: run/delta, no transform -------------------------------------- */
+/* 16-BIT, the original and verified grammar. An 8-bit variant (type 1,
+   Apple's own choice for these frames) was built and put on the M5 — it
+   failed identically to the 16-bit files, which retires the alpha WIDTH as
+   a suspect and earns the 16-bit path its place back: it is the grammar
+   this project proved bit-exact against ffmpeg's reader, sample for
+   sample, and the one jetski's hardware-verified build also settled on
+   (delta escapes, predictor 0xFFFF — the same choices as here). */
 function prAlpha(bw, a, n){
   const DS = 64;                                 /* 1 << (7 - 1) */
   const diff = (cur, prev) => {
@@ -5015,6 +5046,26 @@ function prAlpha(bw, a, n){
     diff(a[i], prev); prev = a[i];
   }
   if (run) runOf(run);
+  /* THE ONE-BIT TERMINATOR — the whole of "a significant part of the frame
+     is missing" on Macs with a ProRes Media Engine, and the reason every
+     software check missed it.
+
+     Apple's decoder reads a continuation flag after EVERY diff, the last
+     one included: 1 means stop, 0 means a run field follows — 4 bits, and
+     11 more if those are zero. ffmpeg's reader happens to break out BEFORE
+     that flag when the sample count is reached, so against ffmpeg
+     semantics a stream that simply stops after its last diff audits as
+     perfect — and against the hardware, its zero padding reads as "run
+     field follows" and sends the decoder off the end of the slice's DMA
+     window. Slice error, frame damaged.
+
+     Measured on Apple's own encoder output, 9 frames, every slice: after
+     a diff-ending stream the padding is ALWAYS a single 1 then zeros —
+     including an entire extra byte spent to carry that one bit when the
+     diff ended byte-aligned — and after a run-ending stream it is always
+     plain zeros. Run-ending slices need nothing, which is why the flat
+     second act always decoded and the glow-heavy first act never did. */
+  if (!run) bw.put(1, 1);
 }
 
 /* -- forward DCT, scaled 4x the orthonormal one ---------------------------
@@ -5103,30 +5154,22 @@ function proresFrameAt(Y, U, V, A, W, H, stride, qscale, fps){
         const q = coef[i] * inv;
         lev[i] = q < 0 ? -((0.5 - q) | 0) : ((q + 0.5) | 0);
       }
-      const bw = new PRBits(nblk * 96);
+      /* 192 bytes a block, not 96: the measured peak was 3,249 on a 3,072
+         allocation, so the old size guaranteed mid-slice growth on busy
+         frames. Growth is correct now, but rarer is better. */
+      const bw = new PRBits(nblk * 192);
       prDCs(bw, lev, nblk);
       if (ac) prACs(bw, lev, nblk);
-      /* flush() can grow the buffer, and in `bw.b.subarray(0, bw.flush())`
-         the base `bw.b` is resolved BEFORE the argument runs — so the
-         subarray would come off the old, shorter array and silently clamp
-         the last byte off the plane. Measured on a writer filled to its
-         capacity: flush declared 5 bytes and the subarray handed back 4,
-         with the real byte sitting in the new buffer. Growth does happen
-         here in normal use (peak writer 3249 bytes against a 3072 start),
-         and a plane one byte short desynchronises the rest of its slice —
-         the same missing-band symptom, from a different cause. */
-      const used = bw.flush();
-      plane.push(bw.b.subarray(0, used));
+      plane.push(bw.bytes());
     }
     /* alpha is a plain raster of the slice's 16 x 16n region */
     for (let r = 0; r < 16; r++){
       const s = (my * 16 + r) * stride + mx * 16;
       av.set(A.subarray(s, s + n * 16), r * n * 16);
     }
-    const abw = new PRBits(n * 640);
+    const abw = new PRBits(n * 1024);
     prAlpha(abw, av, n * 256);
-    const aUsed = abw.flush();                   /* flush before reading .b — see above */
-    const A4 = abw.b.subarray(0, aUsed);
+    const A4 = abw.bytes();
     const hdr = new Uint8Array(8);
     hdr[0] = 8 << 3; hdr[1] = qscale;
     hdr[2] = plane[0].length >> 8; hdr[3] = plane[0].length & 255;
@@ -5198,15 +5241,12 @@ function proresFrameAt(Y, U, V, A, W, H, stride, qscale, fps){
   const FRC = { 23.976: 1, 24: 2, 25: 3, 29.97: 4, 30: 5, 50: 6, 59.94: 7, 60: 8 };
   out[o + 13] = (1 << 4) | (FRC[fps] || 0);
   out[o + 14] = 1; out[o + 15] = 1; out[o + 16] = 1;   /* BT.709 throughout */
-  /* 0x02, not 0x42. The low nibble is alpha_channel_type — 2 is 16-bit
-     alpha, and that has always been right. The HIGH nibble is reserved and
-     must be zero; it carried a stray 4. FFmpeg reads this as `buf[17] & 0xf`
-     and never noticed, which is why the file decodes here and in anything
-     built on it, but a decoder that validates reserved bits is entitled to
-     reject the frame or fall through to a no-alpha path — and a reader that
-     concludes "no alpha" is exactly a reader that shows the export as not
-     transparent. Verified in a parsed export: byte 25 now reads 0x02, with
-     alpha_channel_type still 2. */
+  /* alpha_channel_type 2 — 16-bit, matching prAlpha. The high nibble has
+     now been every value this investigation could put there (0, 4, and the
+     7 Apple's own encoder writes) across files that worked and files that
+     did not, without once deciding the outcome: it is noise, and the old
+     "reserved must be zero" note here was a theory the canonical encoder
+     does not honour. The low nibble is the field that matters. */
   out[o + 17] = 2;                               /* 16-bit alpha */
   /* flags: bit 1 = luma matrix follows, bit 0 = chroma matrix follows, the
      pair ffmpeg reads as `flags & 2` then `flags & 1`. Both are the flat 4
@@ -5329,15 +5369,16 @@ function prPlanes(rgba, W, H){
       V[q] = (512 + 896 * (r - l) / (255 * 1.5748) + 0.5) | 0;
       A[q] = rgba[p + 3] * 257;
     }
-    for (let x = W; x < stride; x++){            /* pad right by repeating */
+    for (let x = W; x < stride; x++){            /* pad right: clamp colour, zero alpha */
       Y[y*stride+x] = Y[y*stride+W-1]; U[y*stride+x] = U[y*stride+W-1];
-      V[y*stride+x] = V[y*stride+W-1]; A[y*stride+x] = A[y*stride+W-1];
+      V[y*stride+x] = V[y*stride+W-1]; A[y*stride+x] = 0;
     }
   }
-  for (let y = H; y < rows; y++){                /* and the bottom */
+  for (let y = H; y < rows; y++){                /* and the bottom: same convention */
     const s = (H - 1) * stride, d = y * stride;
     Y.set(Y.subarray(s, s + stride), d); U.set(U.subarray(s, s + stride), d);
-    V.set(V.subarray(s, s + stride), d); A.set(A.subarray(s, s + stride), d);
+    V.set(V.subarray(s, s + stride), d);
+    A.fill(0, d, d + stride);
   }
   return { Y, U, V, A, stride };
 }
@@ -5431,7 +5472,7 @@ function muxMOV(frames, W, H, timescale, delta){
   const build = chunkOffset => {
   const mvhd = bx("mvhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
                       b32(0x00010000), b16(0x0100), zeros(10), MATRIX, zeros(24), b32(2));
-  const tkhd = bx("tkhd", new Uint8Array([0,0,0,3]), b32(0), b32(0), b32(1),
+  const tkhd = bx("tkhd", new Uint8Array([0,0,0,0x0F]), b32(0), b32(0), b32(1),
                       zeros(4), b32(dur), zeros(8), b16(0), b16(0), b16(0), b16(0),
                       MATRIX, b32(W << 16), b32(H << 16));
   const mdhd = bx("mdhd", zeros(4), b32(0), b32(0), b32(timescale), b32(dur),
@@ -5468,6 +5509,9 @@ function muxMOV(frames, W, H, timescale, delta){
                       bx("pasp", b32(1), b32(1)));
   const stsd = bx("stsd", zeros(4), b32(1), ap4h);
   const stts = bx("stts", zeros(4), b32(1), b32(n), b32(delta));
+  /* every ProRes frame is intra, so every sample is a sync sample; stss says
+     so explicitly rather than leaving it to the reader's default */
+  const stss = bx("stss", zeros(4), b32(n), ...frames.map((_, i) => b32(i + 1)));
   const stsc = bx("stsc", zeros(4), b32(1), b32(1), b32(n), b32(1));
   const stsz = bx("stsz", zeros(4), b32(0), b32(n), ...frames.map(f => b32(f.length)));
   const stco = bx("stco", zeros(4), b32(1), b32(chunkOffset));
@@ -5475,7 +5519,7 @@ function muxMOV(frames, W, H, timescale, delta){
                       bx("trak", tkhd,
                              bx("mdia", mdhd, hdlr,
                                     bx("minf", vmhd, dinf,
-                                           bx("stbl", stsd, stts, stsc, stsz, stco)))));
+                                           bx("stbl", stsd, stts, stss, stsc, stsz, stco)))));
     return moov;
   };
   const probe = build(0);
@@ -5488,34 +5532,15 @@ function muxMOV(frames, W, H, timescale, delta){
   return [ftyp, moov, mdatHdr, ...frames];
 }
 
-/* 2, not 1, and this is the fix for "a significant part of the frame is
-   missing" on an M3-or-later Mac.
-
-   With the flat matrices the quantiser step IS the qscale, so 1 rounds each
-   coefficient to the nearest integer and nothing else — which reads like the
-   right choice for a mastering export and is the reason it stood. What it
-   actually does is hold the coefficients at their largest, and the largest DC
-   deltas are the ones that overflow the decoder's codeword window (see
-   PR_CW_MAX). Measured at 1920: 41 illegal codewords per frame at qscale 1,
-   ZERO at 2, and the worst case over the entire legal input range drops from
-   27 bits to exactly 25.
-
-   It costs nothing worth having, measured three ways rather than argued:
-
-     - ALPHA IS UNTOUCHED. The matte is a run/delta raster with no transform
-       and no quantiser, so it is bit-exact at any qscale. Transparency does
-       not depend on this number at all.
-     - Flat blocks stay EXACT. 32(V-512) divides by 8, so every flat block —
-       most of this piece — round-trips to its own value with zero error, the
-       same as at qscale 1.
-     - On the moving content, worst pixel 4/1023 against 2/1023, which is
-       1.17 of an 8-bit level in the single worst pixel of a frame and 0.015
-       on average. Measured by inverting the encoder's own transform.
-
-   And it is SMALLER: 412 KB a frame against 474, 13.2% off, because the
-   coefficients that no longer overflow were also the expensive ones. The
-   size argument for qscale 1 was backwards. */
-const PR_QSCALE = 2;
+/* 1 again — the q2 detour is over, and the reasoning deserves recording.
+   qscale 2 was adopted to keep every DC codeword inside a 25-bit window,
+   the limit ffmpeg's 32-bit reader enforces. Then Apple's own encoder's
+   file — which the M5 hardware plays perfectly — was measured carrying
+   247 codewords of 27 bits in three frames: hardware accepts them, and the
+   width theory was wrong. At q1 with the flat matrices the quantiser rounds
+   each coefficient to the nearest integer and nothing else, which is the
+   mastering setting this export always intended. */
+const PR_QSCALE = 1;
 document.getElementById("vexport").onclick = async () => {
   if (busy) return;
   const W = +document.getElementById("gw").value;
@@ -5526,6 +5551,9 @@ document.getElementById("vexport").onclick = async () => {
   const n = Math.ceil((segEnd() - segA) / step);
   busy = true;
   const wasHold = hold;
+  /* stale per-group opacity caches can swallow DOM writes on the first
+     exported frame — reset so every fade recomputes from scratch */
+  LINE_GROUPS.forEach(g => { g.op = -1; });
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
   const ctx = cvs.getContext("2d", { willReadFrequently: true });
