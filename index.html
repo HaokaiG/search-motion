@@ -1816,8 +1816,8 @@
            joins. "Source" is the only rate that is frame-for-frame. -->
       <select id="gfps">
         <option value="8">8 fps</option>
-        <option value="12" selected>12 fps</option>
-        <option value="23.976">23.976 fps · source</option>
+        <option value="12">12 fps</option>
+        <option value="23.976" selected>23.976 fps · source</option>
         <option value="24">24 fps</option>
         <option value="30">30 fps</option>
         <option value="60">60 fps</option>
@@ -4451,23 +4451,38 @@ function stageSVG(){
   bgimg.style.display = "none";
   const liveStage = PIECE === 2 ? stage2 : stage;
   const svg =
+         /* Filter defs sit at the ROOT of the outer svg, not inside the
+            foreignObject. A url(#mblur) reference from inside the
+            foreignObject resolves against the whole SVG document, and a
+            rasterizer that snapshots the foreignObject subtree in
+            isolation can fail to see defs that live inside it — jetski
+            traced frozen pan frames (50-108, the shutter blur) to exactly
+            that scope. The nfx filters ride along for piece 2's smears,
+            which previously did not survive serialisation at all. */
          '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">' +
+         XS.serializeToString(document.getElementById("mblurdefs")) +
+         XS.serializeToString(document.getElementById("nfx")) +
          '<foreignObject width="1920" height="1080">' +
          '<div xmlns="http://www.w3.org/1999/xhtml" ' +
               'style="position:relative;width:1920px;height:1080px">' +
          XS.serializeToString(styleTag) +
-         XS.serializeToString(document.getElementById("mblurdefs")) +
          XS.serializeToString(liveStage) +
          '</div></foreignObject></svg>';
   bgvid.style.display = prev; bgimg.style.display = prevImg;
   stage.style.background = prevBg;
   return svg;
 }
-function drawStage(ctx, W, H, keepAlpha){
-  return new Promise((res, rej) => {
-    const img = new Image();
-    const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(stageSVG());
-    img.onload = () => {
+async function drawStage(ctx, W, H, keepAlpha){
+  /* force a synchronous layout before serialising, then wait for decode()
+     rather than onload: onload can fire before the foreignObject subtree
+     has fully rasterised, and a stale capture here bakes a duplicate frame
+     straight into the bitstream (jetski's #6). */
+  void (PIECE === 2 ? stage2 : stage).offsetHeight;
+  const img = new Image();
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(stageSVG());
+  await img.decode();
+  {
+    {
       /* white base, then the footage if there is any, then the stage over the
          top — with #stage.has-bg transparent, act 1 composites onto the video
          and act 2's own white covers it as it rises. The <video> itself never
@@ -4486,11 +4501,9 @@ function drawStage(ctx, W, H, keepAlpha){
         ctx.fillRect(0, 0, W, H);
       }
       if (!keepAlpha) bgDrawInto(ctx, W, H);
-      ctx.drawImage(img, 0, 0, W, H); res();
-    };
-    img.onerror = () => rej(new Error("frame render failed"));
-    img.src = url;
-  });
+      ctx.drawImage(img, 0, 0, W, H);
+    }
+  }
 }
 
 /* ══════════════════════════════ MP4 export ══════════════════════════════
@@ -5538,6 +5551,9 @@ document.getElementById("vexport").onclick = async () => {
   const n = Math.ceil((segEnd() - segA) / step);
   busy = true;
   const wasHold = hold;
+  /* stale per-group opacity caches can swallow DOM writes on the first
+     exported frame — reset so every fade recomputes from scratch */
+  LINE_GROUPS.forEach(g => { g.op = -1; });
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
   const ctx = cvs.getContext("2d", { willReadFrequently: true });
