@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Search Motion — recreated in HTML/CSS/JS</title>
-<style>
+<style id="pagecss">
   /* Google Sans Flex at its own defaults: every axis pinned to the font's
      default value except weight — including opsz, which bakes in at 18.
      Subset to the 43 characters this piece renders. 12.9 KB as woff2;
@@ -4418,7 +4418,16 @@ function zipOf(files){
 }
 
 /* -- DOM → pixels -------------------------------------------------------- */
-const styleTag = document.querySelector("style");
+/* BY ID, not by tag. The export serialises this stylesheet into the
+   foreignObject, and querySelector("style") returns the FIRST style in the
+   document — which is this one only while nothing else injects one before
+   it. Published as an artifact the page is wrapped in a skeleton carrying
+   its own CSS reset, and the export would then serialise the reset instead
+   of the piece: every frame rendered unstyled, with nothing to indicate
+   why. The id makes it explicit, and the fallback keeps a bare file
+   working if the attribute is ever lost. */
+const styleTag = document.getElementById("pagecss")
+              || document.querySelector("style");
 /* XMLSerializer, not outerHTML: the answer paragraphs contain <br>, and an
    HTML serialisation of a void element is not well-formed XML, which makes
    the whole foreignObject fail to parse.                                  */
