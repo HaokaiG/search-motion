@@ -1217,6 +1217,54 @@ against a real reader** — and that is exactly where this bug lived, for months
 behind a software decoder that was too forgiving to report it. Write the
 decoder first, for every path, not just the one that felt risky.
 
+## The cross-check: Apple's encoder, handed the same frames for real this time
+
+The earlier avconvert A/B was invalid because AVFoundation silently passed the
+suspect frames through instead of re-encoding them. This one cannot: the file is
+decoded to 32BGRA pixel buffers and handed to `AVAssetWriter` with `ap4h`, so
+Apple's encoder writes every frame from pixels. Different atom order, different
+frame sizes — a genuinely independent bitstream over the same picture.
+
+The route was suggested as movencoder2, and its ProRes encoder IS this encoder —
+`METranscoder+CompressionSettings.m:91` hands the `ap4h` fourcc to AVFoundation.
+But movencoder2 itself cannot carry this piece: its pipeline decodes everything
+to `kCVPixelFormatType_422YpCbCr8` (`METranscoder+VideoChannels.m:33`) — 8-bit
+4:2:2, a format with **no alpha component** — so the matte is discarded by
+design, and its own README says so ("Video: 8bit depth only"). The useful part
+is the encoder behind it, reached directly with ~60 lines of AVFoundation
+(`m5-test/recode.swift`), fed BGRA so the alpha survives.
+
+Both files decode to **identical alpha classes on every sampled frame**
+(0/40/80/120/160 — e.g. frame 0: 401,078 transparent / 94,140 semi / 23,182
+opaque), alpha maxdiff **0**, colour maxdiff **2/255** on frame 0 (second-
+generation ProRes quantisation). Timing identical: 90000/3750, 24.0000 fps.
+
+What Apple's own encoder wrote, read back out of its file:
+
+| field | this encoder | Apple's |
+| --- | --- | --- |
+| bitstream version | 1 | **1** — confirms the version-1 finding |
+| frame header size | 148 | 148 |
+| vendor | `apl0` | `apl0` |
+| frame_rate_code / aspect | 2 / 1 | **0 / 0** — Apple leaves both "unknown" |
+| alpha byte (17) | `0x02` (16-bit) | **`0x71`** (8-bit, high nibble 7) |
+| atom order | faststart | **`mdat` before `moov`** — not faststart |
+
+Three corrections to the record fall out of that column. Apple leaves the
+frame rate and aspect undeclared, so declaring them was never load-bearing —
+kept because it is more correct, not because it fixes anything. Apple's encoder
+fills the "reserved" high nibble of byte 17 with 7, so "reserved must be zero"
+was overstated — the low nibble (alpha_channel_type) is the part that matters,
+and both files are legal. And Apple does not write faststart: a file from
+Apple's own encoder would ALSO have stalled a streaming reader, so the faststart
+work here goes beyond what Apple ships, not merely up to it.
+
+The A/B pair sits in `m5-test/` (gitignored), one file per encoder, same 163
+frames. On an M3-or-later Mac: both fine means the codeword fix landed; only
+Apple's fine means a hardware-only bug remains in the hand encoder and
+`recode.swift` is the shipping workaround; neither fine moves the question off
+the file entirely.
+
 ## Verifying it
 
 `#t=<seconds>` freezes on an instant and `#bare` hides the HUD, which is how the stills for the
