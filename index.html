@@ -468,10 +468,15 @@
      blue arrives and the alpha starts to matter. The has-bg / has-alpha rule
      below overrides only the DEFAULT alpha, not this construction. */
   .aichip{position:absolute;left:2375px;top:459px;width:432.8px;height:158px;
-          background:rgba(244,246,247,calc(var(--chip-a0) * var(--chip-k)));
+          background:rgba(245,248,255,calc(var(--chip-a0) * var(--chip-k)));
           border-radius:79px;
           box-shadow:0 2px 10px rgba(32,33,36,.10);
-          display:flex;align-items:center;gap:26.8px;padding-left:52.9px;
+          /* Both off Chip.svg, measured with getBBox and scaled by the pill:
+             the file's pill is 261.21 wide against this 432.8, so 1.65691 a
+             unit. Its icon ink starts 32.54 units in from the pill's left
+             edge (53.92px) and its label starts 15.62 units after the icon
+             ends (25.88px). Back: 52.9 and 26.8. */
+          display:flex;align-items:center;gap:25.88px;padding-left:53.92px;
           transform-origin:50% 50%;will-change:transform,filter}
   /* Box tightened to the artwork bounds, so the plate's ink is the measured
      67x67 px (content x 2433…2500, y 504…571). Run over that by request: 15%
@@ -493,9 +498,17 @@
      direction and not the amount, drawing its ink 1.245 of 53 units high,
      2.07px at this scale; the button file is the one that shows the icon in
      place, so it wins. Matches how the label carries its own translateY. */
+  /* 69.8 still: the new file draws the icon 42.13 units on its 261.21 pill,
+     which is 69.80px here — the same number the previous file gave, so the
+     size is unchanged and only where it sits and what colour it is move.
+     -3.44, not -1.55: the new file rides the icon 2.08 units above the
+     pill's centre (ink 24.56..66.64 against a 95.35 pill) where the old one
+     rode it 0.93. Back: -1.55.
+     The path itself is the same shape — the two files' icons differ by 0.5%
+     in size and a translation, which the box already normalises. */
   .aichip svg.spark{width:69.8px;height:69.8px;flex:none;
-                    transform:translateY(-1.55px);
-                    color:var(--chip-ink,#1f1f1f)}
+                    transform:translateY(-3.44px);
+                    color:var(--chip-ink,#0B57D0)}
   /* flex:none + pre, or the letter-spacing correction lets flex shrink and
      wrap the label once the chip scales up through the cut               */
   /* 60.4, fitted to the file's text ink: 226.0 wide at 60px and 229.8 at 61,
@@ -505,7 +518,7 @@
      own cap rather than the drawn ink argues for 62.4, and that is 3% wide
      and pushes the text past where the file ends it. */
   .aichip b{flex:none;white-space:pre;font-size:60.4px;font-weight:400;
-            line-height:1;color:var(--chip-ink,#1f1f1f);transform:translateY(2px)}
+            line-height:1;color:var(--chip-ink,#0B57D0);transform:translateY(2px)}
 
   /* ============ ACT 2 — the AI Mode answer ============ */
   /* The card is white at full strength unless something sets --a2bg, which
@@ -2351,7 +2364,10 @@ const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
 /* The bubble's base colour and the three samples the clip gives down its face
    at the press, kept as numbers because the fill is now MIXED rather than
    layered — see where the background is written. CHIP_RGB is --chip. */
-const CHIP_RGB  = [244, 246, 247];
+/* #F5F8FF, the new chip file's pill. It stacks two rects — #F4F6F7 then
+   #F5F8FF on top and opaque — so the second is the one that shows, and the
+   first is the old fill left underneath. Back: [244, 246, 247]. */
+const CHIP_RGB  = [245, 248, 255];
 const CHIP_BLUE = [[51, 115, 244], [64, 115, 240], [88, 117, 209]];
 const PRESS_F0 = PRESS[0][0];
 /* 8 frames, not the measured second. At FPS the fade cannot finish inside
@@ -3691,10 +3707,16 @@ function render(t){
       + `rgba(${stop(CHIP_BLUE[1])},${bubA.toFixed(3)}) 55%,`
       + `rgba(${stop(CHIP_BLUE[2])},${bubA.toFixed(3)}))`
     : "";
+  /* The ink starts at the new chip's own blue rather than a near-black, so
+     the ramp is a three-channel lerp now instead of one grey number: from
+     #0B57D0 (11,87,208) at rest to white as the pill fills. The old form
+     wrote the same value into all three channels, which only worked because
+     the resting ink was grey. Back: `31 + 224 * litK` on all three. */
+  const INK0 = [11, 87, 208];
   chip.style.setProperty("--chip-ink",
-    litK > 0.002 ? `rgb(${Math.round(31 + 224 * litK)},`
-                 + `${Math.round(31 + 224 * litK)},`
-                 + `${Math.round(31 + 224 * litK)})` : "");
+    litK > 0.002
+      ? "rgb(" + INK0.map(c => Math.round(c + (255 - c) * litK)).join(",") + ")"
+      : "");
   /* the SVG ring's stroke width, its own blur and its own ramp sweep all went
      with it — the halo is the bar's construction now and needs none of them */
 
