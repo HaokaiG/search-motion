@@ -2624,14 +2624,15 @@ function iconGeom(g){
    nobody can read. chipGapForMode still exists for the chip's alpha and the
    hints, which do still differ by mode.
 
-   210, which is 280 less a quarter — the doubling above, then pulled back
-   25% by request, still one number for all three modes. It lands 1.9x the
-   plate's own 111 rather than 2.5x.
+   189, arrived at by successive trims rather than in one go: 140 doubled to
+   280, back a quarter to 210, then 10% off that. It lands 1.7x the plate's
+   own 111 — worth stating, because the piece has now been three steps away
+   from its measurement here and the only record of that is this comment.
 
-   Back: 280 for the doubled gap; or `CHIP_GAP_REF = 111, CHIP_GAP_BG = 140`
-   with `CHIP_GAP = (bgOn || alphaOn) ? CHIP_GAP_BG : CHIP_GAP_REF` restored
-   to chipGapForMode for the two measured/fitted values it replaced. */
-const CHIP_GAP = 210;
+   Back: 210, then 280, then `CHIP_GAP_REF = 111, CHIP_GAP_BG = 140` with
+   `CHIP_GAP = (bgOn || alphaOn) ? CHIP_GAP_BG : CHIP_GAP_REF` restored to
+   chipGapForMode for the measured and fitted pair this replaced. */
+const CHIP_GAP = 189;
 /* The scrim's hint line, hoisted and reading the DOM rather than closing over
    the panel's consts, because chipGapForMode below calls it on every change of
    mode and runs before those consts are initialised — a captured `const` would
