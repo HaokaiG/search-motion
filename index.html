@@ -172,7 +172,35 @@
      bubble control. This is the RESTING fill only: from the press the value
      is written inline per frame, and that path honours the same alpha. The
      two must agree at litK 0, and they do — both are rgba(244,246,247,A). */
-  #stage.has-bg .aichip, #stage.has-alpha .aichip{--chip-a0:.75}
+  /* The pill is only 75% there in these two modes, and until now that was
+     all it was — footage read straight through it. It gets the design's own
+     backdrop blur behind it too, the same 10px piece 2's prompt scrim uses,
+     so what shows through is defocused rather than merely dimmed.
+     backdrop-filter, not filter: filter would blur the pill's own ink — the
+     label and the lens with it — where backdrop-filter blurs only what is
+     already painted behind the element and leaves its contents sharp.
+
+     IT DOES NOT REACH THE FOOTAGE IN AN EXPORT, and that is worth knowing
+     before trusting the preview. The property itself survives the export
+     path — measured with a striped test layer inside the stage, the
+     contrast behind the pill fell from 64.7 to 0.7 through drawStage, so
+     the serialised foreignObject honours it. What it cannot see is the
+     VIDEO: stageSVG hides bgvid and bgimg before serialising, and drawStage
+     paints the footage onto the canvas and then composites the stage SVG
+     over it. The footage is therefore underneath the SVG rather than inside
+     it, and a backdrop-filter can only blur what its own document paints
+     behind it.
+     So: over footage the preview defocuses the plate behind the pill and
+     the exported file does not. In the transparent mode the two agree —
+     there is no footage, and what sits behind the pill inside the stage is
+     the bar's flat scrim, which has nothing to defocus either way.
+     Making the export match would mean blurring the canvas region under the
+     chip in drawStage, between bgDrawInto and the drawImage of the stage.
+     Back: the --chip-a0 line alone, with no blur. */
+  #stage.has-bg .aichip, #stage.has-alpha .aichip{
+                     --chip-a0:.75;
+                     -webkit-backdrop-filter:blur(10px);
+                     backdrop-filter:blur(10px)}
   /* The query steps up to Medium here, but the chip's label does NOT — it is
      Regular in every mode, by request. It was 500 over footage and alpha on
      the reasoning that the pill is only 75% there and the label needed the
