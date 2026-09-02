@@ -1040,16 +1040,61 @@
   /* pale until the query lands, then the design's blue — the plate goes
      (255,255,255) at f31 to (74,104,225) by f45, and #346BF1 is the design's
      own value for that end */
+  /* overflow:hidden so the energy blob stays INSIDE the pill. The blob is
+     inset 9.8px and blurred 13.7px, which carries roughly 41px past its own
+     box — about 31px outside the button — and it lifts 15px on top of that,
+     so unclipped it washed onto the page around the button rather than
+     lighting the button. Clipping follows the border-radius, so the bloom
+     takes the pill's own shape. */
   .nsend{position:absolute;left:943.8px;bottom:30.38px;
          width:94.29px;height:70.72px;border-radius:35.36px;
-         background:#e7e7e7;display:grid;place-items:center}
+         background:#e7e7e7;display:grid;place-items:center;overflow:hidden}
   .nsend svg{width:31.43px;height:31.43px;fill:#1f1f1f;
              transform-origin:bottom;will-change:transform}
   /* the supplied .button-energy: a blurred blue blob inset inside the button
      that lifts out of it as it is pressed. Its inset and blur are scaled from
      the 48x36 the source is written against to this button's 94.29x70.72. */
-  .nenergy{position:absolute;inset:9.8px;background:#779CFF;border-radius:inherit;
-           filter:blur(13.7px);opacity:0;pointer-events:none}
+  /* A TOP-ANCHORED bloom, measured off SendButton_20260819.mp4 rather than
+     guessed. The clip's button is 190x142 — exactly 2x this one — and the lit
+     area is not a blob in the middle of the pill: read as white-over-base
+     alpha down the button it runs .23 .21 .18 .16 .11 .06 .01 and is GONE by
+     70%, so it is brightest against the top edge and decays from there. The
+     old element was a box inset 9.8px and blurred 13.7px, which put its peak
+     at the button's CENTRE (measured .75 at 50% down, still .25 at 90%) and
+     lit the whole pill.
+     A radial gradient centred on the top edge reproduces the falloff without
+     relying on a blur to shape it; the small blur that remains only kills the
+     banding. Horizontally the clip runs 0 .09 .22 .29 .37 .30 .23 .09 0
+     across the top band, a soft hump reaching nothing at either end, which is
+     what the 64% x-radius is fitted to. Opacity per frame from ENERGY_PEAK. */
+  /* The stops are FITTED to the clip's row means rather than chosen. Read as
+     white-over-base alpha and normalised to its own peak, the clip runs, down
+     the button: .93 at 3%, 1.00 at 8%, .99 at 14%, .93 at 20%, .82 at 28%,
+     .65 at 36%, .50 at 44%, .35 at 52%, .15 at 60%, .05 at 68%, ~0 by 76%.
+
+     So it is a PLATEAU then a long fall, not a peak. The light holds full
+     from the top edge to about 14% down before it begins to go, and it does
+     not finish until 76% — a 68% radius ended it at 60% and read as too
+     small and too abrupt. The dip in the clip's own top row (.93 at 3%) is
+     its antialiased edge, not a dip in the light, so the centre stays ON the
+     top edge and the plateau does the work; putting the centre at 10% to
+     chase that number pushed the whole distribution down and measured 1.3x
+     too bright through the middle. Radius 78% ends it where the clip does.
+     The element runs 12px ABOVE the button (inset -12px on top) so the blur
+     has material there instead of averaging the plateau into nothing; the
+     button's overflow:hidden throws that overhang away. With the box 12px
+     taller the button's own top edge sits at 14% of it, which is where the
+     gradient centre goes, and the 78%-of-BUTTON reach becomes 67% of the
+     taller box. Without this the top rows measured .58 and .77 of the clip
+     at 3% and 8% — the light started below the edge instead of on it. */
+  .nenergy{position:absolute;inset:-12px 0 0 0;border-radius:inherit;
+           background:radial-gradient(90% 67% at 50% 14%,
+                     rgba(255,255,255,1) 0%,     rgba(255,255,255,1) 18%,
+                     rgba(255,255,255,0.93) 26%, rgba(255,255,255,0.82) 36%,
+                     rgba(255,255,255,0.65) 46%, rgba(255,255,255,0.50) 56%,
+                     rgba(255,255,255,0.35) 67%, rgba(255,255,255,0.15) 77%,
+                     rgba(255,255,255,0.05) 87%, rgba(255,255,255,0) 100%);
+           filter:blur(5px);opacity:0;pointer-events:none}
 
   /* ── act 2, the answer page ─────────────────────────────────────────
      Every number here is off the plate's f70. The mark is 72px square at
@@ -6142,7 +6187,27 @@ function cbez(c, x){
   return by(t);
 }
 const N2_PRESS_MS = 350, N2_ENERGY_MS = 400, PRESS_PEAK = 0.23;
-const BTN_SX = 1.25, ICON_SX = 0.9, ICON_SY = 0.94, ENERGY_LIFT = 15;
+/* The bloom's alpha at its brightest, measured off the reference clip: white
+   over the pill reads 0.37 at top-centre on the peak frame. 0.92 was twice
+   that and washed the button out.
+   The gradient's own falloff means the element's opacity is not what lands on
+   screen, so this is set by measuring back rather than by reading like the
+   target. The plateau shape carries far more light than the old cone did at
+   the same opacity — 0.44 measured 1.24x the clip — so the number came DOWN
+   as the glow got bigger, which is the opposite of how it reads.
+   0.30 lands the peak row mean at 0.92 of the clip's 0.211 — the touch under
+   a dead-level match that was asked for. It came down twice: once for the
+   plateau carrying more light than the old cone, and again when the 12px
+   overhang stopped the blur eating the top rows and put the level back on
+   the clip exactly. Back: 0.325 to sit dead on the clip, 0.6 for the
+   pale-blue original. */
+const ENERGY_PEAK = 0.30;
+/* ENERGY_LIFT 4, not 15. The lift was carrying a centre-anchored blob up to
+   the top; the bloom is born there now, so a long travel would push it out of
+   the pill instead. The clip agrees: its lit area's centre of mass sits at
+   20-25% of the button height from f6 to f12 and barely moves — one fast step
+   up on the first frame, then a hold. 4px keeps that step without the travel. */
+const BTN_SX = 1.25, ICON_SX = 0.9, ICON_SY = 0.94, ENERGY_LIFT = 4;
 
 let N2_Q = "why is the tush push so controversial";
 let N2_CTX = "The player must touch the ground inbounds with both feet, or with any other body part besides the hands (such as a knee, shin, hip, or elbow).";
@@ -6396,9 +6461,9 @@ function render2(t){
      15px lift the whole way on the source's own curve. fill:both, so once it is
      over it stays where it ended rather than snapping back. */
   const eu = sat((f - N2_PRESS) / (N2_ENERGY_MS / 1000 * FPS));
-  const eop = eu < 0.125 ? 0.6 * (eu / 0.125)
-            : eu < 0.625 ? 0.6
-            : 0.6 * (1 - (eu - 0.625) / 0.375);
+  const eop = ENERGY_PEAK * (eu < 0.125 ? eu / 0.125
+                           : eu < 0.625 ? 1
+                           : 1 - (eu - 0.625) / 0.375);
   nenergy.style.opacity = (f > N2_PRESS ? eop : 0).toFixed(3);
   nenergy.style.transform =
     `translateY(${(-ENERGY_LIFT * cbez(CB_ENERGY, eu)).toFixed(2)}px)`;
