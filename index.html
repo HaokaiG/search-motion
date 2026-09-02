@@ -3660,17 +3660,30 @@ function render(t){
      part of this button that is not close to its background anywhere.
      CHIP_A0 is the mode's own measured alpha, cached off the CSS on each
      change of mode so the stylesheet stays the one place it is written.
-     THE CONTROL LETS GO AS THE BLUE ARRIVES, by request. Its influence is
-     lerped out on litK, so the pill carries the setting while it is pale and
-     lands on the mode's own alpha once it is blue — solid on white, the
-     measured 0.75 over footage — whatever the slider says. Note this reverses
-     an earlier request that the setting DO reach the blue, and it gives up the
-     property that made that version safe: with the setting below 1 the bubble
-     now gains opacity across the press, 127 to 130, because that is precisely
-     what "not impacted when blue" asks for. It is one ramp rather than a
-     switch so the hand-off happens with the fill instead of popping on the
-     frame it starts. Back: `CHIP_A0 * BUBBLE_K` for the setting throughout. */
-  const bubA = CHIP_A0 * (BUBBLE_K + (1 - BUBBLE_K) * litK);
+     EVERYTHING LETS GO AS THE BLUE ARRIVES, by request: the blue button is
+     opaque in every mode and at every setting. The previous version let only
+     the SLIDER go and still landed on the mode's own alpha, which left the
+     lit button at 0.75 over footage and under a matte — the two modes where
+     --chip-a0 is 0.75 — and that is what this replaces.
+
+     So the ramp now runs from the resting alpha (the mode's, times the
+     control's) to a flat 1 rather than to CHIP_A0. At litK 0 nothing about
+     the pale pill changes; at litK 1 it is 1.000 whatever the mode and
+     whatever the panel says. Neither the Button bubble control nor the
+     mode's own measured 0.75 reaches the blue any more.
+
+     It is one ramp rather than a switch so the hand-off happens with the
+     fill instead of popping on the frame it starts. The bubble gains opacity
+     across the press, 127 to 130, wherever the resting alpha is below 1 —
+     which is precisely what "always 100% when blue" asks for.
+
+     This is the third reading of the same value: the setting reached the
+     blue, then let go of it, and now nothing reaches it. If it moves again
+     it wants a control of its own rather than another edit here.
+     Back: `CHIP_A0 * (BUBBLE_K + (1 - BUBBLE_K) * litK)` to land on the
+     mode's alpha, or `CHIP_A0 * BUBBLE_K` for the setting throughout. */
+  const bubRest = CHIP_A0 * BUBBLE_K;
+  const bubA = bubRest + (1 - bubRest) * litK;
   const stop = c => c.map((v, i) =>
         Math.round(CHIP_RGB[i] + (v - CHIP_RGB[i]) * litK)).join(",");
   chip.style.background = (litK > 0.002 || bubA < 0.999)
