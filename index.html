@@ -6668,8 +6668,41 @@ function render2(t){
      The chrome does not go with it: the mark measures at 66..137 on every
      frame until it is gone, where scaling about that pivot would have walked
      it 14px by f82. It fades on its own. */
-  const a2s = f > 79 ? 1 + 0.0067 * Math.pow(f - 79, 2.25) : 1;
-  n2body.style.transformOrigin = "0px 148px";        // (241,600) in stage terms
+  /* MEASURED, not fitted. The power curve this replaces was read off the
+     plate's first four frames and extrapolated, and against
+     NFL_NeverKnowEnough_PromptResponse_01_V01_AB_2.mp4 (whose act 3 lands on
+     the clip's f10, so clip + 77 = plate frame) it falls behind exactly where
+     the move is fastest:
+
+         plate    f80     f81     f82     f83     f84     f85
+         clip    1.0065  1.0258  1.0710  1.1548  1.329   1.677
+         fitted  1.0067  1.0319  1.0793  1.1516  1.248   1.373
+
+     18% short on the last frame before the cut. The page was still small when
+     act 3 replaced it, which is what read as a jump rather than a rush.
+
+     No power or exponential fits the whole run — the per-frame ratio of ln(s)
+     climbs from 1.98 to 3.28, steeper than any of them, so the run is quoted
+     as what was measured and interpolated between. Past the last frame it
+     carries on at that frame's own ratio, 1.262, which is only ever read on
+     f86, the single frame between the measurement and the cut. */
+  const N2_EXIT_S = [1, 1.0065, 1.0258, 1.0710, 1.1548, 1.329, 1.677];
+  const exitS = x => {
+    const n = x - 79;
+    if (n <= 0) return 1;
+    if (n >= N2_EXIT_S.length - 1){
+      const last = N2_EXIT_S[N2_EXIT_S.length - 1];
+      return last * Math.pow(1.262, n - (N2_EXIT_S.length - 1));
+    }
+    const i = Math.floor(n), t = n - i;
+    return N2_EXIT_S[i] + (N2_EXIT_S[i + 1] - N2_EXIT_S[i]) * t;
+  };
+  const a2s = exitS(f);
+  /* 160, not 148. Solving the pivot out of the clip's own line centres on
+     four separate frames — y' = p + s(y - p) — gives 614, 616, 611.5 and
+     606.6, so 612 in stage terms against the 600 this used to scale about.
+     n2body sits at N2BODY_TOP, so 612 - 452 = 160. Back: 148. */
+  n2body.style.transformOrigin = "0px 160px";        // (241,612) in stage terms
   /* the roll-up and the exit's scale, in one place. Order matters: the scale
      is applied about the origin first and the climb rides on top of it, which
      is the same composition the two had when they were fighting over this
@@ -6687,9 +6720,22 @@ function render2(t){
      nine offsets and the blur, dropping the smear out of 79..79.5 entirely.
      Clamped rather than moving the guard to 79.5 — that would start the smear
      half a frame late, and f=79 is where the scale curve was measured. */
-  const grow = x => x > 0 ? Math.pow(x, 2.25) : 0;
+  /* read off the SAME curve half a frame either side, so the blur can no
+     longer disagree with the motion it is meant to be blurring — the old
+     pair restated the power fit's own constants and would have kept the old
+     speeds after the curve above changed. The clamp that used to be needed
+     for a fractional power of a negative base is gone with it: exitS returns
+     1 for anything at or before 79, so both arms are defined everywhere. */
+  /* 0.4 of a frame, not a whole one. The arms used to span a full frame,
+     which was about right while the scale curve was the slower fit; on the
+     measured curve it over-blurs by about 2.5x. Reading the trailing tail —
+     how far ink runs past the last solid glyph on the answer's third line —
+     the clip gives 5, 10 and 26px on f81..f83 where a full-frame shutter
+     gives 12, 29 and 59. That ratio is the shutter: 0.4 of a frame, near
+     enough a 144-degree one. Back: 0.5 either side for the full frame. */
+  const N2_EXIT_SHUTTER = 0.4;
   const travel = f > 79
-    ? 650 * (grow(f - 78.5) - grow(f - 79.5)) * 0.0067 : 0;
+    ? 650 * (exitS(f + N2_EXIT_SHUTTER / 2) - exitS(f - N2_EXIT_SHUTTER / 2)) : 0;
   const step = travel / (nsmear2T.length - 1);
   /* reported as a sigma so it is the same quantity the other piece prints and
      the same one act 3 prints: a box of length L has sigma L/sqrt(12) */
@@ -6707,10 +6753,17 @@ function render2(t){
     n2El.style.opacity = "1";
     /* and it thins as it goes: the plate's frame mean RISES through the exit,
        244.2, 244.8, 245.2, where a block that only scaled would darken it.
-       Solving the ink left against those means puts the body at about .63 by f84
-       and .47 by f86. */
+
+       Refitted off the clip. Reading the 0.5th-percentile luminance over the
+       body — position-independent, so it survives the block travelling — the
+       ink left runs 1.00 .93 .82 .71 .59 .48 .38 across f79..f85, where the
+       old curve held 1.00 1.00 .96 .89 .81 .70 .58: about a frame late the
+       whole way and an eighth too dark at the cut. It is very nearly linear,
+       -0.105 a frame from f79.3, so it is written as one rather than as a
+       power that has to be solved to read.
+       Back: `1 - 0.55 * Math.pow(sat((f - 80) / 6), 1.5)`. */
     n2body.style.opacity =
-      (sat((f - N2_A2) / 2) * (1 - 0.55 * Math.pow(sat((f - 80) / 6), 1.5))).toFixed(3);
+      (sat((f - N2_A2) / 2) * sat(1 - (f - 79.3) / 9.5)).toFixed(3);
     n2chrome.style.opacity = (1 - sat((f - 79) / 4)).toFixed(3);
   }
 
