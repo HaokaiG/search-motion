@@ -470,7 +470,16 @@
   .aichip{position:absolute;left:2375px;top:459px;width:432.8px;height:158px;
           background:rgba(245,248,255,calc(var(--chip-a0) * var(--chip-k)));
           border-radius:79px;
-          box-shadow:0 2px 10px rgba(32,33,36,.10);
+          /* No shadow. Chip.svg draws the pill as two flat rects with no
+             filter and nothing under them, so the drop shadow this used to
+             carry is not in the design it is taken from.
+             It changes nothing outside the bar: the shadow reached about
+             12px (2 offset + 10 blur) and the chip sits 37px clear of the
+             bar's bottom edge and 45px of its right, so it only ever fell on
+             the bar's own face — measured, not assumed, because the first
+             version of this note claimed it had been leaking into the matte
+             and that was wrong.
+             Back: `box-shadow:0 2px 10px rgba(32,33,36,.10)`. */
           /* Both off Chip.svg, measured with getBBox and scaled by the pill:
              the file's pill is 261.21 wide against this 432.8, so 1.65691 a
              unit. Its icon ink starts 32.54 units in from the pill's left
