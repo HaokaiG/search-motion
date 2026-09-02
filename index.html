@@ -843,6 +843,17 @@
              rgba(0,0,0,.3333) 177.75px,rgba(0,0,0,.3333) 228px,
              transparent 243px)}
   .n-act{position:absolute;fill:#fff;opacity:.6}
+  /* The previous turn, switched off: the context line and the action sheet
+     UNDER it — copy, share, thumbs up, thumbs down — which are that answer's
+     actions and belong to it rather than to the page. The MARK and the LEFT
+     RAIL stay: they are the app's own furniture, present whether or not
+     there is a previous turn to show.
+     opacity, not display:none: .n-ctx is measured with getComputedStyle for
+     its font when the context line wraps, and the action sheet is positioned
+     off --ctx-bot, so the rows have to keep their layout even when nothing
+     is drawn. Zero opacity also means zero in an alpha export, where
+     display:none and a transparent element are the same picture. */
+  #stage2.bare .n-ctx, #stage2.bare .n-act{opacity:0}
   /* the rail's two glyphs are the design file's own paths, kept in page
      coordinates so the viewBox is the measurement */
   .n-rail{position:absolute;fill:#fff;opacity:.6}
@@ -1752,6 +1763,7 @@
     </div>
     <button id="n2box">Box: Dark Blur</button>
     <button id="n2blur">Backdrop Blur: On</button>
+    <button id="n2bare">Context Line: On</button>
   </div>
 
   <div class="grp p1only">
@@ -6762,7 +6774,8 @@ const $n2q = document.getElementById("n2q"), $n2ctx = document.getElementById("n
       $n2q2 = document.getElementById("n2q2"), $n2warn = document.getElementById("n2warn"),
       $n2size = document.getElementById("n2size"),
       $n2tail = document.getElementById("n2tail"), $n2qwarn = document.getElementById("n2qwarn"),
-      $n2box = document.getElementById("n2box"), $n2blur = document.getElementById("n2blur");
+      $n2box = document.getElementById("n2box"), $n2blur = document.getElementById("n2blur"),
+      $n2bare = document.getElementById("n2bare");
 $n2a.value = N2_BODY;
 /* ── the panel's prompt field wraps where the box wraps ──────────────────
    Both pieces end up with the same promise — what the field shows is what the
@@ -6848,16 +6861,24 @@ for (const el of [$n2q, $n2ctx, $n2a, $n2q1, $n2q2, $n2tail]) el.addEventListene
 /* Two states each, so a switch: the label says what it is now, and clicking
    it is the whole interaction. They were selects, which cost a click to open
    and put three of them across one row narrow enough to truncate the text. */
-let boxWhiteOn = false, backdropOn = true;
+let boxWhiteOn = false, backdropOn = true, ctxOn = true;
 function applyN2Look(){
   stage2.classList.toggle("box-white", boxWhiteOn);
   stage2.classList.toggle("blur", backdropOn);
+  /* an ordinary look control, not one that hides itself on the other halves.
+     It reads clearest on Prompt Only, which is a plate of the box alone, but
+     the whole piece is entitled to run without a previous turn too — and a
+     control that appears and disappears with the half is a control nobody
+     finds. */
+  stage2.classList.toggle("bare", !ctxOn);
   $n2box.textContent  = "Box: " + (boxWhiteOn ? "White" : "Dark Blur");
   $n2blur.textContent = "Backdrop Blur: " + (backdropOn ? "On" : "Off");
+  $n2bare.textContent = "Context Line: " + (ctxOn ? "On" : "Off");
   render(hold !== null ? hold : 0);
 }
 $n2box.onclick  = () => { boxWhiteOn = !boxWhiteOn; applyN2Look(); };
 $n2blur.onclick = () => { backdropOn = !backdropOn; applyN2Look(); };
+$n2bare.onclick = () => { ctxOn = !ctxOn; applyN2Look(); };
 /* the query box's own glow dial, piece 1's shape: field and bar drive each
    other, 0 is real (isFinite, not ||), the hash carries a non-default */
 const $g2s = document.getElementById("g2spd"), $g2sn = document.getElementById("g2spdn");
