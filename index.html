@@ -2589,14 +2589,10 @@ const LSB_W = 0.853, LSB_H = 5.596;            // measured at the query's 86.40p
 const TEXT_LEFT_REF = PLUS_RIGHT   + ICON_TEXT_INK_GAP - LSB_W;   // 555.3
 const TEXT_LEFT_G   = GMARK_RIGHT  + GMARK_TEXT_GAP    - LSB_H;   // 602.27
 let   TEXT_LEFT     = TEXT_LEFT_REF;
-/* 117 in the plate is measured from the query's INK end; textEndPx uses the
-   advance, which runs 6px further on the reference, so the gap is 111.
-   Over footage it opens out: the bar is a scrim there rather than a solid
-   card, the chip is only 75% opaque, and the plate showing through both
-   needs the two to stop crowding each other. 200 by eye — this one has no
-   measurement behind it, and CHIP_GAP_BG is the dial. Widening it pushes the
-   chip right, so the bar and the pan grow with it, the same as the icon gap
-   does.                                                                  */
+/* The query-to-chip gap is CHIP_GAP, below, and it is one number for every
+   mode now — the history that used to live here is recorded there. What
+   still holds: widening it pushes the chip right, so the bar and the pan
+   grow with it, the same way the icon gap does. */
 let   CHIP_W = 432.8, CHIP_TO_CAP = 45;
 /* Called whenever the icon changes, before the bar re-lays-out. The beam's
    mask is an SVG attribute rather than a style, so it is set here too.  */
@@ -2611,13 +2607,27 @@ function iconGeom(g){
      ring is a conic mask on a div that inherits the bar's own radius, so the
      G-icon size needs nothing extra */
 }
-const CHIP_GAP_REF = 111, CHIP_GAP_BG = 140;   // 200 was too wide, 30% closer
-let   CHIP_GAP = CHIP_GAP_REF;
-/* The wider gap goes with the LOOK, not with the footage: the transparent
-   mode wears the same scrim, the same white Medium query and the same 75%
-   chip, so it wants the same room between them. It used to key off the
-   video alone, which left the two modes spaced differently while looking
-   otherwise identical.                                                   */
+/* 280, and the same in every mode — by request: the transparent mode's gap
+   doubled, and the other two brought up to match it rather than left short.
+
+   Two numbers went into this one. 111 was MEASURED: the plate puts 117
+   between the query's ink end and the chip, and textEndPx uses the advance,
+   which runs 6px further on the reference. 140 was by eye, for the modes
+   where the bar is a scrim rather than a solid card and the plate showing
+   through both needs the two to stop crowding each other. Neither survives
+   the doubling, and it is worth saying plainly that the piece no longer
+   sits on the plate's own spacing here: 280 is 2.5x what the reference
+   measures.
+
+   It is one value now rather than two because the request makes the modes
+   agree, and a branch that returns the same number in both arms is a branch
+   nobody can read. chipGapForMode still exists for the chip's alpha and the
+   hints, which do still differ by mode.
+
+   Back: `CHIP_GAP_REF = 111, CHIP_GAP_BG = 140` with
+   `CHIP_GAP = (bgOn || alphaOn) ? CHIP_GAP_BG : CHIP_GAP_REF` restored to
+   chipGapForMode. */
+const CHIP_GAP = 280;
 /* The scrim's hint line, hoisted and reading the DOM rather than closing over
    the panel's consts, because chipGapForMode below calls it on every change of
    mode and runs before those consts are initialised — a captured `const` would
@@ -2660,7 +2670,8 @@ function readChipA0(){
   CHIP_A0 = parseFloat(getComputedStyle(el).getPropertyValue("--chip-a0")) || 1;
 }
 function chipGapForMode(){
-  CHIP_GAP = (bgOn || alphaOn) ? CHIP_GAP_BG : CHIP_GAP_REF;
+  /* the gap itself no longer varies — see CHIP_GAP. What still does is the
+     chip's own alpha and the two hints, which name the mode they apply in. */
   readChipA0();
   scrimHint();          // the hints name the mode they apply in
   bubbleHint();
