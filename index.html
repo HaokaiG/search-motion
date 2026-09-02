@@ -5868,6 +5868,28 @@ const N2_MORPH0 = 48, N2_MORPH1 = 52;
    exponent refits from 3.25 to 2.15 and reproduces the same measured rects,
    .115 on f50 and .391 on f51. */
 const N2_MOVE0 = 49, N2_MOVE1 = 52, N2_MORPH_P = 2.15;
+/* THE RECT KEEPS GOING PAST 52. The power curve above is finished on the
+   frame act 2 arrives, and measured against
+   NFL_NeverKnowEnough_PromptResponse_01_V01_AB_1.mp4 that is far too abrupt:
+   tracking the pill through that clip (its wash lands on the clip's f12, so
+   clip + 40 = plate frame) the rect is only 54% of the way there on f52 and
+   does not settle until about f62.
+
+   And it is one exponential, not a power ramp. Fitting the per-frame ratio of
+   what is left to travel, all four dimensions agree:
+
+       left  0.709      top  0.712      width  0.706      height  0.720
+
+   so 0.71 a frame, tau 2.94 frames (0.123s), running from f49.8 — which puts
+   it at 0.067 on f50 against the clip's 0.063, 0.53 on f52 against 0.544, and
+   0.98 by f62. The old curve read 0.089 / 1.000 on those two frames.
+
+   The FONT is not on this curve. Measured in the clip, the query's ink is
+   757 wide at rest and 640 by f52, 623 by f54 and 619 from f56 on — it lands
+   two frames after the wash, where the rect has ten more to run. So the font
+   and the face keep the power curve and only the rect takes the settle. */
+const N2_SETTLE_K = 0.71, N2_SETTLE_F0 = 49.8, N2_SETTLE_END = 62;
+const settle = f => 1 - Math.pow(N2_SETTLE_K, Math.max(0, f - N2_SETTLE_F0));
 const N2_RUSH0 = 78, N2_RUSH1 = 87;              // act 2's exit smear
 const N2_A3_S0 = 0.192, N2_A3_DECAY = 0.63;      // act 3's arrival settle
 const N2_A3_OX = 268, N2_A3_OY = 609;            // and what it scales about
@@ -6111,7 +6133,20 @@ const n2nav = document.querySelector("#n2 .n2nav");
    mark never moves at all — measured at 66..137 / 65..137 on every frame of
    the act. Four behaviours, and a single six-frame opacity ramp for the lot of
    them was flattening all of it. */
-const N2_RISE0 = 55, N2_RISE1 = 67, N2_RISE_PX = 180, N2_RISE_P = 2.4;
+/* THE ROLL-UP, measured off the same clip rather than fitted by eye. Tracking
+   the answer's topmost ink from the frame it appears (the clip's f12 = plate
+   52) it reads 867, 771, 704, 653, 613, 581, 555, 534, 517, 503, 492, 484,
+   478, 473, 471, 470 and stops — a 397px climb, not the 180 this used to run,
+   and it starts ON the wash rather than three frames after it.
+
+   It is an exponential like the rect's, but a SLOWER one: the per-frame ratio
+   of what is left to climb sits at 0.758 .777 .782 .781 .776 .766 .753 .734
+   over its first eight frames, so 0.775 a frame, tau 3.92 frames (0.164s).
+   The body arriving later and settling more slowly than the pill is most of
+   what reads as "smoother" — the two used to finish together on a hard stop.
+
+   Back: 55 / 67 / 180 / 2.4 with the power form below. */
+const N2_RISE0 = 52, N2_RISE_PX = 397, N2_RISE_K = 0.775;
 const nbox = document.getElementById("nbox"), nface = document.querySelector("#nbox .nface"),
       nq = document.getElementById("nq"), nplus = document.querySelector("#nbox .nplus"),
       nmicEl = document.querySelector("#nbox .nmic");
@@ -6515,20 +6550,25 @@ function render2(t){
   const promptOnly = SEG2 === "prompt";
   const mt = promptOnly ? 0 : sat((f - N2_MORPH0) / (N2_MORPH1 - N2_MORPH0));
   const inMorph = f > N2_MORPH0 && f < N2_A2;
+  /* the rect's own window outlives act 2's arrival — see N2_SETTLE_K */
+  const inSettle = !promptOnly && f >= N2_A2 && f < N2_SETTLE_END;
   /* the skin the box starts from — the morph has to lerp out of whichever look
      is on, not out of the dark one it was written against */
   const boxWhite = stage2.classList.contains("box-white");
   const F0 = boxWhite ? [255, 255, 255] : [10, 10, 10];
   const FA0 = boxWhite ? 1 : 0.35;        // the white box is solid, the dark a wash
   const R0 = 57;                          // one radius for both looks
-  if (f < N2_A2){
+  if (f < N2_A2 || inSettle){
     /* the target is read off act 2's own chip, so editing the prompt re-aims
        the morph instead of leaving it pointing at a baked rectangle */
     const cx = n2chip.offsetLeft, cy = n2chip.offsetTop,
           cw = n2chip.offsetWidth, ch = n2chip.offsetHeight;
+    /* the RECT rides the measured exponential; the font and the face below
+       stay on the power curve, which is where the clip puts them */
+    const ru = promptOnly ? 0 : settle(f);
     const u = promptOnly ? 0
             : Math.pow(sat((f - N2_MOVE0) / (N2_MOVE1 - N2_MOVE0)), N2_MORPH_P);
-    const lerp = (a, b) => a + (b - a) * u;
+    const lerp = (a, b) => a + (b - a) * ru;
     nbox.style.left   = lerp(NB_L, cx).toFixed(2) + "px";
     nbox.style.top    = lerp(nbT(), cy).toFixed(2) + "px";
     nbox.style.width  = lerp(NB_W, cw).toFixed(2) + "px";
@@ -6559,18 +6599,18 @@ function render2(t){
     nsend.style.opacity  = leave.toFixed(3);
 
     /* the query rides the box down into the chip */
-    nq.style.fontSize = lerp(44, 36).toFixed(2) + "px";
+    nq.style.fontSize = (44 + (36 - 44) * u).toFixed(2) + "px";
     /* the leading goes with it: the box sets its text at 1.2 and the chat sets
        it at the body's 1.417, so a two-row prompt would otherwise arrive with
        its rows 8px tighter than the chip draws them */
-    nq.style.lineHeight = lerp(NQ_LH, N2CHIP_LH).toFixed(2) + "px";
+    nq.style.lineHeight = (NQ_LH + (N2CHIP_LH - NQ_LH) * u).toFixed(2) + "px";
     /* 24 is the chip's own padding, and once the leading matches, the query's
        line boxes ARE the chip's — so landing on its text is landing on that
        inset, whatever the row count. The 27.5 this used to lerp to was the
        same landing worked out for the box's tighter 1.2 leading and one row;
        both put the first glyph within half a pixel of 318. */
-    nq.style.top = lerp(39, 24).toFixed(2) + "px";
-    nq.style.left = lerp(45.58, 45).toFixed(2) + "px";
+    nq.style.top = (39 + (24 - 39) * u).toFixed(2) + "px";
+    nq.style.left = (45.58 + (45 - 45.58) * u).toFixed(2) + "px";
     /* The query does not fade from white to dark, it flips: the plate's text is
        255 against a black face on f48 and 0 against a 151 face on f49, and
        stays 0 while the face keeps lifting to 213 and 236. Lerping the ink
@@ -6582,18 +6622,31 @@ function render2(t){
        landed on f35, and an inline opacity here outranks the .off class that
        put it there, which showed it again for a frame */
   }
-  nbox.style.visibility = f >= N2_A2 ? "hidden" : "visible";
+  /* the box is what is still moving through the tail, so it outlives act 2's
+     arrival and draws OVER it until it lands on the chip — #n2 carries
+     z-index 4 and the box's own 3 would otherwise put the chrome on top of
+     the thing the eye is following. */
+  nbox.style.visibility = (f >= N2_SETTLE_END || promptOnly && f >= N2_A2)
+                          ? "hidden" : "visible";
+  nbox.style.zIndex = inSettle ? "5" : "";
 
   /* ── act 2 ── */
   const inA2 = f >= N2_A2 && f < N2_A3;
+  /* held rather than written here: act 2's EXIT sets n2body's transform too,
+     a few lines down, and whichever assignment ran last won. It was the
+     exit's, unconditionally, on every frame of the roll-up — so the climb
+     measured off the clip never reached the DOM at all and the body simply
+     appeared in place. The two compose into one assignment now. */
+  let bodyRise = 0;
   n2El.style.opacity = inA2 ? "1" : "0";
   n2El.style.visibility = inA2 ? "visible" : "hidden";
   if (inA2){
-    const rise = N2_RISE_PX *
-      Math.pow(1 - sat((f - N2_RISE0) / (N2_RISE1 - N2_RISE0)), N2_RISE_P);
-    n2body.style.transform = rise > 0.5 ? `translateY(${rise.toFixed(1)}px)` : "";
+    bodyRise = N2_RISE_PX * Math.pow(N2_RISE_K, Math.max(0, f - N2_RISE0));
     n2nav.style.opacity  = sat((f - 55) / 7).toFixed(3);
-    n2chip.style.opacity = sat((f - 52) / 8).toFixed(3);
+    /* the chip is the box's landing point, so it stays out of the way until
+       the box has landed on it — before N2_SETTLE_END the two would sit on
+       top of each other, one moving and one not. */
+    n2chip.style.opacity = f >= N2_SETTLE_END ? "1" : "0";
   }
 
   /* On the way out the page smears sideways, and it is a BOX smear rather than
@@ -6617,7 +6670,14 @@ function render2(t){
      it 14px by f82. It fades on its own. */
   const a2s = f > 79 ? 1 + 0.0067 * Math.pow(f - 79, 2.25) : 1;
   n2body.style.transformOrigin = "0px 148px";        // (241,600) in stage terms
-  n2body.style.transform = a2s > 1.0005 ? `scale(${a2s.toFixed(5)})` : "";
+  /* the roll-up and the exit's scale, in one place. Order matters: the scale
+     is applied about the origin first and the climb rides on top of it, which
+     is the same composition the two had when they were fighting over this
+     property one frame at a time. */
+  const bt = [];
+  if (bodyRise > 0.5)  bt.push(`translateY(${bodyRise.toFixed(1)}px)`);
+  if (a2s > 1.0005)    bt.push(`scale(${a2s.toFixed(5)})`);
+  n2body.style.transform = bt.join(" ");
   /* the blur each frame is how far the block moved in it, averaged over its
      width — the pivot is at its left edge, so the mean arm is half of 1300.
      The two arms are that same growth curve read half a frame either side, so
