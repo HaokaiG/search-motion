@@ -1895,6 +1895,20 @@
       <canvas id="gbzc" class="bez" width="252" height="252"></canvas>
       <button id="gbzreset">Reset Curve</button>
     </div>
+    <!-- The AI Mode button's own ring, which until now had no dial at all:
+         its turn was a baked 360 over CHIP_CYCLE_F0..F1. Two controls,
+         because the two things that were asked about are independent — how
+         FAST the ring turns, and WHERE its break sits. -->
+    <div class="lbl"><label for="bgspd">Button glow speed</label>
+      <input id="bgspdn" type="number" min="0" max="8" step="0.05" value="1.00">
+    </div>
+    <span class="warn" id="bgwarn"></span>
+    <input id="bgspd" type="range" min="0" max="4" step="0.05" value="1">
+    <div class="lbl"><label for="bgphase">Button glow break</label>
+      <input id="bgphasen" type="number" min="0" max="360" step="1" value="270">
+    </div>
+    <span class="warn" id="bgphasewarn"></span>
+    <input id="bgphase" type="range" min="0" max="360" step="1" value="270">
   </div>
 
   <div class="grp">
@@ -2224,7 +2238,14 @@ const K_CHIP  = 158 / 112 * 1.3;
    That is **32.7 deg a frame against the 45 it was** — the slower turn the
    wider window was asked for. Back: read GRAD_A/MASK_A, which is the bar's
    wheel. */
-const CHIP_PHASE0 = 270, CHIP_CYCLE_F0 = 117, CHIP_CYCLE_F1 = 128;
+/* Both are dials now — see the panel. CHIP_TURN_BASE is the revolution the
+   ring used to make with no way to change it; CHIP_SPEED multiplies it, so
+   1.00 is exactly what the piece did before and 0 freezes the ring where its
+   phase puts it. CHIP_PHASE_DEF is where the break sits at rest.
+   Back: `CHIP_PHASE0 = 270` with a baked `360 * cu` in the turn. */
+const CHIP_CYCLE_F0 = 117, CHIP_CYCLE_F1 = 128;
+const CHIP_TURN_BASE = 360, CHIP_SPEED_DEF = 1, CHIP_PHASE_DEF = 270;
+let CHIP_SPEED = CHIP_SPEED_DEF, CHIP_PHASE0 = CHIP_PHASE_DEF;
 const BURST_BLUR = [[0, 1*K_PLATE, null], [0.15, 20*K_PLATE, null],
                     [0.25, 5*K_PLATE, null], [0.45, 7*K_PLATE, null],
                     [1, 1*K_PLATE, null]];
@@ -3661,11 +3682,11 @@ function render(t){
     for (const el of cblurs) el.style.filter = cb;
     const cu = clamp((fp - CHIP_CYCLE_F0) / (CHIP_CYCLE_F1 - CHIP_CYCLE_F0), 0, 1);
     chipgrad.style.setProperty("--mask-angle",
-      (CHIP_PHASE0 + 360 * cu).toFixed(2) + "deg");
+      (CHIP_PHASE0 + CHIP_TURN_BASE * CHIP_SPEED * cu).toFixed(2) + "deg");
     /* the wheel keeps the same share of the turn it has on the bar, 55 to 290 */
     chipgrad.style.setProperty("--gradient-angle",
-      (GRAD_A0 + 360 * cu * (GRAD_A1 - GRAD_A0)
-                          / (MASK_A1 - MASK_A0)).toFixed(2) + "deg");
+      (GRAD_A0 + CHIP_TURN_BASE * CHIP_SPEED * cu * (GRAD_A1 - GRAD_A0)
+                                / (MASK_A1 - MASK_A0)).toFixed(2) + "deg");
   }
   /* the plate's ring glow spreads ~2-4px as it arrives and leaves against
      ~12 at its peak, so the radius rides the same envelope as the opacity */
@@ -3978,6 +3999,58 @@ function setGlow(v, from){
   const g = h.toString();
   history.replaceState(null, "", g ? "#" + g : location.pathname);
 }
+/* ── the AI Mode button's ring: how fast it turns, and where it breaks ──
+   Two dials rather than one, because they answer different questions and
+   neither can stand in for the other. SPEED multiplies the revolution the
+   ring makes across CHIP_CYCLE_F0..F1 — 1.00 is exactly the turn the piece
+   made before this control existed, and 0 freezes it wherever the phase
+   puts it. BREAK is that phase: the conic mask's window is opaque from 44%
+   to 88% of a turn, so the gap it leaves travels with this number.
+
+   The break is a dial rather than a value I picked because the mapping from
+   this angle to a position on screen is not the identity, and it is worth
+   saying why. The window is a conic gradient on an element the ring squashes
+   by `scale: 2.2 1.5`, and that stretch pulls conic angles toward the
+   horizontal — so a wide span of the turn lands near the left and right caps
+   and a narrow one covers the top and bottom. Swept through 0, 45, 90, 135,
+   180, 225, 270 and 315 and rendered at each, the lit arc stayed on the TOP
+   edge every time; only which colours sat there changed. Moving the break
+   somewhere specific is therefore a question about that squash, not about
+   this angle, and the honest thing is to let it be dialled by eye against
+   the frame rather than computed from a mapping this shape does not have. */
+const $bgs = document.getElementById("bgspd"), $bgsn = document.getElementById("bgspdn");
+const $bgw = document.getElementById("bgwarn");
+const $bgp = document.getElementById("bgphase"), $bgpn = document.getElementById("bgphasen");
+const $bgpw = document.getElementById("bgphasewarn");
+function setChipGlow(v, from){
+  const n = +v;
+  CHIP_SPEED = clamp(isFinite(n) ? n : CHIP_SPEED_DEF, 0, 8);
+  if (from !== "range")  $bgs.value  = CHIP_SPEED;
+  if (from !== "number") $bgsn.value = CHIP_SPEED.toFixed(2);
+  /* the ring's whole life is CHIP_CYCLE_F0..F1, so a rate reads best as the
+     turn it completes in that window rather than as degrees a second */
+  const turn = CHIP_TURN_BASE * CHIP_SPEED;
+  $bgw.textContent = CHIP_SPEED === 0
+    ? "frozen — the ring holds the angle the break sets"
+    : `${turn.toFixed(0)}\u00b0 across its ${CHIP_CYCLE_F1 - CHIP_CYCLE_F0} frames`
+      + ` \u00b7 ${(turn / 360).toFixed(2)} of a lap`;
+  if (hold !== null) render(hold);
+}
+function setChipPhase(v, from){
+  const n = +v;
+  CHIP_PHASE0 = clamp(isFinite(n) ? n : CHIP_PHASE_DEF, 0, 360);
+  if (from !== "range")  $bgp.value  = CHIP_PHASE0;
+  if (from !== "number") $bgpn.value = CHIP_PHASE0.toFixed(0);
+  $bgpw.textContent = `mask opens at ${CHIP_PHASE0.toFixed(0)}\u00b0`
+    + " \u00b7 drag with the ring frozen to place the break";
+  if (hold !== null) render(hold);
+}
+$bgs.addEventListener("input",   () => setChipGlow($bgs.value,  "range"));
+$bgsn.addEventListener("change", () => setChipGlow($bgsn.value, "number"));
+$bgp.addEventListener("input",   () => setChipPhase($bgp.value,  "range"));
+$bgpn.addEventListener("change", () => setChipPhase($bgpn.value, "number"));
+setChipGlow(CHIP_SPEED_DEF); setChipPhase(CHIP_PHASE_DEF);
+
 $gls.addEventListener("input",  () => setGlow($gls.value,  "range"));
 $glsn.addEventListener("change", () => {                    /* same, for the glow */
   setGlow(Math.round(+$glsn.value * 100) / 100, "number");
