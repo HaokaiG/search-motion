@@ -5315,7 +5315,25 @@ function proresFrameAt(Y, U, V, A, W, H, stride, qscale, fps){
      file does not run at. */
   const FRC = { 23.976: 1, 24: 2, 25: 3, 29.97: 4, 30: 5, 50: 6, 59.94: 7, 60: 8 };
   out[o + 13] = (1 << 4) | (FRC[fps] || 0);
-  out[o + 14] = 1; out[o + 15] = 1; out[o + 16] = 1;   /* BT.709 throughout */
+  /* 1-13-1: BT.709 primaries, sRGB TRANSFER, BT.709 matrix.
+     Primaries and matrix are right as they were — sRGB shares BT.709's
+     primaries, and prPlanes uses BT.709's own luma weights, so a decoder
+     inverting with matrix 1 gets back exactly what went in. The TRANSFER
+     was wrong. The frames come off a canvas, which is sRGB-encoded, and
+     nothing here linearises them: what the file carries IS an sRGB curve,
+     and declaring BT.709's (a pure ~1.96 power, no linear toe) tells a
+     colour-managed reader to undo a curve that was never applied.
+     A raw 32BGRA pull never notices — it only runs the matrix — which is
+     why every check in this file passed for so long. Measured through a
+     COLOUR-MANAGED decode (CoreImage honouring the tag, rendering to
+     sRGB), at 1-1-1 against the canvas the same frame came back:
+        Google blue  (49,134,255) -> (56,145,255)   +7 +11
+        Google red   (252,65,61)  -> (252,74,70)    +9 +9
+        yellow       (254,199,0)  -> (254,206,0)    +7
+        white        unchanged — the two curves meet at the endpoints,
+                     which is why this reads as lifted midtones rather
+                     than an overall cast. */
+  out[o + 14] = 1; out[o + 15] = 13; out[o + 16] = 1;
   /* alpha_channel_type 2 — 16-bit, matching prAlpha. The high nibble has
      now been every value this investigation could put there (0, 4, and the
      7 Apple's own encoder writes) across files that worked and files that
@@ -5569,7 +5587,11 @@ function muxMOV(frames, W, H, timescale, delta){
                          rule exists to avoid. Range goes back to convention —
                          ProRes Y'CbCr is video range, which every ProRes
                          decoder assumes — and the file stops being unusual. */
-                      bx("colr", str4("nclc"), b16(1), b16(1), b16(1)),
+                      /* transfer 13 (IEC 61966-2-1, sRGB), not 1 — see the
+                         frame header's own note. The atom stays nclc, the
+                         QuickTime form Apple's encoder and ffmpeg both
+                         write in a .mov; only the middle field moves. */
+                      bx("colr", str4("nclc"), b16(1), b16(13), b16(1)),
                       bx("fiel", new Uint8Array([1, 0])),
                       bx("pasp", b32(1), b32(1)));
   const stsd = bx("stsd", zeros(4), b32(1), ap4h);

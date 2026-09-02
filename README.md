@@ -831,7 +831,7 @@ Alongside it, the container was compared field-for-field against a file
 re-encoded by **Apple's own encoder** (`avconvert --preset
 PresetAppleProRes4444LPCM`) from the identical frames. Every value that
 governs alpha matches: `ap4h` depth **32**, frame header **148 bytes**,
-`alphaType` **2**, chroma **3**, `colr` **`nclc 1/1/1`**, decoded alpha
+`alphaType` **2**, chroma **3**, `colr` **`nclc 1/13/1`**, decoded alpha
 **74.1% / 20.8% / 5.1%** on both.
 
 **The working fix for a machine whose decoder drops the matte anyway.** Since
@@ -925,6 +925,43 @@ That is the trade, stated plainly: **the editor now needs configuring instead
 of everything else.** Previously straight was correct in an editor with no
 setting at all and row C in every reader that could not ask. The way back is
 the one-line previous behaviour, kept in the code comment.
+
+### The transfer tag was the wrong curve, and it lifted every midtone
+
+The export declared `colr nclc 1/1/1` and a frame header of `1/1/1` — BT.709
+primaries, **BT.709 transfer**, BT.709 matrix. Two of those three were right.
+sRGB shares BT.709's primaries, and `prPlanes` uses BT.709's own luma weights,
+so a decoder inverting with matrix 1 gets back exactly what went in.
+
+The transfer was wrong. The frames come off a **canvas**, which is sRGB-
+encoded, and nothing in the encoder linearises them — so what the file carries
+*is* an sRGB curve. Declaring BT.709's (a pure ~1.96 power, no linear toe)
+tells a colour-managed reader to undo a curve that was never applied.
+
+**Why every check here missed it for so long.** A raw `AVAssetReader` pull at
+`32BGRA` runs only the YCbCr matrix — no transfer conversion happens at all —
+so it matched the canvas to a mean of **0.000** with the wrong tag in place.
+It is the *colour-managed* path that reads the tag: QuickTime, Finder, an
+editor's viewer. Reproduced by letting CoreImage honour the tag and render to
+sRGB, the same frame came back:
+
+| | canvas | decoded at 1-1-1 | decoded at 1-13-1 |
+| --- | --- | --- | --- |
+| Google blue | 49,134,255 | **56,145,255** | 49,134,255 |
+| Google red | 252,65,61 | **252,74,70** | 252,65,61 |
+| Google yellow | 254,199,0 | **254,206,0** | 254,199,0 |
+| white | 255,255,255 | 255,255,255 | 255,255,255 |
+| whole frame, mean abs | — | **0.274** (max 12) | **0.000** (max 1) |
+
+White is unchanged in both, because the two curves meet at the endpoints —
+which is why this reads as lifted midtones rather than an overall cast.
+
+It writes **transfer 13** (IEC 61966-2-1, sRGB) now, in the `colr` atom and in
+the frame header's byte 15. The atom stays `nclc`, the QuickTime form Apple's
+encoder and ffmpeg both write in a `.mov`; only the middle field moves, and
+AVFoundation reports it back as `transfer IEC_sRGB`. **No pixel data changed** —
+the raw decode is byte-identical before and after, so this is a tag correction
+rather than a re-encode.
 
 ### The colour tag says the range too
 
