@@ -1896,15 +1896,6 @@
         <option value="60">60 fps</option>
       </select>
     </div>
-    <!-- which convention the MOV's colour is written in. ProRes 4444 states
-         this NOWHERE in the file, so the reader has to be told, and the two
-         readers this piece meets want opposite answers. -->
-    <span class="why" id="alphawhy">
-      <select id="alphamode">
-        <option value="straight" selected>Alpha: Straight · editors</option>
-        <option value="matted">Alpha: Matted · flatteners</option>
-      </select>
-    </span>
     <button id="vexport">Export MOV · ProRes 4444</button>
     <button id="pexport">Export PNG Sequence</button>
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
@@ -4662,42 +4653,26 @@ function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
 const $gs = document.getElementById("gstat");
 document.getElementById("build").textContent = "build " + BUILD;
 
-/* ── which convention the MOV writes ─────────────────────────────────────
-   Read fresh at each export rather than latched at boot, so changing the
-   control takes effect on the very next click.
+/* ── the MOV writes STRAIGHT, and only straight ──────────────────────────
+   ProRes 4444 states its alpha convention nowhere in the file, so the reader
+   has to be told — and this used to be a control because the two readers the
+   piece meets want opposite answers. It is not one any more, by request.
 
-     straight  colour as-is, the convention 4444 means. An editor reads it
-               with NO setting at all. A reader that drops the matte shows
-               the glow at full strength — row C.
-     matted    colour composited onto the piece's own ground, alpha kept.
-               A reader that drops the matte gets the picture EXACTLY right
-               (measured: 100% of pixels exact). An editor must be told:
-               Interpret Footage > Alpha > Premultiplied - Matted With
-               Color, white for the search piece, black for the prompt one.
+   Straight is what 4444 MEANS: colour as-is, which AE, Premiere and Resolve
+   read correctly with no setting at all. The matted alternative existed for
+   readers that drop the alpha and show the colour flat, where a straight
+   file shows the glow at full strength — but those readers already have a
+   correct file to use, the one Transparent OFF writes, which is opaque and
+   reads identically everywhere. So the case for carrying a second convention
+   was always the weaker one, and the editor is the destination that cannot
+   be worked around.
 
-   Straight is the default because an editor is the destination that cannot
-   be worked around — a flattener has the opaque export as its correct file,
-   an editor has nothing else. #alpha=straight / #alpha=matted carries it,
-   for a headless render or a machine where the panel is awkward to reach. */
-const $am = document.getElementById("alphamode");
-if (Q.get("alpha") === "matted" || Q.get("alpha") === "straight")
-  $am.value = Q.get("alpha");
-Object.defineProperty(window, "MATTED", { get: () => $am.value === "matted" });
-const $amw = document.getElementById("alphawhy");
-function syncAlphaHint(){
-  $amw.dataset.why = !alphaOn
-    ? "Nothing to write either way while the frame is opaque — every pixel "
-      + "is alpha 255, identical in both conventions. Turn Transparent on."
-    : MATTED
-      ? "Colour is composited onto the piece's ground with the alpha kept. "
-        + "Correct in anything that drops the matte. In an editor set "
-        + "Interpret Footage > Alpha > Premultiplied - Matted With Color, "
-        + "and set that colour to WHITE here (black on the prompt piece)."
-      : "Colour as-is, the convention 4444 means. Correct in AE, Premiere "
-        + "and Resolve with no setting at all. A reader that drops the "
-        + "matte will show the glow wider than it is.";
-}
-$am.onchange = syncAlphaHint;
+   groundFill below is straight's own companion and stays: at alpha 0 the
+   colour is free (a compositing reader multiplies it by exactly 0), so it
+   carries the piece's ground rather than the canvas's black.
+
+   Back: the `alphamode` select, `matteOnto`, and the `#alpha=` hash. */
+
 /* the first call waits for alphaOn below — `let` is in its dead zone here */
 let busy = false;
 document.getElementById("gexport").onclick = async () => {
@@ -4838,13 +4813,11 @@ $ab.onclick = () => {
   stage.classList.toggle("has-alpha", alphaOn);
   $ab.textContent = "Transparent: " + (alphaOn ? "On" : "Off");
   syncGifAvailability();
-  syncAlphaHint();
   chipGapForMode();
   applyQuery();                    // the bar re-derives from the wider gap
   render(hold !== null ? hold : 0);
 };
 syncGifAvailability();             // and set it once for the state it loads in
-syncAlphaHint();                   // same, for the alpha convention's hint
 
 document.getElementById("mexport").onclick = async () => {
   if (busy) return;
@@ -5499,16 +5472,6 @@ function groundFill(rgba, ground){
       rgba[p] = rgba[p + 1] = rgba[p + 2] = ground;
 }
 
-function matteOnto(rgba, ground){
-  for (let p = 0; p < rgba.length; p += 4){
-    const a = rgba[p + 3];
-    if (a === 255) continue;                 /* opaque: already the answer */
-    const k = a / 255, g = ground * (1 - k);
-    rgba[p]     = rgba[p]     * k + g;       /* clamped array rounds for us */
-    rgba[p + 1] = rgba[p + 1] * k + g;
-    rgba[p + 2] = rgba[p + 2] * k + g;
-  }
-}
 
 /* ══════════════════════════ the MOV around it ════════════════════════════
    Same box grammar as the MP4 next door, so the writer is the same; what
@@ -5658,8 +5621,7 @@ document.getElementById("vexport").onclick = async () => {
           const av = img[i];
           if (av === 0) aZero++; else if (av === 255) aFull++; else aPart++;
         }
-      if (alphaOn && MATTED) matteOnto(img, PIECE === 2 ? 0 : 255);
-      else if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
+      if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
       const p = prPlanes(img, W, H);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE, fps);
       if (PR_QUSED > qUsed) qUsed = PR_QUSED;
@@ -5695,7 +5657,7 @@ document.getElementById("vexport").onclick = async () => {
     const aT = aZero + aFull + aPart;
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`
       + (alphaOn
-         ? ` · ${MATTED ? "matted on " + (PIECE === 2 ? "black" : "white") : "straight alpha"}`
+         ? " · straight alpha"
            + ` · matte measured: ${Math.round(100 * aZero / aT)}% clear`
            + ` / ${Math.round(100 * aPart / aT)}% soft / ${Math.round(100 * aFull / aT)}% solid`
          : " · opaque, reads the same everywhere")
