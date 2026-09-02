@@ -1896,15 +1896,6 @@
         <option value="60">60 fps</option>
       </select>
     </div>
-    <!-- which convention the MOV's colour is written in. ProRes 4444 states
-         this NOWHERE in the file, so the reader has to be told, and the two
-         readers this piece meets want opposite answers. -->
-    <span class="why" id="alphawhy">
-      <select id="alphamode">
-        <option value="straight" selected>Alpha: Straight · editors</option>
-        <option value="matted">Alpha: Matted · flatteners</option>
-      </select>
-    </span>
     <button id="vexport">Export MOV · ProRes 4444</button>
     <button id="pexport">Export PNG Sequence</button>
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
@@ -2598,14 +2589,10 @@ const LSB_W = 0.853, LSB_H = 5.596;            // measured at the query's 86.40p
 const TEXT_LEFT_REF = PLUS_RIGHT   + ICON_TEXT_INK_GAP - LSB_W;   // 555.3
 const TEXT_LEFT_G   = GMARK_RIGHT  + GMARK_TEXT_GAP    - LSB_H;   // 602.27
 let   TEXT_LEFT     = TEXT_LEFT_REF;
-/* 117 in the plate is measured from the query's INK end; textEndPx uses the
-   advance, which runs 6px further on the reference, so the gap is 111.
-   Over footage it opens out: the bar is a scrim there rather than a solid
-   card, the chip is only 75% opaque, and the plate showing through both
-   needs the two to stop crowding each other. 200 by eye — this one has no
-   measurement behind it, and CHIP_GAP_BG is the dial. Widening it pushes the
-   chip right, so the bar and the pan grow with it, the same as the icon gap
-   does.                                                                  */
+/* The query-to-chip gap is CHIP_GAP, below, and it is one number for every
+   mode now — the history that used to live here is recorded there. What
+   still holds: widening it pushes the chip right, so the bar and the pan
+   grow with it, the same way the icon gap does. */
 let   CHIP_W = 432.8, CHIP_TO_CAP = 45;
 /* Called whenever the icon changes, before the bar re-lays-out. The beam's
    mask is an SVG attribute rather than a style, so it is set here too.  */
@@ -2620,13 +2607,32 @@ function iconGeom(g){
      ring is a conic mask on a div that inherits the bar's own radius, so the
      G-icon size needs nothing extra */
 }
-const CHIP_GAP_REF = 111, CHIP_GAP_BG = 140;   // 200 was too wide, 30% closer
-let   CHIP_GAP = CHIP_GAP_REF;
-/* The wider gap goes with the LOOK, not with the footage: the transparent
-   mode wears the same scrim, the same white Medium query and the same 75%
-   chip, so it wants the same room between them. It used to key off the
-   video alone, which left the two modes spaced differently while looking
-   otherwise identical.                                                   */
+/* 280, and the same in every mode — by request: the transparent mode's gap
+   doubled, and the other two brought up to match it rather than left short.
+
+   Two numbers went into this one. 111 was MEASURED: the plate puts 117
+   between the query's ink end and the chip, and textEndPx uses the advance,
+   which runs 6px further on the reference. 140 was by eye, for the modes
+   where the bar is a scrim rather than a solid card and the plate showing
+   through both needs the two to stop crowding each other. Neither survives
+   the doubling, and it is worth saying plainly that the piece no longer
+   sits on the plate's own spacing here: 280 is 2.5x what the reference
+   measures.
+
+   It is one value now rather than two because the request makes the modes
+   agree, and a branch that returns the same number in both arms is a branch
+   nobody can read. chipGapForMode still exists for the chip's alpha and the
+   hints, which do still differ by mode.
+
+   189, arrived at by successive trims rather than in one go: 140 doubled to
+   280, back a quarter to 210, then 10% off that. It lands 1.7x the plate's
+   own 111 — worth stating, because the piece has now been three steps away
+   from its measurement here and the only record of that is this comment.
+
+   Back: 210, then 280, then `CHIP_GAP_REF = 111, CHIP_GAP_BG = 140` with
+   `CHIP_GAP = (bgOn || alphaOn) ? CHIP_GAP_BG : CHIP_GAP_REF` restored to
+   chipGapForMode for the measured and fitted pair this replaced. */
+const CHIP_GAP = 189;
 /* The scrim's hint line, hoisted and reading the DOM rather than closing over
    the panel's consts, because chipGapForMode below calls it on every change of
    mode and runs before those consts are initialised — a captured `const` would
@@ -2669,7 +2675,8 @@ function readChipA0(){
   CHIP_A0 = parseFloat(getComputedStyle(el).getPropertyValue("--chip-a0")) || 1;
 }
 function chipGapForMode(){
-  CHIP_GAP = (bgOn || alphaOn) ? CHIP_GAP_BG : CHIP_GAP_REF;
+  /* the gap itself no longer varies — see CHIP_GAP. What still does is the
+     chip's own alpha and the two hints, which name the mode they apply in. */
   readChipA0();
   scrimHint();          // the hints name the mode they apply in
   bubbleHint();
@@ -4662,42 +4669,26 @@ function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
 const $gs = document.getElementById("gstat");
 document.getElementById("build").textContent = "build " + BUILD;
 
-/* ── which convention the MOV writes ─────────────────────────────────────
-   Read fresh at each export rather than latched at boot, so changing the
-   control takes effect on the very next click.
+/* ── the MOV writes STRAIGHT, and only straight ──────────────────────────
+   ProRes 4444 states its alpha convention nowhere in the file, so the reader
+   has to be told — and this used to be a control because the two readers the
+   piece meets want opposite answers. It is not one any more, by request.
 
-     straight  colour as-is, the convention 4444 means. An editor reads it
-               with NO setting at all. A reader that drops the matte shows
-               the glow at full strength — row C.
-     matted    colour composited onto the piece's own ground, alpha kept.
-               A reader that drops the matte gets the picture EXACTLY right
-               (measured: 100% of pixels exact). An editor must be told:
-               Interpret Footage > Alpha > Premultiplied - Matted With
-               Color, white for the search piece, black for the prompt one.
+   Straight is what 4444 MEANS: colour as-is, which AE, Premiere and Resolve
+   read correctly with no setting at all. The matted alternative existed for
+   readers that drop the alpha and show the colour flat, where a straight
+   file shows the glow at full strength — but those readers already have a
+   correct file to use, the one Transparent OFF writes, which is opaque and
+   reads identically everywhere. So the case for carrying a second convention
+   was always the weaker one, and the editor is the destination that cannot
+   be worked around.
 
-   Straight is the default because an editor is the destination that cannot
-   be worked around — a flattener has the opaque export as its correct file,
-   an editor has nothing else. #alpha=straight / #alpha=matted carries it,
-   for a headless render or a machine where the panel is awkward to reach. */
-const $am = document.getElementById("alphamode");
-if (Q.get("alpha") === "matted" || Q.get("alpha") === "straight")
-  $am.value = Q.get("alpha");
-Object.defineProperty(window, "MATTED", { get: () => $am.value === "matted" });
-const $amw = document.getElementById("alphawhy");
-function syncAlphaHint(){
-  $amw.dataset.why = !alphaOn
-    ? "Nothing to write either way while the frame is opaque — every pixel "
-      + "is alpha 255, identical in both conventions. Turn Transparent on."
-    : MATTED
-      ? "Colour is composited onto the piece's ground with the alpha kept. "
-        + "Correct in anything that drops the matte. In an editor set "
-        + "Interpret Footage > Alpha > Premultiplied - Matted With Color, "
-        + "and set that colour to WHITE here (black on the prompt piece)."
-      : "Colour as-is, the convention 4444 means. Correct in AE, Premiere "
-        + "and Resolve with no setting at all. A reader that drops the "
-        + "matte will show the glow wider than it is.";
-}
-$am.onchange = syncAlphaHint;
+   groundFill below is straight's own companion and stays: at alpha 0 the
+   colour is free (a compositing reader multiplies it by exactly 0), so it
+   carries the piece's ground rather than the canvas's black.
+
+   Back: the `alphamode` select, `matteOnto`, and the `#alpha=` hash. */
+
 /* the first call waits for alphaOn below — `let` is in its dead zone here */
 let busy = false;
 document.getElementById("gexport").onclick = async () => {
@@ -4838,13 +4829,11 @@ $ab.onclick = () => {
   stage.classList.toggle("has-alpha", alphaOn);
   $ab.textContent = "Transparent: " + (alphaOn ? "On" : "Off");
   syncGifAvailability();
-  syncAlphaHint();
   chipGapForMode();
   applyQuery();                    // the bar re-derives from the wider gap
   render(hold !== null ? hold : 0);
 };
 syncGifAvailability();             // and set it once for the state it loads in
-syncAlphaHint();                   // same, for the alpha convention's hint
 
 document.getElementById("mexport").onclick = async () => {
   if (busy) return;
@@ -5499,16 +5488,6 @@ function groundFill(rgba, ground){
       rgba[p] = rgba[p + 1] = rgba[p + 2] = ground;
 }
 
-function matteOnto(rgba, ground){
-  for (let p = 0; p < rgba.length; p += 4){
-    const a = rgba[p + 3];
-    if (a === 255) continue;                 /* opaque: already the answer */
-    const k = a / 255, g = ground * (1 - k);
-    rgba[p]     = rgba[p]     * k + g;       /* clamped array rounds for us */
-    rgba[p + 1] = rgba[p + 1] * k + g;
-    rgba[p + 2] = rgba[p + 2] * k + g;
-  }
-}
 
 /* ══════════════════════════ the MOV around it ════════════════════════════
    Same box grammar as the MP4 next door, so the writer is the same; what
@@ -5658,8 +5637,7 @@ document.getElementById("vexport").onclick = async () => {
           const av = img[i];
           if (av === 0) aZero++; else if (av === 255) aFull++; else aPart++;
         }
-      if (alphaOn && MATTED) matteOnto(img, PIECE === 2 ? 0 : 255);
-      else if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
+      if (alphaOn) groundFill(img, PIECE === 2 ? 0 : 255);
       const p = prPlanes(img, W, H);
       const fr = proresFrame(p.Y, p.U, p.V, p.A, W, H, p.stride, PR_QSCALE, fps);
       if (PR_QUSED > qUsed) qUsed = PR_QUSED;
@@ -5695,7 +5673,7 @@ document.getElementById("vexport").onclick = async () => {
     const aT = aZero + aFull + aPart;
     $gs.textContent = `${n} frames · ${(blob.size / 1048576).toFixed(1)} MB`
       + (alphaOn
-         ? ` · ${MATTED ? "matted on " + (PIECE === 2 ? "black" : "white") : "straight alpha"}`
+         ? " · straight alpha"
            + ` · matte measured: ${Math.round(100 * aZero / aT)}% clear`
            + ` / ${Math.round(100 * aPart / aT)}% soft / ${Math.round(100 * aFull / aT)}% solid`
          : " · opaque, reads the same everywhere")
