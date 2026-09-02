@@ -1065,8 +1065,13 @@
          font-size:36px;line-height:36px;color:#54585c}
   .n2nav span{position:absolute;top:0}
   .n2nav .on{color:#1e1f22}
+  /* currentColor, not a baked #1e1f22: each caret belongs to the item beside
+     it, so it takes that item's colour. AI Mode is the selected tab and reads
+     #1e1f22, while More sits in the strip's own #54585c — with the colour
+     baked in, More's caret was drawn in the SELECTED tab's near-black and read
+     as a darker mark than the word it belongs to. */
   .n2nav i{position:absolute;top:14px;width:0;height:0;border:9px solid transparent;
-           border-top:9px solid #1e1f22;border-bottom:0}
+           border-top:9px solid currentColor;border-bottom:0}
   .n2rule{position:absolute;left:240px;top:207px;width:1500px;height:2px;
           background:#d5d5d8}
   .n2rail{position:absolute;fill:#56595E}
