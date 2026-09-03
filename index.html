@@ -1201,8 +1201,21 @@
      as a darker mark than the word it belongs to. */
   .n2nav i{position:absolute;top:14px;width:0;height:0;border:9px solid transparent;
            border-top:9px solid currentColor;border-bottom:0}
+  /* A DARKENING, not a light bar — the same correction the other piece's rule
+     needed, and for the same reason. Its opacity now follows the background
+     (by request, see n2ruleEl below), and an opaque #d5d5d8 faded in over a
+     page that is not white yet can only ADD brightness: composited on a black
+     ground it reads 127.6 against a page of 84.9 at a third of the wash and
+     198.7 against 170.1 at two thirds — LIGHTER than the page it divides,
+     which is the inverse of a divider. A darkening holds the relationship at
+     every stage: 80.3 against 84.9, 151.4 against 170.1, 213 against 255.
+     The settled look is untouched. Solving a*c + (1-a)*255 for #d5d5d8 gives
+     alpha 0.1647 with a colour of (0,0,18) — the blue is what carries the
+     grey's slight cool cast, which a flat black would have neutralised; the
+     other piece's rule is flat black because ITS target, #ebebeb, is neutral.
+     Back: background:#d5d5d8 with no inline opacity. */
   .n2rule{position:absolute;left:240px;top:207px;width:1500px;height:2px;
-          background:#d5d5d8}
+          background:rgba(0,0,18,.1647)}
   .n2rail{position:absolute;fill:#56595E}
   /* The bubble hugs its text, the same rule the other piece's does: pinned by
      its RIGHT edge and grown leftward, so a longer prompt reaches back toward
@@ -1492,11 +1505,20 @@
          Sits UNDER act 1 so the swelling chip passes over the answer,
          which is what the plate does on frames 133-135.               -->
     <div id="act2">
+      <!-- THE CHROME DOES NOT ROLL UP, by request. The mark, the nav, the
+           rule under it and the two sidebar icons are the page the chat
+           arrives ON, so they hold their place and only fade in; the roll-up
+           belongs to the chat alone, the query bubble and the answer under
+           it. data-rise is the travel in px and 0 is the whole of it — the
+           settle below still runs, it just has no distance to cover, and the
+           opacity ramps (data-f0 / data-fd) are untouched, so each row
+           arrives on exactly the frame it did.
+           Back: gicon 27, nav 43, rule 43, both sideicons 27. -->
       <!-- supplied G Logo1.svg (the raster export of the mark) -->
-      <div class="row gicon" data-rise="27" data-t="0"
+      <div class="row gicon" data-rise="0" data-t="0"
            data-f0="5.756" data-fd=".06"></div>
 
-      <div class="row nav" data-rise="43" data-t="0" data-f0="5.756" data-fd=".06">
+      <div class="row nav" data-rise="0" data-t="0" data-f0="5.756" data-fd=".06">
         <!-- AI Mode carries no caret in the new chrome, and every item after
              it moves left into the space that leaves. Read off AIM Chat.svg
              at 1920: AI Mode's ink spans 240-372, All 429-466, Images
@@ -1511,14 +1533,14 @@
         <span class="car"   style="left:1170px"></span>
       </div>
 
-      <div class="row rule" data-on-card data-rise="43" data-t="0" data-f0="5.756" data-fd=".06"></div>
+      <div class="row rule" data-on-card data-rise="0" data-t="0" data-f0="5.756" data-fd=".06"></div>
 
       <!-- supplied icon.svg / edit_square.svg, at the measured boxes -->
-      <svg class="row sideicon menu" data-rise="27" data-t="0"
+      <svg class="row sideicon menu" data-rise="0" data-t="0"
            data-f0="5.756" data-fd=".06" viewBox="0 0 37 16">
         <path d="M1.81008 3.5555C1.29291 3.5555 0.861941 3.38311 0.517164 3.03834C0.172389 2.69356 0 2.28414 0 1.81007C0 1.29291 0.172389 0.861938 0.517164 0.517162C0.861941 0.172386 1.29291 0 1.81008 0H34.9086C35.4257 0 35.8567 0.172386 36.2015 0.517162C36.5463 0.861938 36.7187 1.29291 36.7187 1.81007C36.7187 2.28414 36.5463 2.69356 36.2015 3.03834C35.8567 3.38311 35.4257 3.5555 34.9086 3.5555H1.81008ZM1.81008 15.4503C1.29291 15.4503 0.861941 15.2779 0.517164 14.9331C0.172389 14.5883 0 14.1574 0 13.6402C0 13.123 0.172389 12.6921 0.517164 12.3473C0.861941 12.0025 1.29291 11.8301 1.81008 11.8301H34.9086C35.4257 11.8301 35.8567 12.0025 36.2015 12.3473C36.5463 12.6921 36.7187 13.123 36.7187 13.6402C36.7187 14.1574 36.5463 14.5883 36.2015 14.9331C35.8567 15.2779 35.4257 15.4503 34.9086 15.4503H1.81008Z" fill="#3c4043"/>
       </svg>
-      <svg class="row sideicon edit" data-rise="27" data-t="0"
+      <svg class="row sideicon edit" data-rise="0" data-t="0"
            data-f0="5.756" data-fd=".06" viewBox="0 0 49 43">
         <path d="M19.1351 42.345C13.791 42.345 9.26586 40.5349 5.55952 36.9147C1.85317 33.2515 0 28.8125 0 23.5978V22.9513C0 17.909 1.78853 13.6208 5.36558 10.0869C8.98573 6.5529 13.3601 4.78592 18.4886 4.78592C19.0058 4.78592 19.4368 4.95831 19.7815 5.30309C20.1263 5.64786 20.2987 6.07883 20.2987 6.596C20.2987 7.11316 20.1263 7.54413 19.7815 7.88891C19.4368 8.23369 19.0058 8.40607 18.4886 8.40607C14.3513 8.40607 10.8389 9.82827 7.9514 12.6727C5.0639 15.5171 3.62015 18.9433 3.62015 22.9513V23.5978C3.62015 27.7782 5.12855 31.3552 8.14534 34.3289C11.1621 37.2595 14.8254 38.7248 19.1351 38.7248H28.9612C33.2709 38.7248 36.9341 37.2595 39.9509 34.3289C42.9677 31.3552 44.4761 27.7782 44.4761 23.5978C44.4761 23.0806 44.6485 22.6496 44.9933 22.3049C45.3381 21.9601 45.769 21.7877 46.2862 21.7877C46.8034 21.7877 47.2343 21.9601 47.5791 22.3049C47.9239 22.6496 48.0963 23.0806 48.0963 23.5978C48.0963 28.8125 46.2431 33.2515 42.5368 36.9147C38.8304 40.5349 34.3052 42.345 28.9612 42.345H19.1351ZM18.8765 28.123C18.3593 28.123 17.9284 27.9506 17.5836 27.6058C17.2388 27.261 17.0664 26.83 17.0664 26.3129V25.5371C17.0664 23.5547 17.4543 21.6584 18.23 19.8483C19.0058 17.9952 20.1048 16.3575 21.527 14.9353L34.5854 1.81223C35.7921 0.605514 37.2789 0.00215478 39.0459 0.00215478C40.8129 -0.0409416 42.2997 0.562417 43.5064 1.81223C44.7132 3.01895 45.3165 4.48424 45.3165 6.20813C45.3165 7.88891 44.7132 9.35421 43.5064 10.604L30.448 23.7917C29.0689 25.2139 27.4312 26.2913 25.535 27.024C23.6818 27.7566 21.7209 28.123 19.6522 28.123H18.8765ZM20.8159 24.4382C22.1088 24.3089 23.3586 23.9856 24.5653 23.4685C25.8151 22.9082 26.9356 22.154 27.9269 21.2059L40.9206 8.0182C41.4809 7.54413 41.761 6.94077 41.761 6.20813C41.761 5.47548 41.4809 4.87212 40.9206 4.39805C40.3604 3.83779 39.7139 3.55766 38.9813 3.55766C38.2917 3.55766 37.6883 3.83779 37.1712 4.39805L24.1128 17.5211C23.1215 18.4692 22.3458 19.5466 21.7855 20.7534C21.2684 21.917 20.9451 23.1453 20.8159 24.4382Z" fill="#3c4043"/>
       </svg>
@@ -1844,6 +1866,7 @@
     <button id="n2box">Box: Dark Blur</button>
     <button id="n2blur">Backdrop Blur: On</button>
     <button id="n2bare">Context Line: On</button>
+    <button id="n2trans">Transition: Morph</button>
   </div>
 
   <div class="grp p1only">
@@ -1957,6 +1980,7 @@
     <select id="seg2" class="p2only" hidden>
       <option value="all" selected>Whole Piece</option>
       <option value="prompt">Prompt Only</option>
+      <option value="promptlift">Prompt + Lift Out</option>
       <option value="response">Response Only</option>
     </select>
     <div class="row">
@@ -3553,8 +3577,9 @@ const segStart = () => PIECE === 2
                        ? (SEG2 === "response" ? N2_SPLIT_SEG : 0)
                      : SEG !== "chat" ? 0 : SPLIT_FP + TAIL;
 const segEnd   = () => PIECE === 2
-                       ? (SEG2 === "prompt" ? N2_SPLIT_SEG
-                                            : N2_NF + Math.round(N2_HOLD))
+                       ? (SEG2 === "prompt"     ? N2_SPLIT_SEG
+                        : SEG2 === "promptlift" ? N2_PROMPTLIFT_SEG
+                                                : N2_NF + Math.round(N2_HOLD))
                      : SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
 
 function frame(now){
@@ -3888,6 +3913,23 @@ function render(t){
     act1Op     = 1 - Math.pow(sat((u - 2.2) / 2.6), 1.6);  // gone by 136
   }
   chip.style.transform = `scale(${chipScale.toFixed(3)})`;
+  /* THE BACKDROP BLUR COMES OFF AT THE PRESS. It exists for the translucent
+     pill — 75% over footage or under a matte, so what shows through is
+     defocused rather than merely dimmed — and from the press the pill is
+     solid blue with nothing showing through, so it can only cost. And it
+     costs exactly where the preview stalled: profiled at 60Hz over a full
+     loop, plain mode held 60fps with a 17.8ms worst frame in every
+     configuration, and the ONLY stalls sat in the 5.5s bin, this zoom —
+     367ms with footage, 133ms under a matte, and 17.7ms with this filter
+     disabled and nothing else changed. A backdrop-filter re-reads and
+     re-blurs whatever is behind its element every frame it changes, and
+     here the element is scaling to fill the stage while act 2 appears
+     behind it. Inline "none" outranks the has-bg/has-alpha rule; "" hands
+     the rule back, so the pale pill keeps its blur to the last frame before
+     the blue. The export is unaffected either way: the blur never reached
+     the footage there (see the .aichip rule). */
+  const bdOff = litK > 0.002 || chipScale !== 1;
+  chip.style.backdropFilter = chip.style.webkitBackdropFilter = bdOff ? "none" : "";
   chip.style.filter    = chipBlur > 0.4 ? `blur(${chipBlur.toFixed(1)}px)` : "";
   world.style.opacity  = act1Op.toFixed(3);
 
@@ -6372,6 +6414,8 @@ const nctx = document.getElementById("nctx"), nctxb = document.getElementById("n
       nscrim = document.getElementById("nscrim");
 const n2chrome = document.getElementById("n2chrome");
 const n2nav = document.querySelector("#n2 .n2nav");
+const n2fadeEl = document.querySelector("#n2 .n2fade");
+const n2ruleEl = document.querySelector("#n2 .n2rule");
 /* The answer does not simply fade up — it rises. Correlating the body's row
    profile against its settled frame gives it 143px low on f56 and reaching 0
    on f67, with the peak correlation climbing 0.92 -> 1.00, and the whole block
@@ -6403,6 +6447,83 @@ const nbox = document.getElementById("nbox"), nface = document.querySelector("#n
       nmicEl = document.querySelector("#nbox .nmic");
 /* where the box starts, kept so the morph has something to leave from */
 const NB_L = 426.01, NB_T = 389.58, NB_W = 1067.86, NB_H = 300.24;
+
+/* ── THE LIFT: the second way out of act 1, by request ───────────────────
+   Instead of the box shrinking onto the chip, the box and the page's
+   furniture travel straight up and out and the chat rolls up on its own.
+   Measured off PromptBox_20260819.mp4, which opens on the same beat the
+   morph does — the box is dead still through its f48 and moves from f49,
+   and N2_MORPH0 is 48, so the two transitions are alternatives at the same
+   frame rather than two different edits.
+
+   Sub-pixel top edge of the box, px risen from rest, f48..f53:
+
+       0    1.81    8.68    22.49    46.89    86.55
+
+   It is ONE translation of the whole page, not a per-element stagger:
+   cross-correlating the context paragraph over the same frames gives
+   -2.00 / -9.00 / -22.52 / -45.77 against the box's -1.83 / -8.62 /
+   -22.00 / -45.32, equal within the measurement.
+
+   No single curve fits it — the power that reproduces each successive pair
+   climbs 2.26, 2.35, 2.55, 2.75 — so it is quoted as measured and
+   interpolated between.
+
+   IT IS CUT OFF; IT DOES NOT FLY OUT, by request and on a second look at the
+   clip. f53 is the last frame with any picture in it and the box is still
+   COMPLETELY on screen there — top 303 against a height of 298, so its
+   bottom is 601 of 1080 — at full brightness, whole-frame luminance 39.5
+   against 39.8 the frame before. f54 reads 0.0. A hard cut, with no fade and
+   no travel off the top: the whole move is 86.55px over five frames and then
+   the shot ends. So the table is not extrapolated past its end and the
+   furniture goes on N2_LIFT_CUT rather than when it has cleared the frame.
+   This was extrapolated at the last frame's ratio to about f56.6 before,
+   which invented eleven times the travel the clip actually shows.
+
+   THE GROUND DOES NOT MOVE. Measured, the top 20 rows of the reference read
+   luminance 0.0 on every frame from f48 to f53 — the dark page stays put and
+   the content slides off it, rather than the whole plate sliding away to
+   reveal something behind. So #nscrim is held still while #n1 travels, and
+   it keeps the visibility schedule it always had.
+
+   What the clip cannot say: it cuts to black on f54, so there is no frame
+   showing whether anything fades on the way out or what the ground does
+   afterwards. Nothing fades here — the travel alone takes it off. */
+const N2_LIFT     = [0, 1.81, 8.68, 22.49, 46.89, 86.55];
+const N2_LIFT_CUT = N2_MORPH0 + N2_LIFT.length;   // 54, the clip's first black
+/* PROMPT + LIFT OUT runs the same half but keeps going through the lift and
+   ends on blank frames, by request. Where it stops is measured rather than
+   chosen: PromptBox_20260819.mp4 is 56 frames, its last picture is f53 and
+   f54/f55 read luminance 0.0, so the clip carries TWO black frames after the
+   cut and this half carries the same two. Quoted in the segment's own clock
+   units, the way N2_SPLIT_SEG is — a plate frame f is f - 1 + N2_HOLD.
+   It lives HERE, beside N2_LIFT_CUT, rather than with N2_SPLIT_SEG which is
+   its sibling: it is derived from the cut, and a const cannot read one
+   declared 285 lines below it.
+   Back: drop the option; N2_SPLIT_SEG is the plain half's end. */
+const N2_LIFT_BLANK     = 2;
+const N2_PROMPTLIFT_FP  = N2_LIFT_CUT + N2_LIFT_BLANK;        // 56
+const N2_PROMPTLIFT_SEG = N2_PROMPTLIFT_FP - 1 + N2_HOLD;
+function n2Lift(f){
+  const n = f - N2_MORPH0;
+  if (n <= 0) return 0;
+  const last = N2_LIFT.length - 1;
+  if (n >= last) return N2_LIFT[last];            // held, not extrapolated
+  const i = Math.floor(n), t = n - i;
+  return N2_LIFT[i] + (N2_LIFT[i + 1] - N2_LIFT[i]) * t;
+}
+/* The chip rides the body's own curve — piece 2's measured roll-up, not
+   piece 1's numbers — at the ratio piece 1 holds between the two, 44/48.
+   Back: N2_RISE_PX for both, or 0 to leave the chip where the morph puts it. */
+const N2_CHIP_RISE_K = 44 / 48;
+/* Which way act 1 leaves. Morph is what the piece has always done — the box
+   shrinking onto the chip — and stays the default; Lift is the second one,
+   measured off PromptBox_20260819.mp4 (see N2_LIFT). Carried in the hash as
+   #n2t=lift, the way the glow dials carry a non-default and the other three
+   look toggles do not: this one changes the motion rather than the skin.
+   It lives HERE rather than with those toggles because render2 reads it and
+   `let` would still be in its dead zone down there. */
+let LIFT_ON = Q.get("n2t") === "lift";
 const NSEND_L = 943.8, NSEND_W = 94.29;      // the send pill's resting rect
 
 /* ── both shapes follow the prompt's length ─────────────────────────────
@@ -6781,13 +6902,77 @@ function render2(t){
   nsend.querySelector("svg").style.fill = sendInk;
 
   /* ── act 1 into act 2: the box becomes the chip ── */
-  const flash = sat((f - N2_FLASH0) / (N2_FLASH1 - N2_FLASH0));
+  /* THE GROUND WAITS FOR THE CUT ON THE LIFT TOO, by request. The wash is
+     measured at f49..52, which on the lift put the page most of the way to
+     white while the box was still travelling over it — the reference does
+     the opposite, its top 20 rows reading luminance 0.0 on every frame to
+     the cut. Shifted so the wash STARTS on N2_LIFT_CUT rather than merely
+     being delayed with act 2: the ask is that it not turn white until the
+     box has gone, and act 2's own two-frame shift would still have had it
+     part-way there. Its length is untouched.
+     N2_SPLIT_FP is deliberately left on N2_FLASH0 — that is where the piece
+     breaks into halves, a structural seam rather than a beat of the wash.
+     Back: drop flashFrom. */
+  /* Two questions, answered once each, because six things downstream ask them
+     and they used to be spelled out inline as `SEG2 !== "prompt"`.
+     PROMPT_HALF: is this the prompt half at all — either of its two options.
+     liftHere: does the lift run on this frame. Prompt + Lift Out carries the
+     lift ITSELF rather than deferring to the Transition toggle, so the two
+     cannot contradict each other: that toggle says how act 1 hands over to
+     act 2, and this half has no act 2 to hand to. */
+  const PROMPT_HALF = SEG2 === "prompt" || SEG2 === "promptlift";
+  const liftHere    = SEG2 === "promptlift" || (LIFT_ON && !PROMPT_HALF);
+  const flashFrom = liftHere ? N2_LIFT_CUT - N2_FLASH0 : 0;
+  /* and never at all on the prompt half. On the plain Prompt Only this is a
+     no-op — that half ends on plate 48.60 where the wash is still 0 — but
+     Prompt + Lift Out runs to 56, straight through the wash's 49..52, and
+     without this the page would turn white behind a lift that is meant to
+     finish on blank. */
+  const flash = PROMPT_HALF ? 0
+              : sat((f - flashFrom - N2_FLASH0) / (N2_FLASH1 - N2_FLASH0));
   n2page.style.opacity = (f >= N2_A3 ? 0 : flash).toFixed(3);
+  /* .n2fade is a white gradient whose whole job is to blend the answer's
+     bottom into the white page, so it is exactly as present as that page is
+     white. It used to be a CSS constant, which was invisible while the wash
+     always finished before act 2 arrived; on the lift the act now opens on a
+     ground still turning, and a solid white band across the bottom of a dark
+     frame is the one thing in the shot that cannot be there. Derived from the
+     page it serves rather than given a ramp of its own, so the two cannot
+     drift. Morph is untouched: its wash is complete on the frame act 2
+     arrives, so this reads 1 for every frame of that act, as before. */
+  n2fadeEl.style.opacity = flash.toFixed(3);
+  /* The rule rides the wash too, by request — it is drawn ON the page rather
+     than being ink that arrives over it, so it cannot be more present than
+     the page is. Same construction as `data-on-card` in the other piece.
+     On the morph the wash is complete before act 2 arrives, so this is 1 for
+     every frame of that act and nothing there changes. */
+  n2ruleEl.style.opacity = flash.toFixed(3);
   /* act 1's furniture is not faded — the white page rising over it is what
      takes it out, which is why the plate's context line is still legible at a
      third of the way through and gone at the end */
   n1El.style.opacity = "1";
-  n1El.style.visibility = f >= N2_A2 ? "hidden" : "visible";
+  /* THE TWO WAYS OUT. On the lift the furniture keeps travelling past act 2's
+     arrival — that is the whole of the transition — so it cannot be taken out
+     on N2_A2 the way the morph's is; it goes when it has cleared the frame.
+     The scrim is the exception and keeps the morph's schedule either way,
+     because it is the ground rather than furniture and the reference's ground
+     never moves. It is inside #n1, so it is held still against #n1's own
+     travel and hidden on its own. */
+  const liftOut = liftHere ? n2Lift(f) : 0;
+  const liftCut = liftHere && f >= N2_LIFT_CUT;
+  if (liftHere){
+    const tf = liftOut > 0.05 ? `translate3d(0,${(-liftOut).toFixed(2)}px,0)` : "";
+    n1El.style.transform = nbox.style.transform = tf;
+    nscrim.style.transform = liftOut > 0.05
+      ? `translate3d(0,${liftOut.toFixed(2)}px,0)` : "";
+    nscrim.style.visibility = (PROMPT_HALF ? liftCut : f >= N2_A2)
+                              ? "hidden" : "visible";
+    n1El.style.visibility = liftCut ? "hidden" : "visible";
+  } else {
+    n1El.style.transform = nbox.style.transform = nscrim.style.transform = "";
+    nscrim.style.visibility = "";
+    n1El.style.visibility = f >= N2_A2 ? "hidden" : "visible";
+  }
 
   /* In the PROMPT half the morph must not start. The half's seam is the click's
      end, but its last exported frame lands on plate 48.60 — a fifth of the way
@@ -6798,11 +6983,17 @@ function render2(t){
      Held at zero the half stays in whichever look is on — dark or white — for
      its whole length, which is what that half is for. The press is untouched:
      it runs off N2_PRESS on its own clock and finishes inside the half. */
-  const promptOnly = SEG2 === "prompt";
-  const mt = promptOnly ? 0 : sat((f - N2_MORPH0) / (N2_MORPH1 - N2_MORPH0));
-  const inMorph = f > N2_MORPH0 && f < N2_A2;
+  const promptOnly = PROMPT_HALF;
+  /* The lift holds the morph at zero for exactly the reason the prompt half
+     does: the box keeps its resting rect and its resting skin, and simply
+     travels. Everything the morph drives — the rect, the face colour, the
+     font, the send pill — reads mt and the two windows, so this is the whole
+     of turning it off. */
+  const mt = (promptOnly || LIFT_ON)
+             ? 0 : sat((f - N2_MORPH0) / (N2_MORPH1 - N2_MORPH0));
+  const inMorph = !LIFT_ON && f > N2_MORPH0 && f < N2_A2;
   /* the rect's own window outlives act 2's arrival — see N2_SETTLE_K */
-  const inSettle = !promptOnly && f >= N2_A2 && f < N2_SETTLE_END;
+  const inSettle = !promptOnly && !LIFT_ON && f >= N2_A2 && f < N2_SETTLE_END;
   /* the skin the box starts from — the morph has to lerp out of whichever look
      is on, not out of the dark one it was written against */
   const boxWhite = stage2.classList.contains("box-white");
@@ -6816,8 +7007,13 @@ function render2(t){
           cw = n2chip.offsetWidth, ch = n2chip.offsetHeight;
     /* the RECT rides the measured exponential; the font and the face below
        stay on the power curve, which is where the clip puts them */
-    const ru = promptOnly ? 0 : settle(f);
-    const u = promptOnly ? 0
+    /* The rect has its own two curves — the settle it travels on and the
+       power curve the font and face read — and neither goes through mt, so
+       the lift has to zero them here as well or the box shrinks while it
+       flies. Same reasoning as promptOnly, which is why they share the test. */
+    const still = promptOnly || LIFT_ON;
+    const ru = still ? 0 : settle(f);
+    const u = still ? 0
             : Math.pow(sat((f - N2_MOVE0) / (N2_MOVE1 - N2_MOVE0)), N2_MORPH_P);
     const lerp = (a, b) => a + (b - a) * ru;
     nbox.style.left   = lerp(NB_L, cx).toFixed(2) + "px";
@@ -6877,12 +7073,29 @@ function render2(t){
      arrival and draws OVER it until it lands on the chip — #n2 carries
      z-index 4 and the box's own 3 would otherwise put the chrome on top of
      the thing the eye is following. */
-  nbox.style.visibility = (f >= N2_SETTLE_END || promptOnly && f >= N2_A2)
-                          ? "hidden" : "visible";
+  nbox.style.visibility =
+      (liftHere ? liftCut
+       : f >= N2_SETTLE_END || promptOnly && f >= N2_A2)
+      ? "hidden" : "visible";
   nbox.style.zIndex = inSettle ? "5" : "";
 
   /* ── act 2 ── */
-  const inA2 = f >= N2_A2 && f < N2_A3;
+  /* ACT 2 WAITS FOR THE CUT ON THE LIFT, by request — the whole arrival, not
+     just the climb. On the morph it opens on N2_A2 because the box is flying
+     down onto the chip and the two belong together; on the lift the box lands
+     on nothing and is cut away whole on N2_LIFT_CUT, and the chat is the
+     answer to that cut rather than something happening underneath it.
+     It is ONE shift on act 2's own clock rather than a delay bolted onto each
+     beat, because act 2 has four of them quoted against this frame — the
+     arrival, the body's two-frame fade, the roll-up and the nav's ramp — and
+     moving one without the others would just re-cut the act internally.
+     The EXIT is deliberately not shifted: N2_A3 and the body's 79.3 fade
+     belong to act 3's timing, so the act arrives two frames later and is two
+     frames shorter rather than pushing the rest of the piece along.
+     Back: A2_SHIFT = 0. */
+  const A2_SHIFT = liftHere && !PROMPT_HALF ? N2_LIFT_CUT - N2_A2 : 0;
+  const fa = f - A2_SHIFT;                    // act 2's own clock
+  const inA2 = !PROMPT_HALF && fa >= N2_A2 && f < N2_A3;
   /* held rather than written here: act 2's EXIT sets n2body's transform too,
      a few lines down, and whichever assignment ran last won. It was the
      exit's, unconditionally, on every frame of the roll-up — so the climb
@@ -6891,13 +7104,44 @@ function render2(t){
   let bodyRise = 0;
   n2El.style.opacity = inA2 ? "1" : "0";
   n2El.style.visibility = inA2 ? "visible" : "hidden";
+  /* Cleared out here, not only in the branch below: written just inside
+     `if (inA2)` it survived every frame outside act 2, so scrubbing back
+     before f52 — or switching transition after a play — left the chip
+     holding the last climb it had been given. The body has a comment about
+     the same class of bug two properties down.
+     The opacity goes with it for the same reason. Nothing could SEE the stale
+     value — #n2 is opacity 0 and hidden on these frames — but it meant the
+     two transitions left different state behind on frames 44-52 and the
+     piece no longer round-tripped when the toggle was switched back.
+     The body's and the nav's opacities are here for the third time round the
+     same lamppost: once act 2's clock could differ between the transitions,
+     the frames where each last wrote them differed too, and the round-trip
+     broke again with 7 differences. Everything act 2 writes and does not
+     rewrite every frame belongs in this line. */
+  if (!inA2) n2chip.style.transform = n2chip.style.opacity =
+             n2body.style.opacity = n2nav.style.opacity = "";
   if (inA2){
-    bodyRise = N2_RISE_PX * Math.pow(N2_RISE_K, Math.max(0, f - N2_RISE0));
-    n2nav.style.opacity  = sat((f - 55) / 7).toFixed(3);
-    /* the chip is the box's landing point, so it stays out of the way until
-       the box has landed on it — before N2_SETTLE_END the two would sit on
-       top of each other, one moving and one not. */
-    n2chip.style.opacity = f >= N2_SETTLE_END ? "1" : "0";
+    /* both on act 2's clock, so the lift's two-frame wait carries them */
+    bodyRise = N2_RISE_PX * Math.pow(N2_RISE_K, Math.max(0, fa - N2_RISE0));
+    n2nav.style.opacity  = sat((fa - 55) / 7).toFixed(3);
+    if (LIFT_ON){
+      /* Nothing is landing on the chip here, so it arrives with the answer and
+         climbs with it — the bubble and the response rolling up together, the
+         way act 2 of the search piece does it. The curve is this piece's own,
+         not that one's: N2_RISE_K from N2_RISE0. */
+      /* it comes up WITH the page, by request, rather than arriving whole on
+         a ground that is still dark — same tie as the rule and the fade band */
+      n2chip.style.opacity = flash.toFixed(3);
+      const cr = bodyRise * N2_CHIP_RISE_K;
+      n2chip.style.transform = cr > 0.5
+        ? `translateY(${cr.toFixed(1)}px)` : "";
+    } else {
+      /* the chip is the box's landing point, so it stays out of the way until
+         the box has landed on it — before N2_SETTLE_END the two would sit on
+         top of each other, one moving and one not. */
+      n2chip.style.opacity = f >= N2_SETTLE_END ? "1" : "0";
+      n2chip.style.transform = "";
+    }
   }
 
   /* On the way out the page smears sideways, and it is a BOX smear rather than
@@ -7013,8 +7257,10 @@ function render2(t){
        -0.105 a frame from f79.3, so it is written as one rather than as a
        power that has to be solved to read.
        Back: `1 - 0.55 * Math.pow(sat((f - 80) / 6), 1.5)`. */
+    /* the arrival reads act 2's clock and so waits with it; the exit keeps
+       the raw frame, being act 3's business rather than this act's */
     n2body.style.opacity =
-      (sat((f - N2_A2) / 2) * sat(1 - (f - 79.3) / 9.5)).toFixed(3);
+      (sat((fa - N2_A2) / 2) * sat(1 - (f - 79.3) / 9.5)).toFixed(3);
     n2chrome.style.opacity = (1 - sat((f - 79) / 4)).toFixed(3);
   }
 
@@ -7150,7 +7396,8 @@ const $n2q = document.getElementById("n2q"), $n2ctx = document.getElementById("n
       $n2size = document.getElementById("n2size"),
       $n2tail = document.getElementById("n2tail"), $n2qwarn = document.getElementById("n2qwarn"),
       $n2box = document.getElementById("n2box"), $n2blur = document.getElementById("n2blur"),
-      $n2bare = document.getElementById("n2bare");
+      $n2bare = document.getElementById("n2bare"),
+      $n2trans = document.getElementById("n2trans");
 $n2a.value = N2_BODY;
 /* ── the panel's prompt field wraps where the box wraps ──────────────────
    Both pieces end up with the same promise — what the field shows is what the
@@ -7249,11 +7496,27 @@ function applyN2Look(){
   $n2box.textContent  = "Box: " + (boxWhiteOn ? "White" : "Dark Blur");
   $n2blur.textContent = "Backdrop Blur: " + (backdropOn ? "On" : "Off");
   $n2bare.textContent = "Context Line: " + (ctxOn ? "On" : "Off");
+  $n2trans.textContent = "Transition: " + (LIFT_ON ? "Lift" : "Morph");
   render(hold !== null ? hold : 0);
 }
 $n2box.onclick  = () => { boxWhiteOn = !boxWhiteOn; applyN2Look(); };
 $n2blur.onclick = () => { backdropOn = !backdropOn; applyN2Look(); };
 $n2bare.onclick = () => { ctxOn = !ctxOn; applyN2Look(); };
+$n2trans.onclick = () => {
+  LIFT_ON = !LIFT_ON;
+  /* the two transitions leave different inline state on the same elements —
+     the morph writes the box's rect and the lift writes transforms — so the
+     one being switched away from is wiped rather than left to be overwritten
+     only on the frames the other happens to touch */
+  n1El.style.transform = nbox.style.transform = nscrim.style.transform = "";
+  nscrim.style.visibility = "";
+  n2chip.style.transform = "";
+  applyN2Look();
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  LIFT_ON ? h.set("n2t", "lift") : h.delete("n2t");
+  const q = h.toString();
+  history.replaceState(null, "", q ? "#" + q : location.pathname);
+};
 /* the query box's own glow dial, piece 1's shape: field and bar drive each
    other, 0 is real (isFinite, not ||), the hash carries a non-default */
 const $g2s = document.getElementById("g2spd"), $g2sn = document.getElementById("g2spdn");
