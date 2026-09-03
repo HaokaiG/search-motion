@@ -471,6 +471,7 @@ redistribution question if the file leaves this machine.
   CSS `conic-gradient` masked by the supplied outline — and the plate agrees with the reading:
   red at the top, blue right, green bottom, yellow left, all four hues matching.
 - Everything is driven by one `render(t)` function off `requestAnimationFrame`.
+- Nothing measures without layout. The query's baseline is placed by measuring the font (`alignBaseline`, baseline on 566), and that ran only from the window's resize handler — so a resize while the prompt piece was up, with `#world` display:none, measured every rect as 0 and wrote the bare target: top 566 against the 486 a real measurement gives, the text 16.5px below the bar when the search piece came back, and nothing on the way back re-ran it. Both measurers on that handler — `alignBaseline`, and `relineAnswer`, which groups the answer's words into lines by their offsetTop — now decline when the element has no box, and the baseline is re-derived with the rest of the bar in `applyQuery`, which runs on the return to the piece and on every mode flip. The CSS placeholder was 494 and is 486, so the text no longer drops 8px at the first resize either.
 
 ## Checked against Apple's own description of ProRes 4444
 

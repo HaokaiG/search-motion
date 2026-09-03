@@ -466,7 +466,10 @@
   /* 86.40 is the plate's solved 90.95 taken down 5%, by request. The baseline
      still lands on the measured 566 — alignBaseline sets `top` from whatever
      the face actually does, so it follows the size on its own.            */
-  .query{position:absolute;left:516px;top:494px;white-space:pre;
+  /* top is owned by alignBaseline (baseline on 566; the font's offset measures
+     80, so 486). This is only the paint before boot reaches it — it was 494,
+     and the text dropped 8px at the first resize as the rule took over. */
+  .query{position:absolute;left:516px;top:486px;white-space:pre;
          font-size:86.40px;font-weight:356;line-height:1;color:var(--ink)}
   .query span{vertical-align:baseline}
   #caret{display:inline-block;width:6px;height:80px;background:#111;
@@ -2882,6 +2885,12 @@ let INBOLD = false;
 
 /* group the words into lines by where layout actually put them */
 function relineAnswer(){
+  /* Same collapsed-measurement trap as alignBaseline: while the prompt piece
+     is up every word's offsetTop reads 0 (offsetParent is null under a
+     display:none ancestor), so a resize then would fold the whole answer
+     into ONE line group and the reveal would come up in a single step. Keep
+     the groups that were measured with layout instead. */
+  if (WORDS.length && WORDS[0].offsetParent === null) return;
   const rows = new Map();
   for (const w of WORDS){
     if (w.classList.contains("bul")) continue;    // placed structurally, below
@@ -2962,6 +2971,15 @@ const qtext  = document.getElementById("qtext");
 const caret  = document.getElementById("caret");
 /* put an element's text baseline on an exact y, whatever font resolved */
 function alignBaseline(el, y){
+  /* NOT while it has no box. On the prompt piece #world is display:none, so
+     the element's own display still reads block but every rect collapses to
+     0 — the probe and the element both report top 0, `off` is 0, and the
+     bare target was being written verbatim: top:566px against the 486 the
+     real measurement gives. Back on the search piece the query then sat 142
+     into a 234 bar, 16.5px past its bottom edge, and stayed there, because
+     nothing on the way back re-ran this. A resize while the other piece is
+     up is all it took, which is why it only happened sometimes. */
+  if (!el.getBoundingClientRect().height) return;
   const probe = document.createElement("span");
   probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
   el.appendChild(probe);
@@ -3884,6 +3902,12 @@ const $ts = document.getElementById("tspd"), $tsn = document.getElementById("tsp
       $tw = document.getElementById("twarn");
 function applyQuery(){
   setQuery($q.value);
+  /* The baseline used to be placed only by the window's resize handler, so
+     anything stored there while the piece was hidden survived every switch
+     back. Re-derive it here with the rest of the bar: this runs on the return
+     to this piece, on every mode flip and on every edit, and it is a no-op
+     while the query has no box. */
+  refit();
   /* the field hugs what was typed, so the rows it holds are the rows you see */
   fitField($q);
   /* the run, and the piece it implies. The old note about typing through the
