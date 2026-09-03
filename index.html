@@ -172,7 +172,35 @@
      bubble control. This is the RESTING fill only: from the press the value
      is written inline per frame, and that path honours the same alpha. The
      two must agree at litK 0, and they do — both are rgba(244,246,247,A). */
-  #stage.has-bg .aichip, #stage.has-alpha .aichip{--chip-a0:.75}
+  /* The pill is only 75% there in these two modes, and until now that was
+     all it was — footage read straight through it. It gets the design's own
+     backdrop blur behind it too, the same 10px piece 2's prompt scrim uses,
+     so what shows through is defocused rather than merely dimmed.
+     backdrop-filter, not filter: filter would blur the pill's own ink — the
+     label and the lens with it — where backdrop-filter blurs only what is
+     already painted behind the element and leaves its contents sharp.
+
+     IT DOES NOT REACH THE FOOTAGE IN AN EXPORT, and that is worth knowing
+     before trusting the preview. The property itself survives the export
+     path — measured with a striped test layer inside the stage, the
+     contrast behind the pill fell from 64.7 to 0.7 through drawStage, so
+     the serialised foreignObject honours it. What it cannot see is the
+     VIDEO: stageSVG hides bgvid and bgimg before serialising, and drawStage
+     paints the footage onto the canvas and then composites the stage SVG
+     over it. The footage is therefore underneath the SVG rather than inside
+     it, and a backdrop-filter can only blur what its own document paints
+     behind it.
+     So: over footage the preview defocuses the plate behind the pill and
+     the exported file does not. In the transparent mode the two agree —
+     there is no footage, and what sits behind the pill inside the stage is
+     the bar's flat scrim, which has nothing to defocus either way.
+     Making the export match would mean blurring the canvas region under the
+     chip in drawStage, between bgDrawInto and the drawImage of the stage.
+     Back: the --chip-a0 line alone, with no blur. */
+  #stage.has-bg .aichip, #stage.has-alpha .aichip{
+                     --chip-a0:.75;
+                     -webkit-backdrop-filter:blur(10px);
+                     backdrop-filter:blur(10px)}
   /* The query steps up to Medium here, but the chip's label does NOT — it is
      Regular in every mode, by request. It was 500 over footage and alpha on
      the reasoning that the pill is only 75% there and the label needed the
@@ -261,9 +289,24 @@
            -webkit-mask-composite:xor;mask-composite:exclude;
            will-change:--mask-angle,--gradient-angle}
   .bargrad-mask{position:absolute;inset:170px;border-radius:117px}
+  /* THE VANISHING POINT LIVES HERE, and it used to be unmovable. This clip
+     had no `from`, so it never turned: its transparent notch sat at 50% of
+     the turn, which with conic 0deg pointing up is screen BOTTOM, and that
+     is the point where the glow disappears. Turning --mask-angle moved the
+     travelling window PAST that notch and so read as a second break opening
+     somewhere else rather than as the bottom one moving.
+     `from var(--break-angle)` makes the notch turn too. The default lives in
+     the var() fallback rather than as a declaration here, because a property
+     set on this element would outrank the one #chipgrad sets and the dial
+     would never reach the clip. 0deg is exactly what it was — notch at the
+     bottom — so the bar, which never sets the property, is untouched. An
+     axis-aligned scale keeps the four cardinals fixed, so the notch lands
+     where the angle says even through .gmask's squash.
+     Back: drop the `from` and the property with it. */
   .gblur{position:absolute;inset:0;border-radius:inherit;overflow:hidden;
          backface-visibility:hidden;transform:translateZ(0);
-         --composit-clip:conic-gradient(#000 30%,transparent 50%,#000 70%)}
+         --composit-clip:conic-gradient(from var(--break-angle, 0deg),
+                         #000 30%,transparent 50%,#000 70%)}
   .gblur.tip{filter:blur(2.72px)}   /* the source's 1px, on the same scale */
   .gmask{position:absolute;inset:0;border-radius:inherit;
          -webkit-mask-image:conic-gradient(from var(--mask-angle),
@@ -325,30 +368,28 @@
      bottom lights, 2.2 is the best this mask shape reaches: 80%, against 63
      at 1.6, 71 at 3 and 57 at 5. Back: delete this rule to share the bar's. */
   .chipgrad .gmask{scale:2.2 1.5}
-  /* A WIDER window than the bar's, by request: more of the button should be
-     lit at once so the turn can be slower without reading as a stall. The
-     source's window is `transparent 50, black 68..75, transparent 89` — about
-     39% of the circle. Opened to 28..99 it lights **57%** of the chip's
-     perimeter against the 32% it managed before, measured at 180 points; the
-     intermediate widths went 46% at 42/58/80/95 and 54% at 35/50/85/98, and
-     going wider still (20/38/92/100) reaches 62% but leaves so little dark
-     that the travelling gap stops reading. The sharp-tip layer keeps its own
-     narrower core, as it does on the bar.
-     Back: delete this rule to share the bar's window. */
-  .chipgrad .gmask{
-       -webkit-mask-image:conic-gradient(from var(--mask-angle),
-           transparent 0%,transparent 28%,#000 44%,#000 88%,transparent 99%),
-           var(--composit-clip);
-       mask-image:conic-gradient(from var(--mask-angle),
-           transparent 0%,transparent 28%,#000 44%,#000 88%,transparent 99%),
+  /* NO travelling window on the chip: the glow wraps the whole button and
+     the only dark place is the vanishing point, which --composit-clip cuts.
+     This is what the source does. Measured on SearchIntro_02_V07_AB.mp4, the
+     glow's first frame (f120) already lights 6041 px of ring and only ever
+     reaches 8091 — a 34% growth, not a sweep opening from nothing. The
+     travelling window that used to live here lit 57% of the perimeter at
+     best, so a third of the button was always dark and the arc read as the
+     subject rather than the ring.
+     A full-circle window makes --mask-angle inert here; the turn is carried
+     by --gradient-angle, which spins the colour wheel inside the ring, and
+     that is what Button glow speed now drives.
+     Back: restore the window below, which is the bar's opened to 28..99 —
+     it lit 57% of the perimeter against 32% for the bar's own 39% window.
+       .chipgrad .gmask{mask-image:conic-gradient(from var(--mask-angle),
+           transparent 0,transparent 28%,#000 44%,#000 88%,transparent 99%),
            var(--composit-clip)}
-  .chipgrad .tip .gmask{
-       -webkit-mask-image:conic-gradient(from var(--mask-angle),
-           transparent 0%,transparent 44%,#000 72%,transparent 99%),
-           var(--composit-clip);
-       mask-image:conic-gradient(from var(--mask-angle),
-           transparent 0%,transparent 44%,#000 72%,transparent 99%),
-           var(--composit-clip)}
+       .chipgrad .tip .gmask{mask-image:conic-gradient(from var(--mask-angle),
+           transparent 0,transparent 44%,#000 72%,transparent 99%),
+           var(--composit-clip)}                                          */
+  .chipgrad .gmask, .chipgrad .tip .gmask{
+       -webkit-mask-image:conic-gradient(#000 0 100%),var(--composit-clip);
+       mask-image:conic-gradient(#000 0 100%),var(--composit-clip)}
 
   /* ── the bar the G wears ─────────────────────────────────────────────
      With the G in it the bar runs 4.89% over the plate's, by request, and
@@ -438,7 +479,10 @@
   /* 86.40 is the plate's solved 90.95 taken down 5%, by request. The baseline
      still lands on the measured 566 — alignBaseline sets `top` from whatever
      the face actually does, so it follows the size on its own.            */
-  .query{position:absolute;left:516px;top:494px;white-space:pre;
+  /* top is owned by alignBaseline (baseline on 566; the font's offset measures
+     80, so 486). This is only the paint before boot reaches it — it was 494,
+     and the text dropped 8px at the first resize as the rule took over. */
+  .query{position:absolute;left:516px;top:486px;white-space:pre;
          font-size:86.40px;font-weight:356;line-height:1;color:var(--ink)}
   .query span{vertical-align:baseline}
   #caret{display:inline-block;width:6px;height:80px;background:#111;
@@ -468,10 +512,24 @@
      blue arrives and the alpha starts to matter. The has-bg / has-alpha rule
      below overrides only the DEFAULT alpha, not this construction. */
   .aichip{position:absolute;left:2375px;top:459px;width:432.8px;height:158px;
-          background:rgba(244,246,247,calc(var(--chip-a0) * var(--chip-k)));
+          background:rgba(245,248,255,calc(var(--chip-a0) * var(--chip-k)));
           border-radius:79px;
-          box-shadow:0 2px 10px rgba(32,33,36,.10);
-          display:flex;align-items:center;gap:26.8px;padding-left:52.9px;
+          /* No shadow. Chip.svg draws the pill as two flat rects with no
+             filter and nothing under them, so the drop shadow this used to
+             carry is not in the design it is taken from.
+             It changes nothing outside the bar: the shadow reached about
+             12px (2 offset + 10 blur) and the chip sits 37px clear of the
+             bar's bottom edge and 45px of its right, so it only ever fell on
+             the bar's own face — measured, not assumed, because the first
+             version of this note claimed it had been leaking into the matte
+             and that was wrong.
+             Back: `box-shadow:0 2px 10px rgba(32,33,36,.10)`. */
+          /* Both off Chip.svg, measured with getBBox and scaled by the pill:
+             the file's pill is 261.21 wide against this 432.8, so 1.65691 a
+             unit. Its icon ink starts 32.54 units in from the pill's left
+             edge (53.92px) and its label starts 15.62 units after the icon
+             ends (25.88px). Back: 52.9 and 26.8. */
+          display:flex;align-items:center;gap:25.88px;padding-left:53.92px;
           transform-origin:50% 50%;will-change:transform,filter}
   /* Box tightened to the artwork bounds, so the plate's ink is the measured
      67x67 px (content x 2433…2500, y 504…571). Run over that by request: 15%
@@ -493,9 +551,17 @@
      direction and not the amount, drawing its ink 1.245 of 53 units high,
      2.07px at this scale; the button file is the one that shows the icon in
      place, so it wins. Matches how the label carries its own translateY. */
+  /* 69.8 still: the new file draws the icon 42.13 units on its 261.21 pill,
+     which is 69.80px here — the same number the previous file gave, so the
+     size is unchanged and only where it sits and what colour it is move.
+     -3.44, not -1.55: the new file rides the icon 2.08 units above the
+     pill's centre (ink 24.56..66.64 against a 95.35 pill) where the old one
+     rode it 0.93. Back: -1.55.
+     The path itself is the same shape — the two files' icons differ by 0.5%
+     in size and a translation, which the box already normalises. */
   .aichip svg.spark{width:69.8px;height:69.8px;flex:none;
-                    transform:translateY(-1.55px);
-                    color:var(--chip-ink,#1f1f1f)}
+                    transform:translateY(-3.44px);
+                    color:var(--chip-ink,#0B57D0)}
   /* flex:none + pre, or the letter-spacing correction lets flex shrink and
      wrap the label once the chip scales up through the cut               */
   /* 60.4, fitted to the file's text ink: 226.0 wide at 60px and 229.8 at 61,
@@ -505,7 +571,7 @@
      own cap rather than the drawn ink argues for 62.4, and that is 3% wide
      and pushes the text past where the file ends it. */
   .aichip b{flex:none;white-space:pre;font-size:60.4px;font-weight:400;
-            line-height:1;color:var(--chip-ink,#1f1f1f);transform:translateY(2px)}
+            line-height:1;color:var(--chip-ink,#0B57D0);transform:translateY(2px)}
 
   /* ============ ACT 2 — the AI Mode answer ============ */
   /* The card is white at full strength unless something sets --a2bg, which
@@ -950,8 +1016,8 @@
      from measuring the wrong element. */
   /* The source's composit-clip is DISABLED here — overridden to solid black,
      so the intersect it feeds becomes a no-op while the structure stays the
-     bar's. Measured reason, not taste: the clip is a fixed notch (it has no
-     `from`, so it never turns), and against this element's 92%-wide window it
+     bar's. Measured reason, not taste: the clip is a notch this element never
+     turns (it sets no --break-angle), and against its 92%-wide window it
      pinned the visible gap at perimeter fraction 0.945..0.315 — the left side
      and top-left corner — at EVERY mask angle from 0 to 345. The travelling
      window's own gap was reduced to a second, smaller hole, which is why the
@@ -971,8 +1037,9 @@
           With the wheel now opaque — the source's, blue wrapping to blue —
           the WINDOW is what shapes the band again, so the near-fully-open
           5/12/97/100 that suited the alpha-faded wheel would light the whole
-          ring. The chip's 28/44/88/99 is the width that measures nearest the
-          reference distribution here.
+          ring. A 28/44/88/99 window measures nearest the reference
+          distribution here. The chip carried the same one until its glow was
+          opened to wrap the whole button; this is now its only use.
           Back: 5/12/97/100 for the faded-wheel pairing, or the source's
           50/68/75/89. */
        -webkit-mask-image:conic-gradient(from var(--mask-angle),
@@ -1522,6 +1589,8 @@
         <div class="chipgrad" id="chipgrad">
           <div class="chipgrad-mask">
             <div class="gblur" data-cb><div class="gmask"><i></i></div></div>
+            <div class="gblur boost"><div class="gmask"><i></i></div></div>
+            <div class="gblur boost"><div class="gmask"><i></i></div></div>
             <div class="gblur tip"><div class="gmask"><i></i></div></div>
           </div>
         </div>
@@ -1845,6 +1914,20 @@
       <canvas id="gbzc" class="bez" width="252" height="252"></canvas>
       <button id="gbzreset">Reset Curve</button>
     </div>
+    <!-- The AI Mode button's own ring, which until now had no dial at all:
+         its turn was a baked 360 over CHIP_CYCLE_F0..F1. Two controls,
+         because the two things that were asked about are independent — how
+         FAST the ring turns, and WHERE its break sits. -->
+    <div class="lbl"><label for="bgspd">Button glow speed</label>
+      <input id="bgspdn" type="number" min="0" max="8" step="0.05" value="1.00">
+    </div>
+    <span class="warn" id="bgwarn"></span>
+    <input id="bgspd" type="range" min="0" max="4" step="0.05" value="1">
+    <div class="lbl"><label for="bgphase">Button glow break</label>
+      <input id="bgphasen" type="number" min="0" max="360" step="1" value="0">
+    </div>
+    <span class="warn" id="bgphasewarn"></span>
+    <input id="bgphase" type="range" min="0" max="360" step="1" value="0">
   </div>
 
   <div class="grp">
@@ -2174,7 +2257,18 @@ const K_CHIP  = 158 / 112 * 1.3;
    That is **32.7 deg a frame against the 45 it was** — the slower turn the
    wider window was asked for. Back: read GRAD_A/MASK_A, which is the bar's
    wheel. */
-const CHIP_PHASE0 = 270, CHIP_CYCLE_F0 = 117, CHIP_CYCLE_F1 = 128;
+/* Both are dials now — see the panel. CHIP_TURN_BASE is the revolution the
+   ring used to make with no way to change it; CHIP_SPEED multiplies it, so
+   1.00 is exactly what the piece did before and 0 freezes the ring where its
+   phase puts it. CHIP_PHASE_DEF is where the break sits at rest.
+   Back: `CHIP_PHASE0 = 270` with a baked `360 * cu` in the turn. */
+const CHIP_CYCLE_F0 = 117, CHIP_CYCLE_F1 = 128;
+const CHIP_TURN_BASE = 360, CHIP_SPEED_DEF = 1;
+/* 0 = the RIGHT side, by request. The clip's notch was pinned to the bottom,
+   which is 90 on this scale; that is the way back. */
+const CHIP_BREAK_DEF = 0;
+const CHIP_PHASE0 = 270;                 // where the travelling window opens
+let CHIP_SPEED = CHIP_SPEED_DEF, CHIP_BREAK = CHIP_BREAK_DEF;
 const BURST_BLUR = [[0, 1*K_PLATE, null], [0.15, 20*K_PLATE, null],
                     [0.25, 5*K_PLATE, null], [0.45, 7*K_PLATE, null],
                     [1, 1*K_PLATE, null]];
@@ -2338,6 +2432,48 @@ const RING_FADE = [[RING_F0, 0], [115, 0.077], [116, 0.352], [117, 0.502],
                    [122, 1.000], [123, 0.962], [124, 0.920], [125, 0.679],
                    [126, 0.365], [127, 0.204], [128, 0]];
 const RING_VISIBLE_F = (RING_FADE.find(([, v]) => v > 0) || [RING_F0])[0];  // 115
+/* THE CHIP RING COMES IN DIM AND BUILDS, by request, and the source agrees.
+   Peak chroma round the button in SearchIntro_02_V07_AB.mp4, normalised to
+   its own top, holds at nothing through f119 and then climbs without a
+   pause: .679 .731 .806 .813 .858 .903 .963 .993 .985 1.000 at f120..f129.
+   So it arrives at roughly two thirds and takes 9 frames to reach full —
+   a sustained build, where RING_FADE alone is front-loaded (it does 92% of
+   its climb in the first 4 of its 7 rising frames) and reads as a snap.
+   This rides ON TOP of that envelope, which keeps owning the arrival and
+   the press-out; all this adds is the long intensification.
+   Back: CHIP_RISE0 = 1 restores the envelope on its own. */
+const CHIP_RISE0 = 0.68, CHIP_RISE_F1 = RING_VISIBLE_F + 9;   // 115 -> 124
+/* THE RING IS THIN OVER FOOTAGE AND UNDER A MATTE, by request. Same
+   complaint the bar had and the same cause: on the white card the glow lies
+   on white, and in these two modes it lies on the bar's 20% black scrim,
+   where a blurred pastel simply has no contrast left to spend.
+   Three levers were measured through the EXPORT path at f122, not the
+   preview, and two of them are dead ends worth writing down:
+     · the bar's own remedy, extra passes, tops out here. Two at the bar's
+       BOOST_BLUR_K give 1.09x the ring's added alpha and four give 1.15x;
+       at full blur it is 1.17x and 1.27x. Nowhere near the 1-(1-a)^3 the
+       bar gets, because this glow lies over a scrim that is already part
+       way up, so added alpha saturates instead of stacking.
+     · mix-blend-mode screen / plus-lighter change nothing at all: mean
+       chroma 16.1 today, 15.7 screen, 15.8 plus-lighter. The blend has no
+       backdrop to reach inside its own stacking context.
+   What does work is opacity, which the bar could not use because its
+   gradient is already at 1 once the ring is round. This one is not: across
+   its life it runs 0.05 to 0.93, so a multiplier lifts the whole build and
+   only the peak frame clamps. Swept against the white-card look as the
+   target, 1.3 still read thin and 2.0 went neon in the matte; 1.6 sits
+   closest to the card in both modes. The two passes ride along for the
+   density they do add — at FULL blur, not the bar's 0.6, which measured
+   better here.
+   It is applied as a GAMMA, op^(1/k), not a multiply. A straight x1.6 puts
+   the ring at a clamped 1.0 from f119 to f125 — seven frames of flat, which
+   throws away the build the ring was just given. The gamma cannot clamp, so
+   the shape survives, and it lifts where the thinness actually is: 0.052
+   becomes 0.158 at the dim end (x3.0) against x1.03 at the peak, which was
+   never the part that needed help.
+   Back: CHIP_GLOW_DENSE = 1 disables it (any k gives op^1 = op), and the
+   two .boost divs come out of the chip's markup. */
+const CHIP_GLOW_DENSE = 1.6;
 /* measured press, frame → scale */
 const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
                [131, 0.94], [132, 1.00]];
@@ -2351,7 +2487,10 @@ const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
 /* The bubble's base colour and the three samples the clip gives down its face
    at the press, kept as numbers because the fill is now MIXED rather than
    layered — see where the background is written. CHIP_RGB is --chip. */
-const CHIP_RGB  = [244, 246, 247];
+/* #F5F8FF, the new chip file's pill. It stacks two rects — #F4F6F7 then
+   #F5F8FF on top and opaque — so the second is the one that shows, and the
+   first is the old fill left underneath. Back: [244, 246, 247]. */
+const CHIP_RGB  = [245, 248, 255];
 const CHIP_BLUE = [[51, 115, 244], [64, 115, 240], [88, 117, 209]];
 const PRESS_F0 = PRESS[0][0];
 /* 8 frames, not the measured second. At FPS the fade cannot finish inside
@@ -2808,6 +2947,12 @@ let INBOLD = false;
 
 /* group the words into lines by where layout actually put them */
 function relineAnswer(){
+  /* Same collapsed-measurement trap as alignBaseline: while the prompt piece
+     is up every word's offsetTop reads 0 (offsetParent is null under a
+     display:none ancestor), so a resize then would fold the whole answer
+     into ONE line group and the reveal would come up in a single step. Keep
+     the groups that were measured with layout instead. */
+  if (WORDS.length && WORDS[0].offsetParent === null) return;
   const rows = new Map();
   for (const w of WORDS){
     if (w.classList.contains("bul")) continue;    // placed structurally, below
@@ -2888,6 +3033,15 @@ const qtext  = document.getElementById("qtext");
 const caret  = document.getElementById("caret");
 /* put an element's text baseline on an exact y, whatever font resolved */
 function alignBaseline(el, y){
+  /* NOT while it has no box. On the prompt piece #world is display:none, so
+     the element's own display still reads block but every rect collapses to
+     0 — the probe and the element both report top 0, `off` is 0, and the
+     bare target was being written verbatim: top:566px against the 486 the
+     real measurement gives. Back on the search piece the query then sat 142
+     into a 234 bar, 16.5px past its bottom edge, and stayed there, because
+     nothing on the way back re-ran this. A resize while the other piece is
+     up is all it took, which is why it only happened sometimes. */
+  if (!el.getBoundingClientRect().height) return;
   const probe = document.createElement("span");
   probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
   el.appendChild(probe);
@@ -2946,7 +3100,11 @@ function rampStops(id, reps, ramp){
 /* one per sub-path, in lap order: bottom, left cap, top, right cap */
 const chipgrad = document.getElementById("chipgrad");
 /* the two stacks are scaled differently, so they take the burst's blur
-   separately — the bar's at K_PLATE, the chip's at K_CHIP */
+   separately — the bar's at K_PLATE, the chip's at K_CHIP.
+   This deliberately catches the chip's .boost passes too, so they run at the
+   SAME blur as the layer they thicken. The bar keeps its boosts at
+   BOOST_BLUR_K and handles them separately; sharper passes measured worse
+   here — see CHIP_GLOW_DENSE. */
 const cblurs   = [...document.querySelectorAll(".chipgrad .gblur:not(.tip)")];
 const rows   = [...document.querySelectorAll("#act2 .row, #act2 [data-rise]")];
 
@@ -3602,17 +3760,25 @@ function render(t){
      scale, but its OWN phase and its own cycle: it opens on the button's
      bottom and turns once through its life. Opacity is the measured envelope
      that brings it in at the press. */
-  chipgrad.style.opacity = ringOp.toFixed(3);
+  const chipRise = CHIP_RISE0 + (1 - CHIP_RISE0)
+                 * sat((fp - RING_VISIBLE_F) / (CHIP_RISE_F1 - RING_VISIBLE_F));
+  /* the class, not bgOn/alphaOn, so this can never disagree with the CSS
+     that shows the .boost passes */
+  const chipDense = stage.classList.contains("has-bg")
+                 || stage.classList.contains("has-alpha") ? CHIP_GLOW_DENSE : 1;
+  const chipOp = ringOp * chipRise;
+  chipgrad.style.opacity = (chipDense === 1 ? chipOp
+                                            : Math.pow(chipOp, 1 / chipDense)).toFixed(3);
   if (ringOp > 0.002){
     const cb = `blur(${(track(BURST_BLUR, burst1x) * K_CHIP / K_PLATE).toFixed(2)}px)`;
     for (const el of cblurs) el.style.filter = cb;
     const cu = clamp((fp - CHIP_CYCLE_F0) / (CHIP_CYCLE_F1 - CHIP_CYCLE_F0), 0, 1);
     chipgrad.style.setProperty("--mask-angle",
-      (CHIP_PHASE0 + 360 * cu).toFixed(2) + "deg");
+      (CHIP_PHASE0 + CHIP_TURN_BASE * CHIP_SPEED * cu).toFixed(2) + "deg");
     /* the wheel keeps the same share of the turn it has on the bar, 55 to 290 */
     chipgrad.style.setProperty("--gradient-angle",
-      (GRAD_A0 + 360 * cu * (GRAD_A1 - GRAD_A0)
-                          / (MASK_A1 - MASK_A0)).toFixed(2) + "deg");
+      (GRAD_A0 + CHIP_TURN_BASE * CHIP_SPEED * cu * (GRAD_A1 - GRAD_A0)
+                                / (MASK_A1 - MASK_A0)).toFixed(2) + "deg");
   }
   /* the plate's ring glow spreads ~2-4px as it arrives and leaves against
      ~12 at its peak, so the radius rides the same envelope as the opacity */
@@ -3660,17 +3826,30 @@ function render(t){
      part of this button that is not close to its background anywhere.
      CHIP_A0 is the mode's own measured alpha, cached off the CSS on each
      change of mode so the stylesheet stays the one place it is written.
-     THE CONTROL LETS GO AS THE BLUE ARRIVES, by request. Its influence is
-     lerped out on litK, so the pill carries the setting while it is pale and
-     lands on the mode's own alpha once it is blue — solid on white, the
-     measured 0.75 over footage — whatever the slider says. Note this reverses
-     an earlier request that the setting DO reach the blue, and it gives up the
-     property that made that version safe: with the setting below 1 the bubble
-     now gains opacity across the press, 127 to 130, because that is precisely
-     what "not impacted when blue" asks for. It is one ramp rather than a
-     switch so the hand-off happens with the fill instead of popping on the
-     frame it starts. Back: `CHIP_A0 * BUBBLE_K` for the setting throughout. */
-  const bubA = CHIP_A0 * (BUBBLE_K + (1 - BUBBLE_K) * litK);
+     EVERYTHING LETS GO AS THE BLUE ARRIVES, by request: the blue button is
+     opaque in every mode and at every setting. The previous version let only
+     the SLIDER go and still landed on the mode's own alpha, which left the
+     lit button at 0.75 over footage and under a matte — the two modes where
+     --chip-a0 is 0.75 — and that is what this replaces.
+
+     So the ramp now runs from the resting alpha (the mode's, times the
+     control's) to a flat 1 rather than to CHIP_A0. At litK 0 nothing about
+     the pale pill changes; at litK 1 it is 1.000 whatever the mode and
+     whatever the panel says. Neither the Button bubble control nor the
+     mode's own measured 0.75 reaches the blue any more.
+
+     It is one ramp rather than a switch so the hand-off happens with the
+     fill instead of popping on the frame it starts. The bubble gains opacity
+     across the press, 127 to 130, wherever the resting alpha is below 1 —
+     which is precisely what "always 100% when blue" asks for.
+
+     This is the third reading of the same value: the setting reached the
+     blue, then let go of it, and now nothing reaches it. If it moves again
+     it wants a control of its own rather than another edit here.
+     Back: `CHIP_A0 * (BUBBLE_K + (1 - BUBBLE_K) * litK)` to land on the
+     mode's alpha, or `CHIP_A0 * BUBBLE_K` for the setting throughout. */
+  const bubRest = CHIP_A0 * BUBBLE_K;
+  const bubA = bubRest + (1 - bubRest) * litK;
   const stop = c => c.map((v, i) =>
         Math.round(CHIP_RGB[i] + (v - CHIP_RGB[i]) * litK)).join(",");
   chip.style.background = (litK > 0.002 || bubA < 0.999)
@@ -3678,10 +3857,16 @@ function render(t){
       + `rgba(${stop(CHIP_BLUE[1])},${bubA.toFixed(3)}) 55%,`
       + `rgba(${stop(CHIP_BLUE[2])},${bubA.toFixed(3)}))`
     : "";
+  /* The ink starts at the new chip's own blue rather than a near-black, so
+     the ramp is a three-channel lerp now instead of one grey number: from
+     #0B57D0 (11,87,208) at rest to white as the pill fills. The old form
+     wrote the same value into all three channels, which only worked because
+     the resting ink was grey. Back: `31 + 224 * litK` on all three. */
+  const INK0 = [11, 87, 208];
   chip.style.setProperty("--chip-ink",
-    litK > 0.002 ? `rgb(${Math.round(31 + 224 * litK)},`
-                 + `${Math.round(31 + 224 * litK)},`
-                 + `${Math.round(31 + 224 * litK)})` : "");
+    litK > 0.002
+      ? "rgb(" + INK0.map(c => Math.round(c + (255 - c) * litK)).join(",") + ")"
+      : "");
   /* the SVG ring's stroke width, its own blur and its own ramp sweep all went
      with it — the halo is the bar's construction now and needs none of them */
 
@@ -3791,6 +3976,12 @@ const $ts = document.getElementById("tspd"), $tsn = document.getElementById("tsp
       $tw = document.getElementById("twarn");
 function applyQuery(){
   setQuery($q.value);
+  /* The baseline used to be placed only by the window's resize handler, so
+     anything stored there while the piece was hidden survived every switch
+     back. Re-derive it here with the rest of the bar: this runs on the return
+     to this piece, on every mode flip and on every edit, and it is a no-op
+     while the query has no box. */
+  refit();
   /* the field hugs what was typed, so the rows it holds are the rows you see */
   fitField($q);
   /* the run, and the piece it implies. The old note about typing through the
@@ -3906,6 +4097,66 @@ function setGlow(v, from){
   const g = h.toString();
   history.replaceState(null, "", g ? "#" + g : location.pathname);
 }
+/* ── the AI Mode button's ring: how fast it turns, and where it breaks ──
+   Two dials rather than one, because they answer different questions and
+   neither can stand in for the other. SPEED multiplies the revolution the
+   ring makes across CHIP_CYCLE_F0..F1 — 1.00 is exactly the turn the piece
+   made before this control existed, and 0 freezes it wherever the phase
+   puts it. BREAK is that phase: the conic mask's window is opaque from 44%
+   to 88% of a turn, so the gap it leaves travels with this number.
+
+   The break is a dial rather than a value I picked because the mapping from
+   this angle to a position on screen is not the identity, and it is worth
+   saying why. The window is a conic gradient on an element the ring squashes
+   by `scale: 2.2 1.5`, and that stretch pulls conic angles toward the
+   horizontal — so a wide span of the turn lands near the left and right caps
+   and a narrow one covers the top and bottom. Swept through 0, 45, 90, 135,
+   180, 225, 270 and 315 and rendered at each, the lit arc stayed on the TOP
+   edge every time; only which colours sat there changed. Moving the break
+   somewhere specific is therefore a question about that squash, not about
+   this angle, and the honest thing is to let it be dialled by eye against
+   the frame rather than computed from a mapping this shape does not have. */
+const $bgs = document.getElementById("bgspd"), $bgsn = document.getElementById("bgspdn");
+const $bgw = document.getElementById("bgwarn");
+const $bgp = document.getElementById("bgphase"), $bgpn = document.getElementById("bgphasen");
+const $bgpw = document.getElementById("bgphasewarn");
+function setChipGlow(v, from){
+  const n = +v;
+  CHIP_SPEED = clamp(isFinite(n) ? n : CHIP_SPEED_DEF, 0, 8);
+  if (from !== "range")  $bgs.value  = CHIP_SPEED;
+  if (from !== "number") $bgsn.value = CHIP_SPEED.toFixed(2);
+  /* the ring's whole life is CHIP_CYCLE_F0..F1, so a rate reads best as the
+     turn it completes in that window rather than as degrees a second */
+  const turn = CHIP_TURN_BASE * CHIP_SPEED;
+  $bgw.textContent = CHIP_SPEED === 0
+    ? "frozen — the ring holds the angle the break sets"
+    : `${turn.toFixed(0)}\u00b0 across its ${CHIP_CYCLE_F1 - CHIP_CYCLE_F0} frames`
+      + ` \u00b7 ${(turn / 360).toFixed(2)} of a lap`;
+  if (hold !== null) render(hold);
+}
+/* Screen degrees, so the number means what is on the frame: 0 right,
+   90 bottom, 180 left, 270 top. The clip's notch sits half a turn past its
+   own `from`, and CSS conic 0deg points up where this convention starts at
+   the right, so the property is the dial less 90 — which puts the old
+   unmovable bottom notch at exactly 90 on this scale. */
+function setChipBreak(v, from){
+  const n = +v;
+  CHIP_BREAK = clamp(isFinite(n) ? n : CHIP_BREAK_DEF, 0, 360);
+  if (from !== "range")  $bgp.value  = CHIP_BREAK;
+  if (from !== "number") $bgpn.value = CHIP_BREAK.toFixed(0);
+  chipgrad.style.setProperty("--break-angle", (CHIP_BREAK - 90).toFixed(0) + "deg");
+  const where = CHIP_BREAK < 45 || CHIP_BREAK >= 315 ? "right"
+              : CHIP_BREAK < 135 ? "bottom" : CHIP_BREAK < 225 ? "left" : "top";
+  $bgpw.textContent = `glow vanishes at the ${where}`
+    + ` \u00b7 ${CHIP_BREAK.toFixed(0)}\u00b0 round the pill`;
+  if (hold !== null) render(hold);
+}
+$bgs.addEventListener("input",   () => setChipGlow($bgs.value,  "range"));
+$bgsn.addEventListener("change", () => setChipGlow($bgsn.value, "number"));
+$bgp.addEventListener("input",   () => setChipBreak($bgp.value,  "range"));
+$bgpn.addEventListener("change", () => setChipBreak($bgpn.value, "number"));
+setChipGlow(CHIP_SPEED_DEF); setChipBreak(CHIP_BREAK_DEF);
+
 $gls.addEventListener("input",  () => setGlow($gls.value,  "range"));
 $glsn.addEventListener("change", () => {                    /* same, for the glow */
   setGlow(Math.round(+$glsn.value * 100) / 100, "number");
@@ -5302,7 +5553,25 @@ function proresFrameAt(Y, U, V, A, W, H, stride, qscale, fps){
      file does not run at. */
   const FRC = { 23.976: 1, 24: 2, 25: 3, 29.97: 4, 30: 5, 50: 6, 59.94: 7, 60: 8 };
   out[o + 13] = (1 << 4) | (FRC[fps] || 0);
-  out[o + 14] = 1; out[o + 15] = 1; out[o + 16] = 1;   /* BT.709 throughout */
+  /* 1-13-1: BT.709 primaries, sRGB TRANSFER, BT.709 matrix.
+     Primaries and matrix are right as they were — sRGB shares BT.709's
+     primaries, and prPlanes uses BT.709's own luma weights, so a decoder
+     inverting with matrix 1 gets back exactly what went in. The TRANSFER
+     was wrong. The frames come off a canvas, which is sRGB-encoded, and
+     nothing here linearises them: what the file carries IS an sRGB curve,
+     and declaring BT.709's (a pure ~1.96 power, no linear toe) tells a
+     colour-managed reader to undo a curve that was never applied.
+     A raw 32BGRA pull never notices — it only runs the matrix — which is
+     why every check in this file passed for so long. Measured through a
+     COLOUR-MANAGED decode (CoreImage honouring the tag, rendering to
+     sRGB), at 1-1-1 against the canvas the same frame came back:
+        Google blue  (49,134,255) -> (56,145,255)   +7 +11
+        Google red   (252,65,61)  -> (252,74,70)    +9 +9
+        yellow       (254,199,0)  -> (254,206,0)    +7
+        white        unchanged — the two curves meet at the endpoints,
+                     which is why this reads as lifted midtones rather
+                     than an overall cast. */
+  out[o + 14] = 1; out[o + 15] = 13; out[o + 16] = 1;
   /* alpha_channel_type 2 — 16-bit, matching prAlpha. The high nibble has
      now been every value this investigation could put there (0, 4, and the
      7 Apple's own encoder writes) across files that worked and files that
@@ -5556,7 +5825,11 @@ function muxMOV(frames, W, H, timescale, delta){
                          rule exists to avoid. Range goes back to convention —
                          ProRes Y'CbCr is video range, which every ProRes
                          decoder assumes — and the file stops being unusual. */
-                      bx("colr", str4("nclc"), b16(1), b16(1), b16(1)),
+                      /* transfer 13 (IEC 61966-2-1, sRGB), not 1 — see the
+                         frame header's own note. The atom stays nclc, the
+                         QuickTime form Apple's encoder and ffmpeg both
+                         write in a .mov; only the middle field moves. */
+                      bx("colr", str4("nclc"), b16(1), b16(13), b16(1)),
                       bx("fiel", new Uint8Array([1, 0])),
                       bx("pasp", b32(1), b32(1)));
   const stsd = bx("stsd", zeros(4), b32(1), ap4h);
