@@ -3888,6 +3888,23 @@ function render(t){
     act1Op     = 1 - Math.pow(sat((u - 2.2) / 2.6), 1.6);  // gone by 136
   }
   chip.style.transform = `scale(${chipScale.toFixed(3)})`;
+  /* THE BACKDROP BLUR COMES OFF AT THE PRESS. It exists for the translucent
+     pill — 75% over footage or under a matte, so what shows through is
+     defocused rather than merely dimmed — and from the press the pill is
+     solid blue with nothing showing through, so it can only cost. And it
+     costs exactly where the preview stalled: profiled at 60Hz over a full
+     loop, plain mode held 60fps with a 17.8ms worst frame in every
+     configuration, and the ONLY stalls sat in the 5.5s bin, this zoom —
+     367ms with footage, 133ms under a matte, and 17.7ms with this filter
+     disabled and nothing else changed. A backdrop-filter re-reads and
+     re-blurs whatever is behind its element every frame it changes, and
+     here the element is scaling to fill the stage while act 2 appears
+     behind it. Inline "none" outranks the has-bg/has-alpha rule; "" hands
+     the rule back, so the pale pill keeps its blur to the last frame before
+     the blue. The export is unaffected either way: the blur never reached
+     the footage there (see the .aichip rule). */
+  const bdOff = litK > 0.002 || chipScale !== 1;
+  chip.style.backdropFilter = chip.style.webkitBackdropFilter = bdOff ? "none" : "";
   chip.style.filter    = chipBlur > 0.4 ? `blur(${chipBlur.toFixed(1)}px)` : "";
   world.style.opacity  = act1Op.toFixed(3);
 
