@@ -1499,7 +1499,7 @@
      #n2qwarn only speak when something is WRONG (copy that will not fit, a
      lit phrase that is not in the answer), and #gstat is the export's only
      progress feedback. Those are not captions. */
-  #hud #twarn, #hud #gwarn, #hud #g2warn,
+  #hud #twarn, #hud #t2warn, #hud #gwarn, #hud #g2warn,
   #hud #scrimw, #hud #bubw, #hud #n2warn{display:none}
   #hud #awarn{color:#e0a33a}
   #hud #gstat{color:#7ac0a0;text-transform:none;letter-spacing:0;min-height:14px;
@@ -6342,6 +6342,42 @@ function setTail2(){
    request — which puts its first frames under the tail of the fill ramp, where
    the button is still turning blue */
 const N2_SEND = 39, N2_PRESS = 43 - 0.1 * FPS;
+/* THE CLICK'S LENGTH HAS MOVED THREE TIMES: 350ms measured, then x1.1, then
+   x1.2, and now 10% QUICKER than that x1.2 — which is 420 x 0.9 = 378, and
+   378/350 is exactly x1.08. So the request reads against what was on screen
+   and the constant still reads against the measurement; the two agree here
+   rather than having to be chosen between.
+   350ms measured, x1.08. The whole
+   press is stretched, so the down phase goes with it in the same proportion:
+   the button's scaleX runs out to BTN_SX over the first PRESS_PEAK of the
+   run, which is 1.930 frames at 350 and 2.084 at 378, x1.08. The peak
+   therefore lands on f42.69 instead of f42.53 and the button is back at rest
+   on f49.67 instead of f48.994.
+   WHAT THAT COSTS, since 48.994 was load-bearing: it is why three separate
+   things sit on 49 — the seam between the halves, the rect's morph (N2_MOVE0)
+   and the flash — and the note on N2_SPLIT_FP calls that "when the button
+   click motion is finished". The click now finishes 0.84 frames AFTER them,
+   so the rect starts travelling while the send is still returning and the
+   prompt half cuts just before the button settles. Nothing else moved, so it
+   is a real overlap rather than a re-timing — but it is a small one, and the
+   size is the point: measured against the old curve the pill is 0.70px wider
+   at f48, 0.19px at f49 and 0.03px at f49.5 on its 94.29px width, and it is
+   exactly at rest by 49.83. Sub-pixel for the whole of the overlap.
+   If it ever needs to be clean rather than merely invisible, the fix is to
+   move N2_PRESS earlier by the 0.84 rather than to shorten this back.
+   The energy blob keeps its own measured 400ms and is untouched.
+   The multiplier is always written against the MEASURED 350 rather than
+   compounded, so the constant says how far it has departed from the clip at
+   a glance: 1.1, then 1.2, now 1.08.
+   It lives HERE, beside N2_PRESS, rather than down with the press's own
+   render code: N2_PEAK_F is derived from it and the transition's opening
+   constants read that, 500 lines above where this used to sit.
+   Back: 350. */
+const N2_PRESS_MS = 350 * 1.08, N2_ENERGY_MS = 400, PRESS_PEAK = 0.23;
+/* Where the stretch is widest — PRESS_PEAK of the way through the press.
+   The transition opens on it, so lengthening the click carries the
+   transition with it instead of leaving the two to drift apart. */
+const N2_PEAK_F = N2_PRESS + PRESS_PEAK * N2_PRESS_MS / 1000 * FPS;   // 42.92
 
 /* ── the two act joins ──────────────────────────────────────────────────
    Neither is a cut. Both were measured off the plate frame by frame.
@@ -6368,7 +6404,28 @@ const N2_SEND = 39, N2_PRESS = 43 - 0.1 * FPS;
    travel, and act 2 still begins on 52 so nothing downstream shifts. The
    exponent refits from 3.25 to 2.15 over the shorter run and reproduces the
    same measured rects — .115 on f50 and .391 on f51. */
-const N2_MORPH0 = 48, N2_MORPH1 = 52;
+/* THE TRANSITION WAITS FOR THE CLICK TO FINISH, by request — it opened on
+   the stretch's PEAK for a round before this, and now it opens on the frame
+   the button is back at rest. That is the piece's original intent restored
+   rather than a new idea: the note on N2_SPLIT_FP has always called that
+   frame "when the button click motion is finished", and while the press was
+   its measured 350ms it ended on 48.994 with the rect opening on 49. The
+   press is 8% longer than the clip now, so that frame is 49.67 and the
+   transition follows it — derived, so changing the click's length again
+   carries this with it, as it just did.
+   IT MOVES WHOLE, unlike the peak version. That one shifted only the opening
+   beats and left the landings, stretching the transition; from here the
+   landing is 52 and the opening would be 50.67, which is 1.3 frames for the
+   entire morph. So the LANDINGS move by the same shift — N2_MORPH1,
+   N2_FLASH1, N2_A2, N2_SETTLE_END and act 2's own nav ramp — and the
+   transition keeps the shape it was measured with, 2.67 frames later.
+   Act 3 does NOT move: N2_A3, the exit smear and the 79.3 fade are its own
+   timing and the piece keeps its length, so act 2 simply holds 2.67 frames
+   less before it goes. Back: N2_TRANS_OPEN = 48 for the piece's own numbers,
+   or N2_PEAK_F for the stretch's peak. */
+const N2_TRANS_OPEN  = N2_PRESS + N2_PRESS_MS / 1000 * FPS;   // the click's end
+const N2_TRANS_SHIFT = 48 - N2_TRANS_OPEN;                    // negative = later
+const N2_MORPH0 = N2_TRANS_OPEN, N2_MORPH1 = 52 - N2_TRANS_SHIFT;
 /* The MOVE waits for the click; the face lifting does not. Those are separate
    curves in the plate — on f49 its rect has travelled 0.008 of the way, which
    is nothing, while its face has already gone from 0 to 149. The face is the
@@ -6377,7 +6434,7 @@ const N2_MORPH0 = 48, N2_MORPH1 = 52;
    of the way of a press that is at rest on f48.994. Over the shorter run the
    exponent refits from 3.25 to 2.15 and reproduces the same measured rects,
    .115 on f50 and .391 on f51. */
-const N2_MOVE0 = 49, N2_MOVE1 = 52, N2_MORPH_P = 2.15;
+const N2_MOVE0 = 49 - N2_TRANS_SHIFT, N2_MOVE1 = 52 - N2_TRANS_SHIFT, N2_MORPH_P = 2.15;
 /* THE RECT KEEPS GOING PAST 52. The power curve above is finished on the
    frame act 2 arrives, and measured against
    NFL_NeverKnowEnough_PromptResponse_01_V01_AB_1.mp4 that is far too abrupt:
@@ -6398,8 +6455,35 @@ const N2_MOVE0 = 49, N2_MOVE1 = 52, N2_MORPH_P = 2.15;
    757 wide at rest and 640 by f52, 623 by f54 and 619 from f56 on — it lands
    two frames after the wash, where the rect has ten more to run. So the font
    and the face keep the power curve and only the rect takes the settle. */
-const N2_SETTLE_K = 0.71, N2_SETTLE_F0 = 49.8, N2_SETTLE_END = 62;
-const settle = f => 1 - Math.pow(N2_SETTLE_K, Math.max(0, f - N2_SETTLE_F0));
+/* THE MORPH OPENS SLOWER, by request. The rect rides an exponential settling
+   toward the chip, and an exponential is at its FASTEST on its first frame —
+   measured, it covered 0.290 of the whole distance in frame one against 0.206
+   in the next and 0.146 in the one after. Now that the transition opens on
+   the click's own end, that lands its hardest movement exactly where the
+   button has just stopped moving, and it reads as a jump.
+   The fix is on the CLOCK, not the curve: the exponential reads an elapsed
+   time that eases in over its first N2_SETTLE_EASE frames instead of starting
+   at full rate. te grows quadratically from a standing start and then matches
+   `e - EASE/2`, so the measured tail — tau 2.94 frames, which is the part
+   that was read off the clip — is preserved exactly and only the opening is
+   shaped. The whole thing lands EASE/2 later as a result, 0.8 frames here,
+   which the settle's own window absorbs.
+   Back: N2_SETTLE_EASE = 0, which is the bare exponential again. */
+const N2_SETTLE_EASE = 1.6;
+/* The window carries the ease's own cost. N2_SETTLE_EASE delays the whole
+   settle by EASE/2, so holding the end at the piece's measured 12.2 frames
+   would hand the chip a box that is 1.7px short of it against the 1.3px the
+   bare exponential left. Adding the 0.8 back restores the original
+   completeness exactly — the box arrives as close as it ever did. */
+const N2_SETTLE_K = 0.71, N2_SETTLE_F0 = 49.8 - N2_TRANS_SHIFT,
+      N2_SETTLE_END = 62 - N2_TRANS_SHIFT + N2_SETTLE_EASE / 2;
+const settle = f => {
+  const e = Math.max(0, f - N2_SETTLE_F0);
+  const te = N2_SETTLE_EASE > 0 && e < N2_SETTLE_EASE
+             ? e * e / (2 * N2_SETTLE_EASE)
+             : e - N2_SETTLE_EASE / 2;
+  return 1 - Math.pow(N2_SETTLE_K, Math.max(0, te));
+};
 const N2_RUSH0 = 78, N2_RUSH1 = 87;              // act 2's exit smear
 const N2_A3_S0 = 0.192, N2_A3_DECAY = 0.63;      // act 3's arrival settle
 const N2_A3_OX = 268, N2_A3_OY = 609;            // and what it scales about
@@ -6409,7 +6493,7 @@ const N2_A3_OX = 268, N2_A3_OY = 609;            // and what it scales about
    whole-frame means put it at 48.72..52.06, because the mean also carries the
    box's face lifting on f49 — the box is 15.5% of the frame, which is the
    whole of that frame's rise. Separating the two puts the wash back on 49. */
-const N2_FLASH0 = 49, N2_FLASH1 = 52;
+const N2_FLASH0 = 49 - N2_TRANS_SHIFT, N2_FLASH1 = 52 - N2_TRANS_SHIFT;
 /* Where this piece breaks in two, asked for as "when the button click motion
    is finished". That lands on 49, and three separate things agree on it: the
    press's own arithmetic ends at N2_PRESS + 350ms = 48.994, the button's
@@ -6423,11 +6507,20 @@ const N2_FLASH0 = 49, N2_FLASH1 = 52;
    against the press's 350 and is still at 0.199 on 49, gone by 50.5. Ending
    the prompt half there instead would start the response half half-way
    through the flash (0.5 by 50.5), which is the worse of the two. */
-const N2_SPLIT_FP  = N2_FLASH0;
+/* Back to meaning what it says. This is "when the button click motion is
+   finished", and with the transition waiting for that frame the seam IS the
+   transition's opening again — the coincidence the piece was built on, which
+   only broke while the transition ran early off the stretch's peak. Derived
+   now rather than pinned at 49, so a longer click carries the seam with it:
+   at the current 420ms press that is 50.67 against the old 49, and the prompt
+   half is 1.67 frames longer for it. Back: 49, or N2_FLASH0. */
+const N2_SPLIT_FP  = N2_TRANS_OPEN;
 const N2_SPLIT_SEG = N2_SPLIT_FP - 1 + N2_HOLD;
 /* Act 3 starts on 87, not 88: the plate's mean drops from 245.2 to 15.6 between
    86 and 87, and its first act-3 frame is already the wall, smeared. */
-const N2_A2 = 52, N2_A3 = 87;
+/* act 2's arrival rides the transition; act 3's start does not — see the
+   note on N2_TRANS_OPEN */
+const N2_A2 = 52 - N2_TRANS_SHIFT, N2_A3 = 87;
 /* The swap is one continuous camera move, not a cut. Tracking the lit core:
    it holds at x=152 through f114, eases off left (138, 104, 33), goes dark at
    f124, and the next phrase enters from the right at x=527 and eases to rest
@@ -6833,7 +6926,6 @@ function cbez(c, x){
   }
   return by(t);
 }
-const N2_PRESS_MS = 350, N2_ENERGY_MS = 400, PRESS_PEAK = 0.23;
 /* The bloom's alpha at its brightest, measured off the reference clip: white
    over the pill reads 0.37 at top-centre on the peak frame. 0.92 was twice
    that and washed the button out.
@@ -7268,9 +7360,6 @@ function render2(t){
     const fc = i => (F0[i] + ([240, 241, 244][i] - F0[i]) * face).toFixed(0);
     nface.style.background = `rgb(${fc(0)},${fc(1)},${fc(2)})`;
     nface.style.opacity = (FA0 + (1 - FA0) * sat(mt * 4)).toFixed(3);
-    /* the halo leaves with the box — and stays if the box is not leaving */
-    const ring = promptOnly ? 1 : sat(1 - (f - 48.3) / 1.9);
-    nglow.style.opacity = ring.toFixed(3);
     /* Multiply, do not overwrite. The mic rests at 50% and the + at 50% on the
        dark look, and writing a flat 1 here outranked both classes for the whole
        of act 1 — the mic has been rendering opaque against a stylesheet that
@@ -7279,6 +7368,19 @@ function render2(t){
     nplus.style.opacity  = (leave * dim).toFixed(3);
     nmicEl.style.opacity = (leave * dim).toFixed(3);
     nsend.style.opacity  = leave.toFixed(3);
+    /* THE HALO GOES WITH THEM, by request — one `leave` for the glow, the
+       send, the mic and the plus, so the box is emptied of its furniture in a
+       single move rather than in two.
+       It used to fade on a baked `1 - (f - 48.3) / 1.9`, which was written
+       when the morph opened on 48: 0.3 frames after the opening, over 1.9.
+       Once the transition moved to the stretch's peak that absolute stopped
+       meaning anything — the furniture was leaving from 42.92 and gone by
+       47.46 while the glow did not begin until 48.3 and hung on to 50.2,
+       about three frames after everything else had cleared.
+       Back: `sat(1 - (f - 48.3) / 1.9)`, and note it wants re-basing onto
+       N2_MORPH0 rather than restoring as an absolute. */
+    const ring = promptOnly ? 1 : leave;
+    nglow.style.opacity = ring.toFixed(3);
 
     /* the query rides the box down into the chip */
     nq.style.fontSize = (44 + (36 - 44) * u).toFixed(2) + "px";
@@ -7358,7 +7460,9 @@ function render2(t){
   if (inA2){
     /* both on act 2's clock, so the lift's two-frame wait carries them */
     bodyRise = N2_RISE_PX * Math.pow(N2_RISE_K, Math.max(0, fa - N2_RISE0));
-    n2nav.style.opacity  = sat((fa - 55) / 7).toFixed(3);
+    /* 55 is act 2's own beat, three frames after it arrives, so it rides the
+       transition's shift with the arrival rather than staying absolute */
+    n2nav.style.opacity  = sat((fa - (55 - N2_TRANS_SHIFT)) / 7).toFixed(3);
     if (LIFT_ON){
       /* Nothing is landing on the chip here, so it arrives with the answer and
          climbs with it — the bubble and the response rolling up together, the
