@@ -20,7 +20,14 @@
   :root{
     /* ---- every value below was measured off the source footage ---- */
     --blue:#3186FF; --red:#FC413D; --yellow:#FEC700; --green:#00AF57;
-    --ink:#111; --bar-border:#ebebeb; --chip:#f4f6f7; --chip2:#f1f2f6;
+    --ink:#111; --bar-border:#ebebeb; --chip:#f4f6f7;
+    /* The AI Mode chip and the chat bubble it becomes are ONE grey, by
+       request, and they share it as a variable rather than as two copies of
+       a number so they cannot drift apart. Split into channels because the
+       chip needs it with an alpha — rgba() cannot take a hex — and --chip2
+       is rebuilt from the same channels so its own consumer is unchanged.
+       Back: --chip2:#f1f2f6 and the chip's own #EFF1F2. */
+    --chip2-rgb:241,242,246; --chip2:rgb(var(--chip2-rgb));
     --nav-ink:#535353;
     /* --rule is the colour the divider RESOLVES TO on a white card, and is
        kept as the record of that measurement. Nothing reads it any more:
@@ -180,8 +187,9 @@
      label and the lens with it — where backdrop-filter blurs only what is
      already painted behind the element and leaves its contents sharp.
 
-     IT DOES NOT REACH THE FOOTAGE IN AN EXPORT, and that is worth knowing
-     before trusting the preview. The property itself survives the export
+     IT DOES NOT REACH THE FOOTAGE IN AN EXPORT BY ITSELF — chipBackdropInto
+     in drawStage is what makes the exported file agree with the preview, and
+     the rest of this note is why it has to exist. The property itself survives the export
      path — measured with a striped test layer inside the stage, the
      contrast behind the pill fell from 64.7 to 0.7 through drawStage, so
      the serialised foreignObject honours it. What it cannot see is the
@@ -190,13 +198,14 @@
      over it. The footage is therefore underneath the SVG rather than inside
      it, and a backdrop-filter can only blur what its own document paints
      behind it.
-     So: over footage the preview defocuses the plate behind the pill and
-     the exported file does not. In the transparent mode the two agree —
-     there is no footage, and what sits behind the pill inside the stage is
-     the bar's flat scrim, which has nothing to defocus either way.
-     Making the export match would mean blurring the canvas region under the
-     chip in drawStage, between bgDrawInto and the drawImage of the stage.
-     Back: the --chip-a0 line alone, with no blur. */
+     So over footage this rule defocuses the plate in the preview and cannot
+     in the file; drawStage blurs the canvas under the pill instead, in the
+     one gap where the footage is down and the stage is not yet over it. In
+     the transparent mode nothing is needed and nothing is done — there is no
+     footage in an alpha file, and what sits behind the pill inside the stage
+     is the bar's flat scrim, which has nothing to defocus either way.
+     Back: the --chip-a0 line alone, with no blur, and drop the
+     chipBackdropInto call. */
   #stage.has-bg .aichip, #stage.has-alpha .aichip{
                      --chip-a0:.75;
                      -webkit-backdrop-filter:blur(10px);
@@ -258,8 +267,20 @@
      percentages, the 7 x 1.5 squash — is the source's own and unscaled. */
   /* both ring layers carry the same cut-out: everything but the ring is
      masked away, so neither can paint over the face */
+  /* THE OUTLINE IS THICKER AT THE OPENING, by request. It is 1px on the
+     source's 112-tall plate, which at this bar's 234 is 2.089 — that is the
+     measurement, and 3px is a departure from it: 1.44x, or 1.44px if it were
+     read back to the source's scale. Slight on purpose; at 1920 it is 0.46px
+     more on each side of a hairline.
+     Only the OPENING is affected even though this is a static rule, because
+     .barfill is the only thing that ever draws an outline — the gradient's
+     own padding is the bleed exactly, which takes it off the bar's edge (see
+     .bargrad) — and its opacity is 1 only until BAR_BURST_F0, after which it
+     fades out on BURST_BORDER and never returns. So thickening the ring and
+     thickening it "at the beginning" are the same edit here.
+     Back: 2.09px, the measured 1px x 2.089. */
   .barfill{position:absolute;inset:0;border-radius:inherit;box-sizing:border-box;
-           padding:2.09px;background:var(--bar-border);
+           padding:3px;background:var(--bar-border);
            -webkit-mask:linear-gradient(#000 0 0) content-box,
                         linear-gradient(#000 0 0);
            mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
@@ -512,7 +533,7 @@
      blue arrives and the alpha starts to matter. The has-bg / has-alpha rule
      below overrides only the DEFAULT alpha, not this construction. */
   .aichip{position:absolute;left:2375px;top:459px;width:432.8px;height:158px;
-          background:rgba(245,248,255,calc(var(--chip-a0) * var(--chip-k)));
+          background:rgba(var(--chip2-rgb),calc(var(--chip-a0) * var(--chip-k)));
           border-radius:79px;
           /* No shadow. Chip.svg draws the pill as two flat rects with no
              filter and nothing under them, so the drop shadow this used to
@@ -561,7 +582,7 @@
      in size and a translation, which the box already normalises. */
   .aichip svg.spark{width:69.8px;height:69.8px;flex:none;
                     transform:translateY(-3.44px);
-                    color:var(--chip-ink,#0B57D0)}
+                    color:var(--chip-ink,#1F1F1F)}
   /* flex:none + pre, or the letter-spacing correction lets flex shrink and
      wrap the label once the chip scales up through the cut               */
   /* 60.4, fitted to the file's text ink: 226.0 wide at 60px and 229.8 at 61,
@@ -571,7 +592,7 @@
      own cap rather than the drawn ink argues for 62.4, and that is 3% wide
      and pushes the text past where the file ends it. */
   .aichip b{flex:none;white-space:pre;font-size:60.4px;font-weight:400;
-            line-height:1;color:var(--chip-ink,#0B57D0);transform:translateY(2px)}
+            line-height:1;color:var(--chip-ink,#1F1F1F);transform:translateY(2px)}
 
   /* ============ ACT 2 — the AI Mode answer ============ */
   /* The card is white at full strength unless something sets --a2bg, which
@@ -1478,7 +1499,7 @@
      #n2qwarn only speak when something is WRONG (copy that will not fit, a
      lit phrase that is not in the answer), and #gstat is the export's only
      progress feedback. Those are not captions. */
-  #hud #twarn, #hud #gwarn, #hud #g2warn,
+  #hud #twarn, #hud #t2warn, #hud #gwarn, #hud #g2warn,
   #hud #scrimw, #hud #bubw, #hud #n2warn{display:none}
   #hud #awarn{color:#e0a33a}
   #hud #gstat{color:#7ac0a0;text-transform:none;letter-spacing:0;min-height:14px;
@@ -1842,6 +1863,14 @@
     <input id="n2q2" type="text" spellcheck="false" value="difficult to officiate">
     <span class="warn" id="n2qwarn"></span>
     <h3 class="sub">Look</h3>
+    <!-- the other piece's Typing speed, for this box: same range, same two
+         controls driving each other, same hash habit (#speed2=). Under Look
+         with the glow dial, by request, rather than under the field it times. -->
+    <div class="lbl"><label for="t2spd">Typing speed</label>
+      <input id="t2spdn" type="number" min="0.2" max="20" step="0.05" value="1.00">
+    </div>
+    <input id="t2spd" type="range" min="0.2" max="5" step="0.05" value="1">
+    <span class="warn" id="t2warn"></span>
     <!-- the search query box's glow only. The highlight scene's glow keeps
          its own measured rate and is not on this dial — the two used to share
          the Glow Motion dropdown this control replaces. -->
@@ -2007,6 +2036,10 @@
     <button id="pexport">Export PNG Sequence</button>
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
     <button id="mexport">Export MP4</button>
+    <!-- hidden until there is something to cancel: a control that does
+         nothing is worse than no control, and this one is only ever
+         meaningful for the length of a run -->
+    <button id="xcancel" hidden>Cancel Export</button>
     <span id="gstat"></span>
     <!-- which build this is. The copy running in AI Studio updates only when
          the repo is re-imported, so for ten rounds "is that copy current"
@@ -2511,11 +2544,35 @@ const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
 /* The bubble's base colour and the three samples the clip gives down its face
    at the press, kept as numbers because the fill is now MIXED rather than
    layered — see where the background is written. CHIP_RGB is --chip. */
-/* #F5F8FF, the new chip file's pill. It stacks two rects — #F4F6F7 then
-   #F5F8FF on top and opaque — so the second is the one that shows, and the
-   first is the old fill left underneath. Back: [244, 246, 247]. */
-const CHIP_RGB  = [245, 248, 255];
-const CHIP_BLUE = [[51, 115, 244], [64, 115, 240], [88, 117, 209]];
+/* THE CHIP'S GREY IS THE CHAT BUBBLE'S GREY, by request — --chip2, which
+   .qchip already wears, so the pill and the bubble it becomes are one colour
+   held in one place. Read off the stylesheet rather than written again here:
+   this value is what the blue is mixed FROM at the press, so a copy that
+   drifted would show as a wrong starting colour halfway through the fill
+   rather than as a wrong resting pill, which is the harder kind to spot.
+   The literal is a fallback only, for the case where the property cannot be
+   read at all.
+   It was #EFF1F2 off AIM Chip.svg for a moment, and #F5F8FF (Chip.svg's
+   blue-white) before that. Back: [239, 241, 242] with an explicit rgba in
+   the .aichip rule. */
+const CHIP_RGB = (() => {
+  const v = getComputedStyle(document.documentElement)
+              .getPropertyValue("--chip2-rgb").trim();
+  const n = v.split(",").map(x => +x.trim());
+  return n.length === 3 && n.every(Number.isFinite) ? n : [241, 242, 246];
+})();
+/* ONE BLUE, NOT THREE, by request. The clip has a shallow vertical ramp —
+   sampled down its face it reads (51,115,244) a fifth of the way down,
+   (64,115,240) at the middle and (88,117,209) at four fifths, cooler at the
+   top — and it is that bottom stop, eleven points greener and thirty-five
+   duller in blue, that reads as a cast rather than as shading. The face is
+   the top sample throughout now, which is the one the reference's own solid
+   blue is quoted at everywhere else in this file.
+   This is a DEPARTURE from the measurement, not a correction of it: the ramp
+   is really there in the clip. Back: the three stops below, drawn as
+   `linear-gradient(a, b 55%, c)`. */
+const CHIP_BLUE = [51, 115, 244];
+const CHIP_BLUE_RAMP = [[51, 115, 244], [64, 115, 240], [88, 117, 209]];
 const PRESS_F0 = PRESS[0][0];
 /* 8 frames, not the measured second. At FPS the fade cannot finish inside
    act 1 — it is still at 0.13 when the cut comes at 136 — so the halo sat on
@@ -3573,13 +3630,15 @@ function setSeg(v){
    drawn before it and there is nothing to suppress. */
 let SEG2 = "all";
 function setSeg2(v){ SEG2 = v; }
+/* The prompt piece's seams are quoted in plate frames and so ride N2_TAILF,
+   the same way the search piece's ride TAIL. */
 const segStart = () => PIECE === 2
-                       ? (SEG2 === "response" ? N2_SPLIT_SEG : 0)
+                       ? (SEG2 === "response" ? N2_SPLIT_SEG + N2_TAILF : 0)
                      : SEG !== "chat" ? 0 : SPLIT_FP + TAIL;
 const segEnd   = () => PIECE === 2
-                       ? (SEG2 === "prompt"     ? N2_SPLIT_SEG
-                        : SEG2 === "promptlift" ? N2_PROMPTLIFT_SEG
-                                                : N2_NF + Math.round(N2_HOLD))
+                       ? (SEG2 === "prompt"     ? N2_SPLIT_SEG + N2_TAILF
+                        : SEG2 === "promptlift" ? N2_PROMPTLIFT_SEG + N2_TAILF
+                                                : N2_NF_EFF + Math.round(N2_HOLD))
                      : SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
 
 function frame(now){
@@ -3878,16 +3937,16 @@ function render(t){
   const stop = c => c.map((v, i) =>
         Math.round(CHIP_RGB[i] + (v - CHIP_RGB[i]) * litK)).join(",");
   chip.style.background = (litK > 0.002 || bubA < 0.999)
-    ? `linear-gradient(rgba(${stop(CHIP_BLUE[0])},${bubA.toFixed(3)}),`
-      + `rgba(${stop(CHIP_BLUE[1])},${bubA.toFixed(3)}) 55%,`
-      + `rgba(${stop(CHIP_BLUE[2])},${bubA.toFixed(3)}))`
+    ? `rgba(${stop(CHIP_BLUE)},${bubA.toFixed(3)})`
     : "";
-  /* The ink starts at the new chip's own blue rather than a near-black, so
-     the ramp is a three-channel lerp now instead of one grey number: from
-     #0B57D0 (11,87,208) at rest to white as the pill fills. The old form
-     wrote the same value into all three channels, which only worked because
-     the resting ink was grey. Back: `31 + 224 * litK` on all three. */
-  const INK0 = [11, 87, 208];
+  /* #1F1F1F off AIM Chip.svg — the label and the spark are near-black again,
+     by request, where Chip.svg had them at #0B57D0. The three-channel lerp
+     stays even though the ink is grey once more and all three channels now
+     carry the same number: it costs nothing, it is what makes the ramp
+     independent of what colour the ink happens to be, and reverting it to the
+     single `31 + 224 * litK` would only have to be undone again next time.
+     Back: [11, 87, 208], with #0B57D0 as the two CSS fallbacks. */
+  const INK0 = [31, 31, 31];
   chip.style.setProperty("--chip-ink",
     litK > 0.002
       ? "rgb(" + INK0.map(c => Math.round(c + (255 - c) * litK)).join(",") + ")"
@@ -4845,6 +4904,60 @@ function stageSVG(){
   stage.style.background = prevBg;
   return svg;
 }
+/* Blur the footage under the AI Mode pill, matching what the pill's own
+   backdrop-filter does in the preview. Reads the LIVE element for its rect,
+   its radius and whether the filter is even on, so it cannot drift from the
+   rule: the press turns the filter off (see bdOff) and this goes with it.
+   The radius is the CSS 10px carried onto the export's scale, since a 640px
+   export blurs a third as far in device pixels as a 1920 one. */
+function chipBackdropInto(ctx, W, H){
+  if (PIECE !== 1 || !bgOn) return false;
+  const cs = getComputedStyle(chip);
+  const bd = cs.backdropFilter || cs.webkitBackdropFilter || "none";
+  const m = /blur\(([\d.]+)px\)/.exec(bd);
+  if (!m) return false;                       // none, or the press has it off
+  const st = stage.getBoundingClientRect();
+  if (!st.width) return false;
+  const k = W / st.width;                     // stage px -> canvas px
+  const r = chip.getBoundingClientRect();
+  const x0 = (r.left - st.left) * k, y0 = (r.top - st.top) * k;
+  const w = r.width * k, h = r.height * k;
+  if (w < 1 || h < 1 || x0 > W || y0 > H || x0 + w < 0 || y0 + h < 0) return false;
+  const rad = +m[1] * k;
+  if (typeof ctx.filter !== "string") return false;   // no canvas filter, no blur
+  /* Blurred against the WHOLE frame, not against a crop of it. A crop was
+     tried first and is wrong at the edges: canvas `filter` treats everything
+     outside the drawn image as transparent black, so the blur pulls that in
+     at the patch's border. Padding the crop by three sigma hides it while the
+     pill is inland, but the padding is clamped once the pill nears the frame
+     edge — and measured on the frame where the chip is still half off the
+     right side (f70, running 1558..1991 of 1920) the crop version made the
+     stripe contrast WORSE than no blur at all, 64.6 against 54.2, which is
+     the halo rather than a defocus. Copying the whole frame costs one more
+     buffer and leaves only the frame's own edges, where the real
+     backdrop-filter has nothing to sample either. */
+  const tmp = document.createElement("canvas");
+  tmp.width = W; tmp.height = H;
+  tmp.getContext("2d").drawImage(ctx.canvas, 0, 0);
+  ctx.save();
+  /* the pill's own rounded rect, so the blur stops exactly where it does */
+  const rr = Math.min(h / 2, parseFloat(cs.borderTopLeftRadius) * k || h / 2);
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x0, y0, w, h, rr);
+  else {
+    ctx.moveTo(x0 + rr, y0);
+    ctx.arcTo(x0 + w, y0, x0 + w, y0 + h, rr);
+    ctx.arcTo(x0 + w, y0 + h, x0, y0 + h, rr);
+    ctx.arcTo(x0, y0 + h, x0, y0, rr);
+    ctx.arcTo(x0, y0, x0 + w, y0, rr);
+  }
+  ctx.clip();
+  ctx.filter = `blur(${rad.toFixed(2)}px)`;
+  ctx.drawImage(tmp, 0, 0);
+  ctx.filter = "none";
+  ctx.restore();
+  return true;
+}
 async function drawStage(ctx, W, H, keepAlpha){
   /* force a synchronous layout before serialising, then wait for decode()
      rather than onload: onload can fire before the foreignObject subtree
@@ -4874,6 +4987,28 @@ async function drawStage(ctx, W, H, keepAlpha){
         ctx.fillRect(0, 0, W, H);
       }
       if (!keepAlpha) bgDrawInto(ctx, W, H);
+      /* THE CHIP'S BACKDROP BLUR, DONE HERE because it cannot be done there.
+         The pill is 75% over footage, and the design defocuses what shows
+         through rather than merely dimming it — but a backdrop-filter can
+         only blur what its own document painted behind it, and the footage
+         is not in that document: stageSVG hides bgvid and bgimg, and the
+         video is composited HERE, underneath the SVG that is about to go on
+         top. Measured before this fix, forcing the chip's filter off changed
+         an exported frame by a mean of only 5.6 levels — that residue is the
+         filter acting on the bar's own scrim inside the SVG, not on the
+         plate — and against a 20px striped plate the stripe contrast under
+         the pill read 26.3 unfiltered against 21.9 filtered, where a 10px
+         blur should have flattened it.
+         So the region the pill covers is blurred on the CANVAS, in the one
+         gap where the footage is down and the stage is not yet over it.
+         The preview needs none of this: there the video is a real element
+         behind a real backdrop-filter, and it blurs correctly, moving or
+         still — checked with motion blur both on and off, since a filter on
+         #world makes it a backdrop root and that could have broken it.
+         Only where there IS footage: a transparent export has no backdrop in
+         the file at all, and on the plain white card there is nothing to
+         defocus. Back: delete this call. */
+      if (!keepAlpha) chipBackdropInto(ctx, W, H);
       ctx.drawImage(img, 0, 0, W, H);
     }
   }
@@ -4960,6 +5095,46 @@ function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
 }
 
 const $gs = document.getElementById("gstat");
+/* ── cancelling an export ────────────────────────────────────────────────
+   Every export is a frame loop that yields to the event loop once a frame
+   (`setTimeout(r, 0)`), which is the only reason a button can be clicked at
+   all while one runs — and it is therefore also the only place a cancel can
+   be noticed. So the loops ASK once a frame rather than the button trying to
+   interrupt them.
+   A Symbol rather than an Error: it rides the same `throw` the loops already
+   have, and it can never be mistaken for a real failure — thrown as an Error
+   it would have been reported as "failed:", which is exactly the wrong thing
+   to tell someone who pressed Cancel. */
+const EXPORT_CANCELLED = Symbol("export cancelled");
+let cancelWanted = false;
+const bailIfCancelled = () => { if (cancelWanted) throw EXPORT_CANCELLED; };
+/* All four handlers report through this rather than each writing the string
+   themselves, so a cancel cannot come out as a failure in one of them and
+   not the others. */
+function exportEnded(e){
+  $gs.textContent = e === EXPORT_CANCELLED
+    ? "cancelled"
+    : "failed: " + (e && e.message ? e.message : e);
+}
+/* `busy` and the button are one state, set in one place. A run always starts
+   uncancelled, so a Cancel pressed too late — after the last frame, while the
+   file is being packed — cannot carry into the next run. */
+const $xcancel = document.getElementById("xcancel");
+function exportBusy(on){
+  busy = on;
+  cancelWanted = false;
+  $xcancel.hidden = !on;
+  $xcancel.textContent = "Cancel Export";
+}
+$xcancel.onclick = () => {
+  if (!busy) return;
+  cancelWanted = true;
+  /* said twice on purpose: the button stops inviting a second press, and the
+     status line is where the frame counter has been reporting, so that is
+     where the eye already is. The loop cannot answer until its next frame. */
+  $xcancel.textContent = "Cancelling\u2026";
+  $gs.textContent = "cancelling\u2026";
+};
 document.getElementById("build").textContent = "build " + BUILD;
 
 /* ── the MOV writes STRAIGHT, and only straight ──────────────────────────
@@ -5022,7 +5197,7 @@ document.getElementById("gexport").onclick = async () => {
   const step = FPS / rate;
   const segA = segStart();                    // the chosen half
   const n = Math.ceil((segEnd() - segA) / step);
-  busy = true;
+  exportBusy(true);
   const wasHold = hold;
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
@@ -5045,6 +5220,7 @@ document.getElementById("gexport").onclick = async () => {
        export is — 400k colours is far more than 256 buckets need.        */
     const hist = new Hist();
     for (let k = 0; k < n; k++){
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
@@ -5059,6 +5235,7 @@ document.getElementById("gexport").onclick = async () => {
     /* the fallback delay only matters if a frame is written without one */
     const gif = new GifWriter(W, H, pal, delayAt(0));   /* opaque, by request */
     for (let k = 0; k < n; k++){
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
@@ -5082,9 +5259,9 @@ document.getElementById("gexport").onclick = async () => {
                     + `${(cs / 100).toFixed(2)}s · ${(out.length/1048576).toFixed(1)} MB`
                     + (fps > 100 / GIF_MIN_CS ? ` · capped from ${fps}` : "");
   } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+    exportEnded(e);
   } finally {
-    hold = wasHold; busy = false;
+    hold = wasHold; exportBusy(false);
     if (hold === null) window.play();
   }
 };
@@ -5134,7 +5311,7 @@ document.getElementById("mexport").onclick = async () => {
     $gs.textContent = "no WebCodecs in this browser";
     return;
   }
-  busy = true;
+  exportBusy(true);
   const W = +document.getElementById("gw").value;
   const H = Math.round(W * 1080 / 1920);      // even at every offered width
   const fps = +document.getElementById("gfps").value;
@@ -5145,11 +5322,15 @@ document.getElementById("mexport").onclick = async () => {
   const ctx = cvs.getContext("2d", { willReadFrequently: false });
   const samples = [], sync = [];
   let avcC = null, failed = null;
+  /* Hoisted out of the try so the finally can reach it. It was declared
+     inside, and enc.close() only ran on the success path — so a cancel, or
+     any throw at all, left a configured VideoEncoder open. */
+  let enc = null;
   try {
     /* 90000 is the usual video timescale and divides all three offered rates
        exactly — 3750, 7500, 11250 ticks per frame                          */
     const timescale = 90000, delta = Math.round(timescale / fps);
-    const enc = new VideoEncoder({
+    enc = new VideoEncoder({
       output: (chunk, meta) => {
         if (!avcC && meta && meta.decoderConfig && meta.decoderConfig.description)
           avcC = new Uint8Array(meta.decoderConfig.description);
@@ -5181,6 +5362,7 @@ document.getElementById("mexport").onclick = async () => {
     const segA = segStart(), segN = Math.ceil((segEnd() - segA) / step);
     for (let k = 0; k < segN; k++){
       if (failed) throw failed;
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);          // exact frame, not wherever it had played to
@@ -5196,7 +5378,7 @@ document.getElementById("mexport").onclick = async () => {
     }
     $gs.textContent = "encoding…";
     await enc.flush();
-    enc.close();
+    enc.close(); enc = null;          // closed cleanly; nothing for the finally
     if (failed) throw failed;
     if (!avcC) throw new Error("no avcC from the encoder");
     const mp4 = muxMP4(samples, sync, W, H, timescale, delta, avcC);
@@ -5208,9 +5390,13 @@ document.getElementById("mexport").onclick = async () => {
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     $gs.textContent = `${samples.length} frames · ${(mp4.length/1048576).toFixed(1)} MB`;
   } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+    exportEnded(e);
   } finally {
-    hold = wasHold; busy = false;
+    /* whatever happened — finished, cancelled or thrown — the encoder does not
+       outlive the run. close() on an already-closed one throws, hence the null
+       above and the guard here. */
+    if (enc){ try { enc.close(); } catch (_){} enc = null; }
+    hold = wasHold; exportBusy(false);
     if (hold === null) window.play();
   }
 };
@@ -5916,7 +6102,7 @@ document.getElementById("vexport").onclick = async () => {
   const step = FPS / fps;
   const segA = segStart();                    // the chosen half
   const n = Math.ceil((segEnd() - segA) / step);
-  busy = true;
+  exportBusy(true);
   const wasHold = hold;
   /* stale per-group opacity caches can swallow DOM writes on the first
      exported frame — reset so every fade recomputes from scratch */
@@ -5942,6 +6128,7 @@ document.getElementById("vexport").onclick = async () => {
   let qUsed = 0;
   try {
     for (let k = 0; k < n; k++){
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
@@ -5994,9 +6181,9 @@ document.getElementById("vexport").onclick = async () => {
          : " · opaque, reads the same everywhere")
       + (qUsed > PR_QSCALE ? ` · re-encoded at q${qUsed} for codeword width` : "");
   } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+    exportEnded(e);
   } finally {
-    hold = wasHold; busy = false;
+    hold = wasHold; exportBusy(false);
     if (hold === null) window.play();
   }
 };
@@ -6016,7 +6203,7 @@ document.getElementById("pexport").onclick = async () => {
   const step = FPS / fps;
   const segA = segStart();
   const n = Math.ceil((segEnd() - segA) / step);
-  busy = true;
+  exportBusy(true);
   const wasHold = hold;
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
@@ -6025,6 +6212,7 @@ document.getElementById("pexport").onclick = async () => {
   let bytes = 0;
   try {
     for (let k = 0; k < n; k++){
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
@@ -6049,9 +6237,9 @@ document.getElementById("pexport").onclick = async () => {
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     $gs.textContent = `${n} PNGs · ${(zip.length / 1048576).toFixed(1)} MB`;
   } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+    exportEnded(e);
   } finally {
-    hold = wasHold; busy = false;
+    hold = wasHold; exportBusy(false);
     if (hold === null) window.play();
   }
 };
@@ -6103,8 +6291,37 @@ const N2_NF = 192;
    with the difference that the tail now carries the offset too.
    Back: N2_HOLD = 0 restores the plate's timing exactly. */
 const N2_HOLD_AT = 36, N2_HOLD = 0.1 * FPS;
-const N2_DUR = (N2_NF - 1 + N2_HOLD) * FRAME;
+/* `let`, not const: it rides N2_TAILF now — see setTail2 below. */
+let   N2_DUR = (N2_NF - 1 + N2_HOLD) * FRAME;
 const N2_TYPE0 = 3, N2_TYPE1 = 34;
+/* ── THE TYPING SETS THE LENGTH, the way it does on the other piece ──────
+   By request, and built the same way: the prompt's characters cross the
+   plate's frames 3..34 — 31 frames for the reference's 37 characters, so
+   0.838 frames a character — and that RATE is what is kept, not the window.
+   A longer prompt types for longer and a shorter one for less, at a speed the
+   panel dials, and the typing's landing moves off the plate's frame 34 by
+   N2_TAILF frames. Everything after it — the send lighting, the press, the
+   morph or the lift, the flash, act 2, act 3 and the piece's own end — is
+   quoted in plate frames and reads a clock that runs N2_TAILF frames late
+   (render2's `fT`), so it all follows without being told. The reference
+   string at 1x gives a tail of exactly 0 and the plate's own timing back:
+   37 x 31/37 = 31 again.
+   Named N2_TAILF because N2_TAIL is already the trailing line's TEXT.
+   Back: n2Schedule spreading over N2_TYPE0..N2_TYPE1 whatever the length,
+   and N2_TAILF held at 0. */
+const N2_Q_REF = "why is the tush push so controversial";
+const N2_TYPE_PER_CHAR = (N2_TYPE1 - N2_TYPE0) / N2_Q_REF.length;   // 0.838
+let   N2_TYPE_SPEED = 1;
+function n2TypeEnd(){
+  return N2_TYPE0 + Math.max(1, N2_Q.length) * N2_TYPE_PER_CHAR / N2_TYPE_SPEED;
+}
+let   N2_TAILF  = 0;                 // frames, + = the tail runs later than the plate
+let   N2_NF_EFF = N2_NF;
+function setTail2(){
+  N2_TAILF  = n2TypeEnd() - N2_TYPE1;
+  N2_NF_EFF = N2_NF + N2_TAILF;
+  N2_DUR    = (N2_NF_EFF - 1 + N2_HOLD) * FRAME;
+}
 /* The send button's fill is a straight three-frame ramp: the plate reads pure
    white through f39 and then .33, .67, 1.00 on f40, f41, f42.
 
@@ -6125,6 +6342,42 @@ const N2_TYPE0 = 3, N2_TYPE1 = 34;
    request — which puts its first frames under the tail of the fill ramp, where
    the button is still turning blue */
 const N2_SEND = 39, N2_PRESS = 43 - 0.1 * FPS;
+/* THE CLICK'S LENGTH HAS MOVED THREE TIMES: 350ms measured, then x1.1, then
+   x1.2, and now 10% QUICKER than that x1.2 — which is 420 x 0.9 = 378, and
+   378/350 is exactly x1.08. So the request reads against what was on screen
+   and the constant still reads against the measurement; the two agree here
+   rather than having to be chosen between.
+   350ms measured, x1.08. The whole
+   press is stretched, so the down phase goes with it in the same proportion:
+   the button's scaleX runs out to BTN_SX over the first PRESS_PEAK of the
+   run, which is 1.930 frames at 350 and 2.084 at 378, x1.08. The peak
+   therefore lands on f42.69 instead of f42.53 and the button is back at rest
+   on f49.67 instead of f48.994.
+   WHAT THAT COSTS, since 48.994 was load-bearing: it is why three separate
+   things sit on 49 — the seam between the halves, the rect's morph (N2_MOVE0)
+   and the flash — and the note on N2_SPLIT_FP calls that "when the button
+   click motion is finished". The click now finishes 0.84 frames AFTER them,
+   so the rect starts travelling while the send is still returning and the
+   prompt half cuts just before the button settles. Nothing else moved, so it
+   is a real overlap rather than a re-timing — but it is a small one, and the
+   size is the point: measured against the old curve the pill is 0.70px wider
+   at f48, 0.19px at f49 and 0.03px at f49.5 on its 94.29px width, and it is
+   exactly at rest by 49.83. Sub-pixel for the whole of the overlap.
+   If it ever needs to be clean rather than merely invisible, the fix is to
+   move N2_PRESS earlier by the 0.84 rather than to shorten this back.
+   The energy blob keeps its own measured 400ms and is untouched.
+   The multiplier is always written against the MEASURED 350 rather than
+   compounded, so the constant says how far it has departed from the clip at
+   a glance: 1.1, then 1.2, now 1.08.
+   It lives HERE, beside N2_PRESS, rather than down with the press's own
+   render code: N2_PEAK_F is derived from it and the transition's opening
+   constants read that, 500 lines above where this used to sit.
+   Back: 350. */
+const N2_PRESS_MS = 350 * 1.08, N2_ENERGY_MS = 400, PRESS_PEAK = 0.23;
+/* Where the stretch is widest — PRESS_PEAK of the way through the press.
+   The transition opens on it, so lengthening the click carries the
+   transition with it instead of leaving the two to drift apart. */
+const N2_PEAK_F = N2_PRESS + PRESS_PEAK * N2_PRESS_MS / 1000 * FPS;   // 42.92
 
 /* ── the two act joins ──────────────────────────────────────────────────
    Neither is a cut. Both were measured off the plate frame by frame.
@@ -6151,7 +6404,28 @@ const N2_SEND = 39, N2_PRESS = 43 - 0.1 * FPS;
    travel, and act 2 still begins on 52 so nothing downstream shifts. The
    exponent refits from 3.25 to 2.15 over the shorter run and reproduces the
    same measured rects — .115 on f50 and .391 on f51. */
-const N2_MORPH0 = 48, N2_MORPH1 = 52;
+/* THE TRANSITION WAITS FOR THE CLICK TO FINISH, by request — it opened on
+   the stretch's PEAK for a round before this, and now it opens on the frame
+   the button is back at rest. That is the piece's original intent restored
+   rather than a new idea: the note on N2_SPLIT_FP has always called that
+   frame "when the button click motion is finished", and while the press was
+   its measured 350ms it ended on 48.994 with the rect opening on 49. The
+   press is 8% longer than the clip now, so that frame is 49.67 and the
+   transition follows it — derived, so changing the click's length again
+   carries this with it, as it just did.
+   IT MOVES WHOLE, unlike the peak version. That one shifted only the opening
+   beats and left the landings, stretching the transition; from here the
+   landing is 52 and the opening would be 50.67, which is 1.3 frames for the
+   entire morph. So the LANDINGS move by the same shift — N2_MORPH1,
+   N2_FLASH1, N2_A2, N2_SETTLE_END and act 2's own nav ramp — and the
+   transition keeps the shape it was measured with, 2.67 frames later.
+   Act 3 does NOT move: N2_A3, the exit smear and the 79.3 fade are its own
+   timing and the piece keeps its length, so act 2 simply holds 2.67 frames
+   less before it goes. Back: N2_TRANS_OPEN = 48 for the piece's own numbers,
+   or N2_PEAK_F for the stretch's peak. */
+const N2_TRANS_OPEN  = N2_PRESS + N2_PRESS_MS / 1000 * FPS;   // the click's end
+const N2_TRANS_SHIFT = 48 - N2_TRANS_OPEN;                    // negative = later
+const N2_MORPH0 = N2_TRANS_OPEN, N2_MORPH1 = 52 - N2_TRANS_SHIFT;
 /* The MOVE waits for the click; the face lifting does not. Those are separate
    curves in the plate — on f49 its rect has travelled 0.008 of the way, which
    is nothing, while its face has already gone from 0 to 149. The face is the
@@ -6160,7 +6434,7 @@ const N2_MORPH0 = 48, N2_MORPH1 = 52;
    of the way of a press that is at rest on f48.994. Over the shorter run the
    exponent refits from 3.25 to 2.15 and reproduces the same measured rects,
    .115 on f50 and .391 on f51. */
-const N2_MOVE0 = 49, N2_MOVE1 = 52, N2_MORPH_P = 2.15;
+const N2_MOVE0 = 49 - N2_TRANS_SHIFT, N2_MOVE1 = 52 - N2_TRANS_SHIFT, N2_MORPH_P = 2.15;
 /* THE RECT KEEPS GOING PAST 52. The power curve above is finished on the
    frame act 2 arrives, and measured against
    NFL_NeverKnowEnough_PromptResponse_01_V01_AB_1.mp4 that is far too abrupt:
@@ -6181,8 +6455,35 @@ const N2_MOVE0 = 49, N2_MOVE1 = 52, N2_MORPH_P = 2.15;
    757 wide at rest and 640 by f52, 623 by f54 and 619 from f56 on — it lands
    two frames after the wash, where the rect has ten more to run. So the font
    and the face keep the power curve and only the rect takes the settle. */
-const N2_SETTLE_K = 0.71, N2_SETTLE_F0 = 49.8, N2_SETTLE_END = 62;
-const settle = f => 1 - Math.pow(N2_SETTLE_K, Math.max(0, f - N2_SETTLE_F0));
+/* THE MORPH OPENS SLOWER, by request. The rect rides an exponential settling
+   toward the chip, and an exponential is at its FASTEST on its first frame —
+   measured, it covered 0.290 of the whole distance in frame one against 0.206
+   in the next and 0.146 in the one after. Now that the transition opens on
+   the click's own end, that lands its hardest movement exactly where the
+   button has just stopped moving, and it reads as a jump.
+   The fix is on the CLOCK, not the curve: the exponential reads an elapsed
+   time that eases in over its first N2_SETTLE_EASE frames instead of starting
+   at full rate. te grows quadratically from a standing start and then matches
+   `e - EASE/2`, so the measured tail — tau 2.94 frames, which is the part
+   that was read off the clip — is preserved exactly and only the opening is
+   shaped. The whole thing lands EASE/2 later as a result, 0.8 frames here,
+   which the settle's own window absorbs.
+   Back: N2_SETTLE_EASE = 0, which is the bare exponential again. */
+const N2_SETTLE_EASE = 1.6;
+/* The window carries the ease's own cost. N2_SETTLE_EASE delays the whole
+   settle by EASE/2, so holding the end at the piece's measured 12.2 frames
+   would hand the chip a box that is 1.7px short of it against the 1.3px the
+   bare exponential left. Adding the 0.8 back restores the original
+   completeness exactly — the box arrives as close as it ever did. */
+const N2_SETTLE_K = 0.71, N2_SETTLE_F0 = 49.8 - N2_TRANS_SHIFT,
+      N2_SETTLE_END = 62 - N2_TRANS_SHIFT + N2_SETTLE_EASE / 2;
+const settle = f => {
+  const e = Math.max(0, f - N2_SETTLE_F0);
+  const te = N2_SETTLE_EASE > 0 && e < N2_SETTLE_EASE
+             ? e * e / (2 * N2_SETTLE_EASE)
+             : e - N2_SETTLE_EASE / 2;
+  return 1 - Math.pow(N2_SETTLE_K, Math.max(0, te));
+};
 const N2_RUSH0 = 78, N2_RUSH1 = 87;              // act 2's exit smear
 const N2_A3_S0 = 0.192, N2_A3_DECAY = 0.63;      // act 3's arrival settle
 const N2_A3_OX = 268, N2_A3_OY = 609;            // and what it scales about
@@ -6192,7 +6493,7 @@ const N2_A3_OX = 268, N2_A3_OY = 609;            // and what it scales about
    whole-frame means put it at 48.72..52.06, because the mean also carries the
    box's face lifting on f49 — the box is 15.5% of the frame, which is the
    whole of that frame's rise. Separating the two puts the wash back on 49. */
-const N2_FLASH0 = 49, N2_FLASH1 = 52;
+const N2_FLASH0 = 49 - N2_TRANS_SHIFT, N2_FLASH1 = 52 - N2_TRANS_SHIFT;
 /* Where this piece breaks in two, asked for as "when the button click motion
    is finished". That lands on 49, and three separate things agree on it: the
    press's own arithmetic ends at N2_PRESS + 350ms = 48.994, the button's
@@ -6206,11 +6507,20 @@ const N2_FLASH0 = 49, N2_FLASH1 = 52;
    against the press's 350 and is still at 0.199 on 49, gone by 50.5. Ending
    the prompt half there instead would start the response half half-way
    through the flash (0.5 by 50.5), which is the worse of the two. */
-const N2_SPLIT_FP  = N2_FLASH0;
+/* Back to meaning what it says. This is "when the button click motion is
+   finished", and with the transition waiting for that frame the seam IS the
+   transition's opening again — the coincidence the piece was built on, which
+   only broke while the transition ran early off the stretch's peak. Derived
+   now rather than pinned at 49, so a longer click carries the seam with it:
+   at the current 420ms press that is 50.67 against the old 49, and the prompt
+   half is 1.67 frames longer for it. Back: 49, or N2_FLASH0. */
+const N2_SPLIT_FP  = N2_TRANS_OPEN;
 const N2_SPLIT_SEG = N2_SPLIT_FP - 1 + N2_HOLD;
 /* Act 3 starts on 87, not 88: the plate's mean drops from 245.2 to 15.6 between
    86 and 87, and its first act-3 frame is already the wall, smeared. */
-const N2_A2 = 52, N2_A3 = 87;
+/* act 2's arrival rides the transition; act 3's start does not — see the
+   note on N2_TRANS_OPEN */
+const N2_A2 = 52 - N2_TRANS_SHIFT, N2_A3 = 87;
 /* The swap is one continuous camera move, not a cut. Tracking the lit core:
    it holds at x=152 through f114, eases off left (138, 104, 33), goes dark at
    f124, and the next phrase enters from the right at x=527 and eases to rest
@@ -6616,7 +6926,6 @@ function cbez(c, x){
   }
   return by(t);
 }
-const N2_PRESS_MS = 350, N2_ENERGY_MS = 400, PRESS_PEAK = 0.23;
 /* The bloom's alpha at its brightest, measured off the reference clip: white
    over the pill reads 0.37 at top-centre on the peak frame. 0.92 was twice
    that and washed the button out.
@@ -6647,14 +6956,20 @@ let N2_QUOTES = ["it is nearly unstoppable", "difficult to officiate"];
    arriving — 154,154,154 where the paragraphs above it read 0 */
 let N2_TAIL = "The primary reasons the play remains highly controversial include:";
 
-/* The typing keeps the plate's own uneven cadence rather than an even
-   spread: the reference lands its 37 characters on 32 frames with the gaps
-   bunched, and an even spread reads mechanically next to it. */
+/* An even spread of the characters across the typing's window. The window
+   is no longer fixed at 3..34: it ends at n2TypeEnd(), which the length and
+   the speed decide, and the tail is re-derived here first so the schedule and
+   the clock it is read against can never disagree. In REAL frames (fRaw),
+   because the typing is the one thing that does not ride the shifted clock —
+   it is what shifts it. (The note that used to sit here about keeping the
+   plate's uneven cadence described an intention, not this code, which has
+   always been an even spread.) */
 let N2_FRAMES = [];
 function n2Schedule(){
-  const n = Math.max(1, N2_Q.length);
+  setTail2();
+  const n = Math.max(1, N2_Q.length), f1 = n2TypeEnd();
   N2_FRAMES = Array.from({length: n}, (_, k) =>
-    Math.round(N2_TYPE0 + (N2_TYPE1 - N2_TYPE0) * k / Math.max(1, n - 1)));
+    Math.round(N2_TYPE0 + (f1 - N2_TYPE0) * k / Math.max(1, n - 1)));
 }
 function n2Build(){
   n2Schedule();
@@ -6781,10 +7096,15 @@ function n3Aim(i){
 function render2(t){
   const T = Math.min(Math.max(t, 0), N2_DUR);
   const fRaw = T * FPS + 1;                    // t=0 is the plate's frame 1
-  /* the held clock: everything below is quoted in the plate's frame numbers, so
-     the hold is applied here once rather than to each of thirty constants */
-  const f = fRaw <= N2_HOLD_AT ? fRaw
-          : (fRaw < N2_HOLD_AT + N2_HOLD ? N2_HOLD_AT : fRaw - N2_HOLD);
+  /* Two clocks. fRaw is real time, and the typing runs on it. Everything else
+     is quoted in the PLATE's frame numbers and reads `f`, which runs N2_TAILF
+     frames behind real time — the plate's frame 34 is wherever the typing
+     actually landed — and then carries the hold, applied here once rather than
+     to each of thirty constants. N2_HOLD_AT is in plate frames, so the hold
+     sits two frames after the typing ends whatever the typing took. */
+  const fT = fRaw - N2_TAILF;
+  const f = fT <= N2_HOLD_AT ? fT
+          : (fT < N2_HOLD_AT + N2_HOLD ? N2_HOLD_AT : fT - N2_HOLD);
   /* the readouts are the other piece's, written past its early return, so this
      one has to fill them itself. Same three quantities, this piece's version of
      them: the clock, whatever the camera is translating, and the width of the
@@ -6807,14 +7127,20 @@ function render2(t){
   /* The bar's drive, on this box. An opening on the standard decelerate plus
      the constant measured turn, both fed into one angle so the mask and the
      wheel cannot disagree about phase. */
-  const gu   = sat((f - N2_GLOW_F0) * N2_GLOW_SPEED * N2_GLOW_BASE
-                   / (N2_GLOW_F1 - N2_GLOW_F0));
+  /* The sweep is the one beat pinned at both ends of the typing: it opens on
+     the plate's first frame, which is real time, and reaches its end at the
+     click, which is plate time. So it is stretched over the real distance
+     between those two — N2_TAILF longer or shorter — rather than delayed with
+     the tail, which would have it start late on a long prompt and before the
+     piece on a short one. At a tail of 0 this is exactly what it was. */
+  const gSpan = N2_GLOW_F1 - N2_GLOW_F0 + N2_TAILF;
+  const gu   = sat((fRaw - N2_GLOW_F0) * N2_GLOW_SPEED * N2_GLOW_BASE / gSpan);
   /* the radius envelope rides act 1's own progress, NOT the speeded sweep.
      At the rebased default the sweep only reaches 0.35 by the click, and on
      the speeded clock the blur would hold its plateau into the morph — the
      small-to-normal-to-SMALL that was just asked for would never end small.
      On the act's clock the envelope completes at the click at every speed. */
-  const gu0  = sat((f - N2_GLOW_F0) / (N2_GLOW_F1 - N2_GLOW_F0));
+  const gu0  = sat((fRaw - N2_GLOW_F0) / gSpan);
   /* the panel's curve shapes the angle; linear is its default, and it is
      load-bearing there — on the standard decelerate this sweep passes the
      blur track's bloom by about f2, with the box barely on screen */
@@ -6850,16 +7176,17 @@ function render2(t){
 
   /* ── typing ── */
   let n = 0;
-  while (n < N2_FRAMES.length && N2_FRAMES[n] <= f) n++;
+  while (n < N2_FRAMES.length && N2_FRAMES[n] <= fRaw) n++;    // real time
   if (nqt.dataset.n !== String(n)){
     nqt.dataset.n = n;
     nqt.textContent = N2_Q.slice(0, n);
   }
   /* the caret blinks until the first character and is gone once the last
-     one lands, the same rule the other piece uses */
-  if (f >= N2_TYPE1 + 1)      ncaret.className = "off";
-  else if (f >= N2_TYPE0)     ncaret.className = "";
-  else ncaret.className = (Math.floor(f / 8) % 2) ? "off" : "";
+     one lands, the same rule the other piece uses — on real time, against the
+     typing's real end */
+  if (fRaw >= n2TypeEnd() + 1)   ncaret.className = "off";
+  else if (fRaw >= N2_TYPE0)     ncaret.className = "";
+  else ncaret.className = (Math.floor(fRaw / 8) % 2) ? "off" : "";
 
   /* ── the send button lights, then is pressed ── */
   /* The send starts white and turns blue over three frames — but only on the
@@ -7033,9 +7360,6 @@ function render2(t){
     const fc = i => (F0[i] + ([240, 241, 244][i] - F0[i]) * face).toFixed(0);
     nface.style.background = `rgb(${fc(0)},${fc(1)},${fc(2)})`;
     nface.style.opacity = (FA0 + (1 - FA0) * sat(mt * 4)).toFixed(3);
-    /* the halo leaves with the box — and stays if the box is not leaving */
-    const ring = promptOnly ? 1 : sat(1 - (f - 48.3) / 1.9);
-    nglow.style.opacity = ring.toFixed(3);
     /* Multiply, do not overwrite. The mic rests at 50% and the + at 50% on the
        dark look, and writing a flat 1 here outranked both classes for the whole
        of act 1 — the mic has been rendering opaque against a stylesheet that
@@ -7044,6 +7368,19 @@ function render2(t){
     nplus.style.opacity  = (leave * dim).toFixed(3);
     nmicEl.style.opacity = (leave * dim).toFixed(3);
     nsend.style.opacity  = leave.toFixed(3);
+    /* THE HALO GOES WITH THEM, by request — one `leave` for the glow, the
+       send, the mic and the plus, so the box is emptied of its furniture in a
+       single move rather than in two.
+       It used to fade on a baked `1 - (f - 48.3) / 1.9`, which was written
+       when the morph opened on 48: 0.3 frames after the opening, over 1.9.
+       Once the transition moved to the stretch's peak that absolute stopped
+       meaning anything — the furniture was leaving from 42.92 and gone by
+       47.46 while the glow did not begin until 48.3 and hung on to 50.2,
+       about three frames after everything else had cleared.
+       Back: `sat(1 - (f - 48.3) / 1.9)`, and note it wants re-basing onto
+       N2_MORPH0 rather than restoring as an absolute. */
+    const ring = promptOnly ? 1 : leave;
+    nglow.style.opacity = ring.toFixed(3);
 
     /* the query rides the box down into the chip */
     nq.style.fontSize = (44 + (36 - 44) * u).toFixed(2) + "px";
@@ -7123,7 +7460,9 @@ function render2(t){
   if (inA2){
     /* both on act 2's clock, so the lift's two-frame wait carries them */
     bodyRise = N2_RISE_PX * Math.pow(N2_RISE_K, Math.max(0, fa - N2_RISE0));
-    n2nav.style.opacity  = sat((fa - 55) / 7).toFixed(3);
+    /* 55 is act 2's own beat, three frames after it arrives, so it rides the
+       transition's shift with the arrival rather than staying absolute */
+    n2nav.style.opacity  = sat((fa - (55 - N2_TRANS_SHIFT)) / 7).toFixed(3);
     if (LIFT_ON){
       /* Nothing is landing on the chip here, so it arrives with the answer and
          climbs with it — the bubble and the response rolling up together, the
@@ -7351,7 +7690,7 @@ function render2(t){
 let PIECE = 1;
 const $piece = document.getElementById("piece");
 function pieceDur(){ return PIECE === 2 ? N2_DUR : DUR; }
-function pieceFrames(){ return PIECE === 2 ? N2_NF : NF_EFF; }
+function pieceFrames(){ return PIECE === 2 ? N2_NF_EFF : NF_EFF; }
 function applyN2LookBoot(){
   if (typeof $n2box !== "undefined" && $n2box) applyN2Look();
 }
@@ -7475,11 +7814,35 @@ function applyN2(){
   const n2Half  = n2Whole - segStart() / FPS;
   $n2warn.textContent = `${N2_Q.length} chars`
                       + (N2_ROWS > 1 ? ` \u00b7 ${N2_ROWS} rows` : "")
+                      + ` \u00b7 types ${((n2TypeEnd() - N2_TYPE0) / FPS).toFixed(2)}s`
                       + ` \u00b7 piece ${N2_DUR.toFixed(2)}s`
                       + (SEG2 === "all" ? "" : ` \u00b7 this half ${n2Half.toFixed(2)}s`);
   render(hold !== null ? hold : 0);
 }
 for (const el of [$n2q, $n2ctx, $n2a, $n2q1, $n2q2, $n2tail]) el.addEventListener("input", applyN2);
+/* the prompt's typing speed — setSpeed's shape exactly, on this piece's
+   variables: the same clamp, the two controls driving each other, `change`
+   rather than `input` on the field so a keystroke is not rewritten under the
+   cursor, and #speed2= carrying a non-default */
+const $t2s = document.getElementById("t2spd"), $t2sn = document.getElementById("t2spdn"),
+      $t2w = document.getElementById("t2warn");
+function setSpeed2(v, from){
+  N2_TYPE_SPEED = clamp(+v || 1, SPEED_MIN, SPEED_MAX);
+  if (from !== "range")  $t2s.value  = N2_TYPE_SPEED;
+  if (from !== "number") $t2sn.value = N2_TYPE_SPEED.toFixed(2);
+  applyN2();                          // re-derives the schedule, the tail and the length
+  $t2w.textContent = `lands on frame ${n2TypeEnd().toFixed(1)}`
+                   + (N2_TAILF ? ` \u00b7 tail ${N2_TAILF > 0 ? "+" : ""}${N2_TAILF.toFixed(1)} frames` : "");
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  N2_TYPE_SPEED === 1 ? h.delete("speed2") : h.set("speed2", N2_TYPE_SPEED.toFixed(2));
+  const q = h.toString();
+  history.replaceState(null, "", q ? "#" + q : location.pathname);
+}
+$t2s.addEventListener("input",  () => setSpeed2($t2s.value,  "range"));
+$t2sn.addEventListener("change", () => {
+  setSpeed2(Math.round(+$t2sn.value * 100) / 100, "number");
+  $t2sn.value = N2_TYPE_SPEED.toFixed(2);
+});
 /* Two states each, so a switch: the label says what it is now, and clicking
    it is the whole interaction. They were selects, which cost a click to open
    and put three of them across one row narrow enough to truncate the text. */
@@ -7611,6 +7974,11 @@ function boot(){
     TYPE_SPEED = clamp(+Q.get("speed") || 1, SPEED_MIN, SPEED_MAX);
     $ts.value  = TYPE_SPEED;
     $tsn.value = TYPE_SPEED.toFixed(2);
+  }
+  if (Q.has("speed2")){                      // #speed2=… the prompt's typing rate
+    N2_TYPE_SPEED = clamp(+Q.get("speed2") || 1, SPEED_MIN, SPEED_MAX);
+    $t2s.value  = N2_TYPE_SPEED;
+    $t2sn.value = N2_TYPE_SPEED.toFixed(2);
   }
   if (Q.has("cam")){                         // #cam=… the camera's
     CAM_SPEED  = clamp(+Q.get("cam") || 1, CAM_MIN, CAM_MAX);
