@@ -265,8 +265,20 @@
      percentages, the 7 x 1.5 squash — is the source's own and unscaled. */
   /* both ring layers carry the same cut-out: everything but the ring is
      masked away, so neither can paint over the face */
+  /* THE OUTLINE IS THICKER AT THE OPENING, by request. It is 1px on the
+     source's 112-tall plate, which at this bar's 234 is 2.089 — that is the
+     measurement, and 3px is a departure from it: 1.44x, or 1.44px if it were
+     read back to the source's scale. Slight on purpose; at 1920 it is 0.46px
+     more on each side of a hairline.
+     Only the OPENING is affected even though this is a static rule, because
+     .barfill is the only thing that ever draws an outline — the gradient's
+     own padding is the bleed exactly, which takes it off the bar's edge (see
+     .bargrad) — and its opacity is 1 only until BAR_BURST_F0, after which it
+     fades out on BURST_BORDER and never returns. So thickening the ring and
+     thickening it "at the beginning" are the same edit here.
+     Back: 2.09px, the measured 1px x 2.089. */
   .barfill{position:absolute;inset:0;border-radius:inherit;box-sizing:border-box;
-           padding:2.09px;background:var(--bar-border);
+           padding:3px;background:var(--bar-border);
            -webkit-mask:linear-gradient(#000 0 0) content-box,
                         linear-gradient(#000 0 0);
            mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
