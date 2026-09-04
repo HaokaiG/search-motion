@@ -1861,6 +1861,14 @@
     <input id="n2q2" type="text" spellcheck="false" value="difficult to officiate">
     <span class="warn" id="n2qwarn"></span>
     <h3 class="sub">Look</h3>
+    <!-- the other piece's Typing speed, for this box: same range, same two
+         controls driving each other, same hash habit (#speed2=). Under Look
+         with the glow dial, by request, rather than under the field it times. -->
+    <div class="lbl"><label for="t2spd">Typing speed</label>
+      <input id="t2spdn" type="number" min="0.2" max="20" step="0.05" value="1.00">
+    </div>
+    <input id="t2spd" type="range" min="0.2" max="5" step="0.05" value="1">
+    <span class="warn" id="t2warn"></span>
     <!-- the search query box's glow only. The highlight scene's glow keeps
          its own measured rate and is not on this dial — the two used to share
          the Glow Motion dropdown this control replaces. -->
@@ -3620,13 +3628,15 @@ function setSeg(v){
    drawn before it and there is nothing to suppress. */
 let SEG2 = "all";
 function setSeg2(v){ SEG2 = v; }
+/* The prompt piece's seams are quoted in plate frames and so ride N2_TAILF,
+   the same way the search piece's ride TAIL. */
 const segStart = () => PIECE === 2
-                       ? (SEG2 === "response" ? N2_SPLIT_SEG : 0)
+                       ? (SEG2 === "response" ? N2_SPLIT_SEG + N2_TAILF : 0)
                      : SEG !== "chat" ? 0 : SPLIT_FP + TAIL;
 const segEnd   = () => PIECE === 2
-                       ? (SEG2 === "prompt"     ? N2_SPLIT_SEG
-                        : SEG2 === "promptlift" ? N2_PROMPTLIFT_SEG
-                                                : N2_NF + Math.round(N2_HOLD))
+                       ? (SEG2 === "prompt"     ? N2_SPLIT_SEG + N2_TAILF
+                        : SEG2 === "promptlift" ? N2_PROMPTLIFT_SEG + N2_TAILF
+                                                : N2_NF_EFF + Math.round(N2_HOLD))
                      : SEG === "query" ? SPLIT_FP + TAIL : NF_EFF;
 
 function frame(now){
@@ -6203,8 +6213,37 @@ const N2_NF = 192;
    with the difference that the tail now carries the offset too.
    Back: N2_HOLD = 0 restores the plate's timing exactly. */
 const N2_HOLD_AT = 36, N2_HOLD = 0.1 * FPS;
-const N2_DUR = (N2_NF - 1 + N2_HOLD) * FRAME;
+/* `let`, not const: it rides N2_TAILF now — see setTail2 below. */
+let   N2_DUR = (N2_NF - 1 + N2_HOLD) * FRAME;
 const N2_TYPE0 = 3, N2_TYPE1 = 34;
+/* ── THE TYPING SETS THE LENGTH, the way it does on the other piece ──────
+   By request, and built the same way: the prompt's characters cross the
+   plate's frames 3..34 — 31 frames for the reference's 37 characters, so
+   0.838 frames a character — and that RATE is what is kept, not the window.
+   A longer prompt types for longer and a shorter one for less, at a speed the
+   panel dials, and the typing's landing moves off the plate's frame 34 by
+   N2_TAILF frames. Everything after it — the send lighting, the press, the
+   morph or the lift, the flash, act 2, act 3 and the piece's own end — is
+   quoted in plate frames and reads a clock that runs N2_TAILF frames late
+   (render2's `fT`), so it all follows without being told. The reference
+   string at 1x gives a tail of exactly 0 and the plate's own timing back:
+   37 x 31/37 = 31 again.
+   Named N2_TAILF because N2_TAIL is already the trailing line's TEXT.
+   Back: n2Schedule spreading over N2_TYPE0..N2_TYPE1 whatever the length,
+   and N2_TAILF held at 0. */
+const N2_Q_REF = "why is the tush push so controversial";
+const N2_TYPE_PER_CHAR = (N2_TYPE1 - N2_TYPE0) / N2_Q_REF.length;   // 0.838
+let   N2_TYPE_SPEED = 1;
+function n2TypeEnd(){
+  return N2_TYPE0 + Math.max(1, N2_Q.length) * N2_TYPE_PER_CHAR / N2_TYPE_SPEED;
+}
+let   N2_TAILF  = 0;                 // frames, + = the tail runs later than the plate
+let   N2_NF_EFF = N2_NF;
+function setTail2(){
+  N2_TAILF  = n2TypeEnd() - N2_TYPE1;
+  N2_NF_EFF = N2_NF + N2_TAILF;
+  N2_DUR    = (N2_NF_EFF - 1 + N2_HOLD) * FRAME;
+}
 /* The send button's fill is a straight three-frame ramp: the plate reads pure
    white through f39 and then .33, .67, 1.00 on f40, f41, f42.
 
@@ -6747,14 +6786,20 @@ let N2_QUOTES = ["it is nearly unstoppable", "difficult to officiate"];
    arriving — 154,154,154 where the paragraphs above it read 0 */
 let N2_TAIL = "The primary reasons the play remains highly controversial include:";
 
-/* The typing keeps the plate's own uneven cadence rather than an even
-   spread: the reference lands its 37 characters on 32 frames with the gaps
-   bunched, and an even spread reads mechanically next to it. */
+/* An even spread of the characters across the typing's window. The window
+   is no longer fixed at 3..34: it ends at n2TypeEnd(), which the length and
+   the speed decide, and the tail is re-derived here first so the schedule and
+   the clock it is read against can never disagree. In REAL frames (fRaw),
+   because the typing is the one thing that does not ride the shifted clock —
+   it is what shifts it. (The note that used to sit here about keeping the
+   plate's uneven cadence described an intention, not this code, which has
+   always been an even spread.) */
 let N2_FRAMES = [];
 function n2Schedule(){
-  const n = Math.max(1, N2_Q.length);
+  setTail2();
+  const n = Math.max(1, N2_Q.length), f1 = n2TypeEnd();
   N2_FRAMES = Array.from({length: n}, (_, k) =>
-    Math.round(N2_TYPE0 + (N2_TYPE1 - N2_TYPE0) * k / Math.max(1, n - 1)));
+    Math.round(N2_TYPE0 + (f1 - N2_TYPE0) * k / Math.max(1, n - 1)));
 }
 function n2Build(){
   n2Schedule();
@@ -6881,10 +6926,15 @@ function n3Aim(i){
 function render2(t){
   const T = Math.min(Math.max(t, 0), N2_DUR);
   const fRaw = T * FPS + 1;                    // t=0 is the plate's frame 1
-  /* the held clock: everything below is quoted in the plate's frame numbers, so
-     the hold is applied here once rather than to each of thirty constants */
-  const f = fRaw <= N2_HOLD_AT ? fRaw
-          : (fRaw < N2_HOLD_AT + N2_HOLD ? N2_HOLD_AT : fRaw - N2_HOLD);
+  /* Two clocks. fRaw is real time, and the typing runs on it. Everything else
+     is quoted in the PLATE's frame numbers and reads `f`, which runs N2_TAILF
+     frames behind real time — the plate's frame 34 is wherever the typing
+     actually landed — and then carries the hold, applied here once rather than
+     to each of thirty constants. N2_HOLD_AT is in plate frames, so the hold
+     sits two frames after the typing ends whatever the typing took. */
+  const fT = fRaw - N2_TAILF;
+  const f = fT <= N2_HOLD_AT ? fT
+          : (fT < N2_HOLD_AT + N2_HOLD ? N2_HOLD_AT : fT - N2_HOLD);
   /* the readouts are the other piece's, written past its early return, so this
      one has to fill them itself. Same three quantities, this piece's version of
      them: the clock, whatever the camera is translating, and the width of the
@@ -6907,14 +6957,20 @@ function render2(t){
   /* The bar's drive, on this box. An opening on the standard decelerate plus
      the constant measured turn, both fed into one angle so the mask and the
      wheel cannot disagree about phase. */
-  const gu   = sat((f - N2_GLOW_F0) * N2_GLOW_SPEED * N2_GLOW_BASE
-                   / (N2_GLOW_F1 - N2_GLOW_F0));
+  /* The sweep is the one beat pinned at both ends of the typing: it opens on
+     the plate's first frame, which is real time, and reaches its end at the
+     click, which is plate time. So it is stretched over the real distance
+     between those two — N2_TAILF longer or shorter — rather than delayed with
+     the tail, which would have it start late on a long prompt and before the
+     piece on a short one. At a tail of 0 this is exactly what it was. */
+  const gSpan = N2_GLOW_F1 - N2_GLOW_F0 + N2_TAILF;
+  const gu   = sat((fRaw - N2_GLOW_F0) * N2_GLOW_SPEED * N2_GLOW_BASE / gSpan);
   /* the radius envelope rides act 1's own progress, NOT the speeded sweep.
      At the rebased default the sweep only reaches 0.35 by the click, and on
      the speeded clock the blur would hold its plateau into the morph — the
      small-to-normal-to-SMALL that was just asked for would never end small.
      On the act's clock the envelope completes at the click at every speed. */
-  const gu0  = sat((f - N2_GLOW_F0) / (N2_GLOW_F1 - N2_GLOW_F0));
+  const gu0  = sat((fRaw - N2_GLOW_F0) / gSpan);
   /* the panel's curve shapes the angle; linear is its default, and it is
      load-bearing there — on the standard decelerate this sweep passes the
      blur track's bloom by about f2, with the box barely on screen */
@@ -6950,16 +7006,17 @@ function render2(t){
 
   /* ── typing ── */
   let n = 0;
-  while (n < N2_FRAMES.length && N2_FRAMES[n] <= f) n++;
+  while (n < N2_FRAMES.length && N2_FRAMES[n] <= fRaw) n++;    // real time
   if (nqt.dataset.n !== String(n)){
     nqt.dataset.n = n;
     nqt.textContent = N2_Q.slice(0, n);
   }
   /* the caret blinks until the first character and is gone once the last
-     one lands, the same rule the other piece uses */
-  if (f >= N2_TYPE1 + 1)      ncaret.className = "off";
-  else if (f >= N2_TYPE0)     ncaret.className = "";
-  else ncaret.className = (Math.floor(f / 8) % 2) ? "off" : "";
+     one lands, the same rule the other piece uses — on real time, against the
+     typing's real end */
+  if (fRaw >= n2TypeEnd() + 1)   ncaret.className = "off";
+  else if (fRaw >= N2_TYPE0)     ncaret.className = "";
+  else ncaret.className = (Math.floor(fRaw / 8) % 2) ? "off" : "";
 
   /* ── the send button lights, then is pressed ── */
   /* The send starts white and turns blue over three frames — but only on the
@@ -7451,7 +7508,7 @@ function render2(t){
 let PIECE = 1;
 const $piece = document.getElementById("piece");
 function pieceDur(){ return PIECE === 2 ? N2_DUR : DUR; }
-function pieceFrames(){ return PIECE === 2 ? N2_NF : NF_EFF; }
+function pieceFrames(){ return PIECE === 2 ? N2_NF_EFF : NF_EFF; }
 function applyN2LookBoot(){
   if (typeof $n2box !== "undefined" && $n2box) applyN2Look();
 }
@@ -7575,11 +7632,35 @@ function applyN2(){
   const n2Half  = n2Whole - segStart() / FPS;
   $n2warn.textContent = `${N2_Q.length} chars`
                       + (N2_ROWS > 1 ? ` \u00b7 ${N2_ROWS} rows` : "")
+                      + ` \u00b7 types ${((n2TypeEnd() - N2_TYPE0) / FPS).toFixed(2)}s`
                       + ` \u00b7 piece ${N2_DUR.toFixed(2)}s`
                       + (SEG2 === "all" ? "" : ` \u00b7 this half ${n2Half.toFixed(2)}s`);
   render(hold !== null ? hold : 0);
 }
 for (const el of [$n2q, $n2ctx, $n2a, $n2q1, $n2q2, $n2tail]) el.addEventListener("input", applyN2);
+/* the prompt's typing speed — setSpeed's shape exactly, on this piece's
+   variables: the same clamp, the two controls driving each other, `change`
+   rather than `input` on the field so a keystroke is not rewritten under the
+   cursor, and #speed2= carrying a non-default */
+const $t2s = document.getElementById("t2spd"), $t2sn = document.getElementById("t2spdn"),
+      $t2w = document.getElementById("t2warn");
+function setSpeed2(v, from){
+  N2_TYPE_SPEED = clamp(+v || 1, SPEED_MIN, SPEED_MAX);
+  if (from !== "range")  $t2s.value  = N2_TYPE_SPEED;
+  if (from !== "number") $t2sn.value = N2_TYPE_SPEED.toFixed(2);
+  applyN2();                          // re-derives the schedule, the tail and the length
+  $t2w.textContent = `lands on frame ${n2TypeEnd().toFixed(1)}`
+                   + (N2_TAILF ? ` \u00b7 tail ${N2_TAILF > 0 ? "+" : ""}${N2_TAILF.toFixed(1)} frames` : "");
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  N2_TYPE_SPEED === 1 ? h.delete("speed2") : h.set("speed2", N2_TYPE_SPEED.toFixed(2));
+  const q = h.toString();
+  history.replaceState(null, "", q ? "#" + q : location.pathname);
+}
+$t2s.addEventListener("input",  () => setSpeed2($t2s.value,  "range"));
+$t2sn.addEventListener("change", () => {
+  setSpeed2(Math.round(+$t2sn.value * 100) / 100, "number");
+  $t2sn.value = N2_TYPE_SPEED.toFixed(2);
+});
 /* Two states each, so a switch: the label says what it is now, and clicking
    it is the whole interaction. They were selects, which cost a click to open
    and put three of them across one row narrow enough to truncate the text. */
@@ -7711,6 +7792,11 @@ function boot(){
     TYPE_SPEED = clamp(+Q.get("speed") || 1, SPEED_MIN, SPEED_MAX);
     $ts.value  = TYPE_SPEED;
     $tsn.value = TYPE_SPEED.toFixed(2);
+  }
+  if (Q.has("speed2")){                      // #speed2=… the prompt's typing rate
+    N2_TYPE_SPEED = clamp(+Q.get("speed2") || 1, SPEED_MIN, SPEED_MAX);
+    $t2s.value  = N2_TYPE_SPEED;
+    $t2sn.value = N2_TYPE_SPEED.toFixed(2);
   }
   if (Q.has("cam")){                         // #cam=… the camera's
     CAM_SPEED  = clamp(+Q.get("cam") || 1, CAM_MIN, CAM_MAX);
