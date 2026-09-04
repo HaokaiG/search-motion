@@ -187,8 +187,9 @@
      label and the lens with it — where backdrop-filter blurs only what is
      already painted behind the element and leaves its contents sharp.
 
-     IT DOES NOT REACH THE FOOTAGE IN AN EXPORT, and that is worth knowing
-     before trusting the preview. The property itself survives the export
+     IT DOES NOT REACH THE FOOTAGE IN AN EXPORT BY ITSELF — chipBackdropInto
+     in drawStage is what makes the exported file agree with the preview, and
+     the rest of this note is why it has to exist. The property itself survives the export
      path — measured with a striped test layer inside the stage, the
      contrast behind the pill fell from 64.7 to 0.7 through drawStage, so
      the serialised foreignObject honours it. What it cannot see is the
@@ -197,13 +198,14 @@
      over it. The footage is therefore underneath the SVG rather than inside
      it, and a backdrop-filter can only blur what its own document paints
      behind it.
-     So: over footage the preview defocuses the plate behind the pill and
-     the exported file does not. In the transparent mode the two agree —
-     there is no footage, and what sits behind the pill inside the stage is
-     the bar's flat scrim, which has nothing to defocus either way.
-     Making the export match would mean blurring the canvas region under the
-     chip in drawStage, between bgDrawInto and the drawImage of the stage.
-     Back: the --chip-a0 line alone, with no blur. */
+     So over footage this rule defocuses the plate in the preview and cannot
+     in the file; drawStage blurs the canvas under the pill instead, in the
+     one gap where the footage is down and the stage is not yet over it. In
+     the transparent mode nothing is needed and nothing is done — there is no
+     footage in an alpha file, and what sits behind the pill inside the stage
+     is the bar's flat scrim, which has nothing to defocus either way.
+     Back: the --chip-a0 line alone, with no blur, and drop the
+     chipBackdropInto call. */
   #stage.has-bg .aichip, #stage.has-alpha .aichip{
                      --chip-a0:.75;
                      -webkit-backdrop-filter:blur(10px);
@@ -4902,6 +4904,60 @@ function stageSVG(){
   stage.style.background = prevBg;
   return svg;
 }
+/* Blur the footage under the AI Mode pill, matching what the pill's own
+   backdrop-filter does in the preview. Reads the LIVE element for its rect,
+   its radius and whether the filter is even on, so it cannot drift from the
+   rule: the press turns the filter off (see bdOff) and this goes with it.
+   The radius is the CSS 10px carried onto the export's scale, since a 640px
+   export blurs a third as far in device pixels as a 1920 one. */
+function chipBackdropInto(ctx, W, H){
+  if (PIECE !== 1 || !bgOn) return false;
+  const cs = getComputedStyle(chip);
+  const bd = cs.backdropFilter || cs.webkitBackdropFilter || "none";
+  const m = /blur\(([\d.]+)px\)/.exec(bd);
+  if (!m) return false;                       // none, or the press has it off
+  const st = stage.getBoundingClientRect();
+  if (!st.width) return false;
+  const k = W / st.width;                     // stage px -> canvas px
+  const r = chip.getBoundingClientRect();
+  const x0 = (r.left - st.left) * k, y0 = (r.top - st.top) * k;
+  const w = r.width * k, h = r.height * k;
+  if (w < 1 || h < 1 || x0 > W || y0 > H || x0 + w < 0 || y0 + h < 0) return false;
+  const rad = +m[1] * k;
+  if (typeof ctx.filter !== "string") return false;   // no canvas filter, no blur
+  /* Blurred against the WHOLE frame, not against a crop of it. A crop was
+     tried first and is wrong at the edges: canvas `filter` treats everything
+     outside the drawn image as transparent black, so the blur pulls that in
+     at the patch's border. Padding the crop by three sigma hides it while the
+     pill is inland, but the padding is clamped once the pill nears the frame
+     edge — and measured on the frame where the chip is still half off the
+     right side (f70, running 1558..1991 of 1920) the crop version made the
+     stripe contrast WORSE than no blur at all, 64.6 against 54.2, which is
+     the halo rather than a defocus. Copying the whole frame costs one more
+     buffer and leaves only the frame's own edges, where the real
+     backdrop-filter has nothing to sample either. */
+  const tmp = document.createElement("canvas");
+  tmp.width = W; tmp.height = H;
+  tmp.getContext("2d").drawImage(ctx.canvas, 0, 0);
+  ctx.save();
+  /* the pill's own rounded rect, so the blur stops exactly where it does */
+  const rr = Math.min(h / 2, parseFloat(cs.borderTopLeftRadius) * k || h / 2);
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x0, y0, w, h, rr);
+  else {
+    ctx.moveTo(x0 + rr, y0);
+    ctx.arcTo(x0 + w, y0, x0 + w, y0 + h, rr);
+    ctx.arcTo(x0 + w, y0 + h, x0, y0 + h, rr);
+    ctx.arcTo(x0, y0 + h, x0, y0, rr);
+    ctx.arcTo(x0, y0, x0 + w, y0, rr);
+  }
+  ctx.clip();
+  ctx.filter = `blur(${rad.toFixed(2)}px)`;
+  ctx.drawImage(tmp, 0, 0);
+  ctx.filter = "none";
+  ctx.restore();
+  return true;
+}
 async function drawStage(ctx, W, H, keepAlpha){
   /* force a synchronous layout before serialising, then wait for decode()
      rather than onload: onload can fire before the foreignObject subtree
@@ -4931,6 +4987,28 @@ async function drawStage(ctx, W, H, keepAlpha){
         ctx.fillRect(0, 0, W, H);
       }
       if (!keepAlpha) bgDrawInto(ctx, W, H);
+      /* THE CHIP'S BACKDROP BLUR, DONE HERE because it cannot be done there.
+         The pill is 75% over footage, and the design defocuses what shows
+         through rather than merely dimming it — but a backdrop-filter can
+         only blur what its own document painted behind it, and the footage
+         is not in that document: stageSVG hides bgvid and bgimg, and the
+         video is composited HERE, underneath the SVG that is about to go on
+         top. Measured before this fix, forcing the chip's filter off changed
+         an exported frame by a mean of only 5.6 levels — that residue is the
+         filter acting on the bar's own scrim inside the SVG, not on the
+         plate — and against a 20px striped plate the stripe contrast under
+         the pill read 26.3 unfiltered against 21.9 filtered, where a 10px
+         blur should have flattened it.
+         So the region the pill covers is blurred on the CANVAS, in the one
+         gap where the footage is down and the stage is not yet over it.
+         The preview needs none of this: there the video is a real element
+         behind a real backdrop-filter, and it blurs correctly, moving or
+         still — checked with motion blur both on and off, since a filter on
+         #world makes it a backdrop root and that could have broken it.
+         Only where there IS footage: a transparent export has no backdrop in
+         the file at all, and on the plain white card there is nothing to
+         defocus. Back: delete this call. */
+      if (!keepAlpha) chipBackdropInto(ctx, W, H);
       ctx.drawImage(img, 0, 0, W, H);
     }
   }
