@@ -2007,6 +2007,10 @@
     <button id="pexport">Export PNG Sequence</button>
     <span class="why" id="gexportwhy"><button id="gexport">Export GIF</button></span>
     <button id="mexport">Export MP4</button>
+    <!-- hidden until there is something to cancel: a control that does
+         nothing is worse than no control, and this one is only ever
+         meaningful for the length of a run -->
+    <button id="xcancel" hidden>Cancel Export</button>
     <span id="gstat"></span>
     <!-- which build this is. The copy running in AI Studio updates only when
          the repo is re-imported, so for ten rounds "is that copy current"
@@ -4960,6 +4964,46 @@ function muxMP4(samples, syncList, W, H, timescale, delta, avcC){
 }
 
 const $gs = document.getElementById("gstat");
+/* ── cancelling an export ────────────────────────────────────────────────
+   Every export is a frame loop that yields to the event loop once a frame
+   (`setTimeout(r, 0)`), which is the only reason a button can be clicked at
+   all while one runs — and it is therefore also the only place a cancel can
+   be noticed. So the loops ASK once a frame rather than the button trying to
+   interrupt them.
+   A Symbol rather than an Error: it rides the same `throw` the loops already
+   have, and it can never be mistaken for a real failure — thrown as an Error
+   it would have been reported as "failed:", which is exactly the wrong thing
+   to tell someone who pressed Cancel. */
+const EXPORT_CANCELLED = Symbol("export cancelled");
+let cancelWanted = false;
+const bailIfCancelled = () => { if (cancelWanted) throw EXPORT_CANCELLED; };
+/* All four handlers report through this rather than each writing the string
+   themselves, so a cancel cannot come out as a failure in one of them and
+   not the others. */
+function exportEnded(e){
+  $gs.textContent = e === EXPORT_CANCELLED
+    ? "cancelled"
+    : "failed: " + (e && e.message ? e.message : e);
+}
+/* `busy` and the button are one state, set in one place. A run always starts
+   uncancelled, so a Cancel pressed too late — after the last frame, while the
+   file is being packed — cannot carry into the next run. */
+const $xcancel = document.getElementById("xcancel");
+function exportBusy(on){
+  busy = on;
+  cancelWanted = false;
+  $xcancel.hidden = !on;
+  $xcancel.textContent = "Cancel Export";
+}
+$xcancel.onclick = () => {
+  if (!busy) return;
+  cancelWanted = true;
+  /* said twice on purpose: the button stops inviting a second press, and the
+     status line is where the frame counter has been reporting, so that is
+     where the eye already is. The loop cannot answer until its next frame. */
+  $xcancel.textContent = "Cancelling\u2026";
+  $gs.textContent = "cancelling\u2026";
+};
 document.getElementById("build").textContent = "build " + BUILD;
 
 /* ── the MOV writes STRAIGHT, and only straight ──────────────────────────
@@ -5022,7 +5066,7 @@ document.getElementById("gexport").onclick = async () => {
   const step = FPS / rate;
   const segA = segStart();                    // the chosen half
   const n = Math.ceil((segEnd() - segA) / step);
-  busy = true;
+  exportBusy(true);
   const wasHold = hold;
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
@@ -5045,6 +5089,7 @@ document.getElementById("gexport").onclick = async () => {
        export is — 400k colours is far more than 256 buckets need.        */
     const hist = new Hist();
     for (let k = 0; k < n; k++){
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
@@ -5059,6 +5104,7 @@ document.getElementById("gexport").onclick = async () => {
     /* the fallback delay only matters if a frame is written without one */
     const gif = new GifWriter(W, H, pal, delayAt(0));   /* opaque, by request */
     for (let k = 0; k < n; k++){
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
@@ -5082,9 +5128,9 @@ document.getElementById("gexport").onclick = async () => {
                     + `${(cs / 100).toFixed(2)}s · ${(out.length/1048576).toFixed(1)} MB`
                     + (fps > 100 / GIF_MIN_CS ? ` · capped from ${fps}` : "");
   } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+    exportEnded(e);
   } finally {
-    hold = wasHold; busy = false;
+    hold = wasHold; exportBusy(false);
     if (hold === null) window.play();
   }
 };
@@ -5134,7 +5180,7 @@ document.getElementById("mexport").onclick = async () => {
     $gs.textContent = "no WebCodecs in this browser";
     return;
   }
-  busy = true;
+  exportBusy(true);
   const W = +document.getElementById("gw").value;
   const H = Math.round(W * 1080 / 1920);      // even at every offered width
   const fps = +document.getElementById("gfps").value;
@@ -5145,11 +5191,15 @@ document.getElementById("mexport").onclick = async () => {
   const ctx = cvs.getContext("2d", { willReadFrequently: false });
   const samples = [], sync = [];
   let avcC = null, failed = null;
+  /* Hoisted out of the try so the finally can reach it. It was declared
+     inside, and enc.close() only ran on the success path — so a cancel, or
+     any throw at all, left a configured VideoEncoder open. */
+  let enc = null;
   try {
     /* 90000 is the usual video timescale and divides all three offered rates
        exactly — 3750, 7500, 11250 ticks per frame                          */
     const timescale = 90000, delta = Math.round(timescale / fps);
-    const enc = new VideoEncoder({
+    enc = new VideoEncoder({
       output: (chunk, meta) => {
         if (!avcC && meta && meta.decoderConfig && meta.decoderConfig.description)
           avcC = new Uint8Array(meta.decoderConfig.description);
@@ -5181,6 +5231,7 @@ document.getElementById("mexport").onclick = async () => {
     const segA = segStart(), segN = Math.ceil((segEnd() - segA) / step);
     for (let k = 0; k < segN; k++){
       if (failed) throw failed;
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);          // exact frame, not wherever it had played to
@@ -5196,7 +5247,7 @@ document.getElementById("mexport").onclick = async () => {
     }
     $gs.textContent = "encoding…";
     await enc.flush();
-    enc.close();
+    enc.close(); enc = null;          // closed cleanly; nothing for the finally
     if (failed) throw failed;
     if (!avcC) throw new Error("no avcC from the encoder");
     const mp4 = muxMP4(samples, sync, W, H, timescale, delta, avcC);
@@ -5208,9 +5259,13 @@ document.getElementById("mexport").onclick = async () => {
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     $gs.textContent = `${samples.length} frames · ${(mp4.length/1048576).toFixed(1)} MB`;
   } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+    exportEnded(e);
   } finally {
-    hold = wasHold; busy = false;
+    /* whatever happened — finished, cancelled or thrown — the encoder does not
+       outlive the run. close() on an already-closed one throws, hence the null
+       above and the guard here. */
+    if (enc){ try { enc.close(); } catch (_){} enc = null; }
+    hold = wasHold; exportBusy(false);
     if (hold === null) window.play();
   }
 };
@@ -5916,7 +5971,7 @@ document.getElementById("vexport").onclick = async () => {
   const step = FPS / fps;
   const segA = segStart();                    // the chosen half
   const n = Math.ceil((segEnd() - segA) / step);
-  busy = true;
+  exportBusy(true);
   const wasHold = hold;
   /* stale per-group opacity caches can swallow DOM writes on the first
      exported frame — reset so every fade recomputes from scratch */
@@ -5942,6 +5997,7 @@ document.getElementById("vexport").onclick = async () => {
   let qUsed = 0;
   try {
     for (let k = 0; k < n; k++){
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
@@ -5994,9 +6050,9 @@ document.getElementById("vexport").onclick = async () => {
          : " · opaque, reads the same everywhere")
       + (qUsed > PR_QSCALE ? ` · re-encoded at q${qUsed} for codeword width` : "");
   } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+    exportEnded(e);
   } finally {
-    hold = wasHold; busy = false;
+    hold = wasHold; exportBusy(false);
     if (hold === null) window.play();
   }
 };
@@ -6016,7 +6072,7 @@ document.getElementById("pexport").onclick = async () => {
   const step = FPS / fps;
   const segA = segStart();
   const n = Math.ceil((segEnd() - segA) / step);
-  busy = true;
+  exportBusy(true);
   const wasHold = hold;
   const cvs = document.createElement("canvas");
   cvs.width = W; cvs.height = H;
@@ -6025,6 +6081,7 @@ document.getElementById("pexport").onclick = async () => {
   let bytes = 0;
   try {
     for (let k = 0; k < n; k++){
+      bailIfCancelled();
       hold = (segA + k * step) / FPS;
       render(hold);
       await bgSeek(hold);
@@ -6049,9 +6106,9 @@ document.getElementById("pexport").onclick = async () => {
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     $gs.textContent = `${n} PNGs · ${(zip.length / 1048576).toFixed(1)} MB`;
   } catch (e){
-    $gs.textContent = "failed: " + (e && e.message ? e.message : e);
+    exportEnded(e);
   } finally {
-    hold = wasHold; busy = false;
+    hold = wasHold; exportBusy(false);
     if (hold === null) window.play();
   }
 };
