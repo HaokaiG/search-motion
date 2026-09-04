@@ -20,7 +20,14 @@
   :root{
     /* ---- every value below was measured off the source footage ---- */
     --blue:#3186FF; --red:#FC413D; --yellow:#FEC700; --green:#00AF57;
-    --ink:#111; --bar-border:#ebebeb; --chip:#f4f6f7; --chip2:#f1f2f6;
+    --ink:#111; --bar-border:#ebebeb; --chip:#f4f6f7;
+    /* The AI Mode chip and the chat bubble it becomes are ONE grey, by
+       request, and they share it as a variable rather than as two copies of
+       a number so they cannot drift apart. Split into channels because the
+       chip needs it with an alpha — rgba() cannot take a hex — and --chip2
+       is rebuilt from the same channels so its own consumer is unchanged.
+       Back: --chip2:#f1f2f6 and the chip's own #EFF1F2. */
+    --chip2-rgb:241,242,246; --chip2:rgb(var(--chip2-rgb));
     --nav-ink:#535353;
     /* --rule is the colour the divider RESOLVES TO on a white card, and is
        kept as the record of that measurement. Nothing reads it any more:
@@ -512,7 +519,7 @@
      blue arrives and the alpha starts to matter. The has-bg / has-alpha rule
      below overrides only the DEFAULT alpha, not this construction. */
   .aichip{position:absolute;left:2375px;top:459px;width:432.8px;height:158px;
-          background:rgba(245,248,255,calc(var(--chip-a0) * var(--chip-k)));
+          background:rgba(var(--chip2-rgb),calc(var(--chip-a0) * var(--chip-k)));
           border-radius:79px;
           /* No shadow. Chip.svg draws the pill as two flat rects with no
              filter and nothing under them, so the drop shadow this used to
@@ -561,7 +568,7 @@
      in size and a translation, which the box already normalises. */
   .aichip svg.spark{width:69.8px;height:69.8px;flex:none;
                     transform:translateY(-3.44px);
-                    color:var(--chip-ink,#0B57D0)}
+                    color:var(--chip-ink,#1F1F1F)}
   /* flex:none + pre, or the letter-spacing correction lets flex shrink and
      wrap the label once the chip scales up through the cut               */
   /* 60.4, fitted to the file's text ink: 226.0 wide at 60px and 229.8 at 61,
@@ -571,7 +578,7 @@
      own cap rather than the drawn ink argues for 62.4, and that is 3% wide
      and pushes the text past where the file ends it. */
   .aichip b{flex:none;white-space:pre;font-size:60.4px;font-weight:400;
-            line-height:1;color:var(--chip-ink,#0B57D0);transform:translateY(2px)}
+            line-height:1;color:var(--chip-ink,#1F1F1F);transform:translateY(2px)}
 
   /* ============ ACT 2 — the AI Mode answer ============ */
   /* The card is white at full strength unless something sets --a2bg, which
@@ -2515,11 +2522,35 @@ const PRESS = [[127, 1.00], [128, 0.95], [129, 0.91], [130, 0.91],
 /* The bubble's base colour and the three samples the clip gives down its face
    at the press, kept as numbers because the fill is now MIXED rather than
    layered — see where the background is written. CHIP_RGB is --chip. */
-/* #F5F8FF, the new chip file's pill. It stacks two rects — #F4F6F7 then
-   #F5F8FF on top and opaque — so the second is the one that shows, and the
-   first is the old fill left underneath. Back: [244, 246, 247]. */
-const CHIP_RGB  = [245, 248, 255];
-const CHIP_BLUE = [[51, 115, 244], [64, 115, 240], [88, 117, 209]];
+/* THE CHIP'S GREY IS THE CHAT BUBBLE'S GREY, by request — --chip2, which
+   .qchip already wears, so the pill and the bubble it becomes are one colour
+   held in one place. Read off the stylesheet rather than written again here:
+   this value is what the blue is mixed FROM at the press, so a copy that
+   drifted would show as a wrong starting colour halfway through the fill
+   rather than as a wrong resting pill, which is the harder kind to spot.
+   The literal is a fallback only, for the case where the property cannot be
+   read at all.
+   It was #EFF1F2 off AIM Chip.svg for a moment, and #F5F8FF (Chip.svg's
+   blue-white) before that. Back: [239, 241, 242] with an explicit rgba in
+   the .aichip rule. */
+const CHIP_RGB = (() => {
+  const v = getComputedStyle(document.documentElement)
+              .getPropertyValue("--chip2-rgb").trim();
+  const n = v.split(",").map(x => +x.trim());
+  return n.length === 3 && n.every(Number.isFinite) ? n : [241, 242, 246];
+})();
+/* ONE BLUE, NOT THREE, by request. The clip has a shallow vertical ramp —
+   sampled down its face it reads (51,115,244) a fifth of the way down,
+   (64,115,240) at the middle and (88,117,209) at four fifths, cooler at the
+   top — and it is that bottom stop, eleven points greener and thirty-five
+   duller in blue, that reads as a cast rather than as shading. The face is
+   the top sample throughout now, which is the one the reference's own solid
+   blue is quoted at everywhere else in this file.
+   This is a DEPARTURE from the measurement, not a correction of it: the ramp
+   is really there in the clip. Back: the three stops below, drawn as
+   `linear-gradient(a, b 55%, c)`. */
+const CHIP_BLUE = [51, 115, 244];
+const CHIP_BLUE_RAMP = [[51, 115, 244], [64, 115, 240], [88, 117, 209]];
 const PRESS_F0 = PRESS[0][0];
 /* 8 frames, not the measured second. At FPS the fade cannot finish inside
    act 1 — it is still at 0.13 when the cut comes at 136 — so the halo sat on
@@ -3882,16 +3913,16 @@ function render(t){
   const stop = c => c.map((v, i) =>
         Math.round(CHIP_RGB[i] + (v - CHIP_RGB[i]) * litK)).join(",");
   chip.style.background = (litK > 0.002 || bubA < 0.999)
-    ? `linear-gradient(rgba(${stop(CHIP_BLUE[0])},${bubA.toFixed(3)}),`
-      + `rgba(${stop(CHIP_BLUE[1])},${bubA.toFixed(3)}) 55%,`
-      + `rgba(${stop(CHIP_BLUE[2])},${bubA.toFixed(3)}))`
+    ? `rgba(${stop(CHIP_BLUE)},${bubA.toFixed(3)})`
     : "";
-  /* The ink starts at the new chip's own blue rather than a near-black, so
-     the ramp is a three-channel lerp now instead of one grey number: from
-     #0B57D0 (11,87,208) at rest to white as the pill fills. The old form
-     wrote the same value into all three channels, which only worked because
-     the resting ink was grey. Back: `31 + 224 * litK` on all three. */
-  const INK0 = [11, 87, 208];
+  /* #1F1F1F off AIM Chip.svg — the label and the spark are near-black again,
+     by request, where Chip.svg had them at #0B57D0. The three-channel lerp
+     stays even though the ink is grey once more and all three channels now
+     carry the same number: it costs nothing, it is what makes the ramp
+     independent of what colour the ink happens to be, and reverting it to the
+     single `31 + 224 * litK` would only have to be undone again next time.
+     Back: [11, 87, 208], with #0B57D0 as the two CSS fallbacks. */
+  const INK0 = [31, 31, 31];
   chip.style.setProperty("--chip-ink",
     litK > 0.002
       ? "rgb(" + INK0.map(c => Math.round(c + (255 - c) * litK)).join(",") + ")"
